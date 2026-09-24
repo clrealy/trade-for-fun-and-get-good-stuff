@@ -519,7 +519,7 @@ function drawEnt(id, d, T) {
   if (w === 'k') {
     const sw = d.sw > 0 ? Math.sin((1 - d.sw / .2) * Math.PI) * 1.2 : 0;
     ctx.save(); ctx.rotate(.6 - sw); drawKnifeLocal(18, 0, 0, ITEM[r.knife] || ITEM.k0, T); ctx.restore();
-  } else if (w === 'g') drawGunLocal(14, 6, itemColor(ITEM[r.gun] || ITEM.g0, T));
+  } else if (w === 'g') { const gi = ITEM[r.gun] || ITEM.g0; drawGunLocal(14, 6, itemColor(gi, T), gi.long); }
   ctx.fillStyle = shade(r.color, -.3); ctx.beginPath(); ctx.ellipse(0, 0, 11, 17, 0, 0, 7); ctx.fill();
   ctx.fillStyle = '#f2c89b'; ctx.beginPath(); ctx.arc(4, -14, 5, 0, 7); ctx.arc(4, 14, 5, 0, 7); ctx.fill();
   ctx.fillStyle = '#f7d154'; ctx.beginPath(); ctx.arc(0, 0, 11, 0, 7); ctx.fill();
@@ -536,9 +536,19 @@ function drawKnifeLocal(x, y, a, skin, T) {
   ctx.restore();
 }
 function drawKnife(x, y, a, skin, T) { ctx.save(); ctx.translate(x, y); ctx.rotate(a); drawKnifeLocal(-8, 0, 0, skin, T); ctx.restore(); }
-function drawGunLocal(x, y, col) {
+function drawGunLocal(x, y, col, long) {
+  const dark = shade(col.startsWith('#') ? col : '#888888', -.4);
+  if (long) {
+    // sniper: long barrel, stock and a scope on top
+    ctx.fillStyle = dark; ctx.fillRect(x - 6, y - 4, 12, 8);
+    ctx.fillStyle = col; ctx.fillRect(x, y - 3, 44, 6);
+    ctx.fillStyle = '#222'; ctx.fillRect(x + 10, y - 7, 16, 4);
+    ctx.fillStyle = '#9ee8ff'; ctx.fillRect(x + 24, y - 7, 2, 4);
+    ctx.fillStyle = dark; ctx.fillRect(x + 42, y - 2, 4, 4); ctx.fillRect(x + 4, y + 3, 5, 7);
+    return;
+  }
   ctx.fillStyle = col; ctx.fillRect(x, y - 3, 20, 6);
-  ctx.fillStyle = shade(col.startsWith('#') ? col : '#888888', -.4); ctx.fillRect(x, y - 3, 6, 10);
+  ctx.fillStyle = dark; ctx.fillRect(x, y - 3, 6, 10);
 }
 
 // ===================== Chat =====================

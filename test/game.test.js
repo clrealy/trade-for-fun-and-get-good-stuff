@@ -125,3 +125,28 @@ test('/r brings you back', () => {
   assert.match(Sim.cheat(R, me.id, '/r'), /back/);
   assert.ok(me.alive); assert.ok(!R.bodies.some(b => b.id === me.id));
 });
+
+test('ginger scopes shoot farther', () => {
+  const R = Sim.createRound({ players: [{ pid: 'a', name: 'a', gun: 'g14' }, { pid: 'b', name: 'b', gun: 'g1' }], fillBots: false });
+  R.phase = 'play';
+  for (const e of R.ents) { e.role = 'sheriff'; e.hasGun = true; Sim.setInput(R, e.id, { x: e.x, y: e.y, a: 0, atk: true }); }
+  Sim.step(R, 1 / 30);
+  const lives = R.proj.map(p => [p.owner.gun, p.life]);
+  const g = lives.find(l => l[0] === 'g14'), n = lives.find(l => l[0] === 'g1');
+  if (g && n) assert.ok(g[1] > n[1] * 1.8);
+  assert.ok(Sim.ITEM.g14.long && Sim.ITEM.g16.long);
+});
+
+test('/god stops you from dying', () => {
+  const R = Sim.createRound({ players: [{ pid: 'a', name: 'a' }, { pid: 'b', name: 'b' }], fillBots: false });
+  R.phase = 'play';
+  const [me, m] = R.ents;
+  me.role = 'innocent'; me.hasGun = false; m.role = 'murderer'; m.hasGun = false; R.murderer = m;
+  const stab = () => { m.x = me.x + 20; m.y = me.y; m.atkCd = 0; Sim.setInput(R, m.id, { x: m.x, y: m.y, a: Math.PI, atk: true }); Sim.setInput(R, me.id, { x: me.x, y: me.y, a: 0 }); Sim.step(R, 1 / 30); };
+  assert.match(Sim.cheat(R, me.id, '/god'), /on/);
+  for (let i = 0; i < 10; i++) stab();
+  assert.ok(me.alive, 'god mode player survived');
+  assert.match(Sim.cheat(R, me.id, '/god'), /off/);
+  stab();
+  assert.ok(!me.alive, 'without god mode the stab lands');
+});

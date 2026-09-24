@@ -61,8 +61,8 @@
     I('g15', 'gun', 'Bruh Blaster', 'Ancient', '#ff69b4', 1, { val: 69420, exclusive: true, noCooldown: true }),
     I('k21', 'knife', 'Chroma Sussy Slasher', 'Chroma', 'chroma', 1, { val: 69420, exclusive: true, noCooldown: true }),
     I('g17', 'gun', 'Chroma Bruh Blaster', 'Chroma', 'chroma', 1, { val: 69420, exclusive: true, noCooldown: true }),
-    I('g16', 'gun', 'Chroma Ginger Scope', 'Chroma', 'chroma', 1, { val: 1e48, exclusive: true, noCooldown: true }),
-    I('g14', 'gun', 'Ginger Scope', 'Ancient', '#c9743a', 1, { val: 10000000000000, exclusive: true, noCooldown: true }),
+    I('g16', 'gun', 'Chroma Ginger Scope', 'Chroma', 'chroma', 1, { val: 1e48, exclusive: true, noCooldown: true, long: true }),
+    I('g14', 'gun', 'Ginger Scope', 'Ancient', '#c9743a', 1, { val: 10000000000000, exclusive: true, noCooldown: true, long: true }),
   ];
   const ITEM = Object.fromEntries(ITEMS.map(i => [i.id, i]));
   const CRATES = [
@@ -375,8 +375,9 @@
     if (!e.hasGun || !e.alive || e.atkCd > 0) return;
     e.weaponOut = true; e.atkCd = fast(e.gun) ? .12 : 2.2;
     const sp = 1600;
-    R.proj.push({ type: 'bullet', x: e.x + Math.cos(e.ang) * 22, y: e.y + Math.sin(e.ang) * 22, vx: Math.cos(e.ang) * sp, vy: Math.sin(e.ang) * sp, owner: e, life: .55 });
-    emit(R, { t: 'fx', k: 'flash', x: e.x + Math.cos(e.ang) * 28, y: e.y + Math.sin(e.ang) * 28 });
+    const muzzle = ITEM[e.gun] && ITEM[e.gun].long ? 52 : 22;
+    R.proj.push({ type: 'bullet', x: e.x + Math.cos(e.ang) * muzzle, y: e.y + Math.sin(e.ang) * muzzle, vx: Math.cos(e.ang) * sp, vy: Math.sin(e.ang) * sp, owner: e, life: ITEM[e.gun] && ITEM[e.gun].long ? 1.1 : .55 }); // scoped guns shoot twice as far
+    emit(R, { t: 'fx', k: 'flash', x: e.x + Math.cos(e.ang) * (muzzle + 6), y: e.y + Math.sin(e.ang) * (muzzle + 6) });
     emit(R, { t: 'sfx', s: 'shoot', x: e.x, y: e.y });
   }
   function dropGun(R, x, y) {
@@ -385,7 +386,7 @@
   }
   function addBody(R, e) { R.bodies.push({ id: e.id, x: Math.round(e.x), y: Math.round(e.y), a: +e.ang.toFixed(2) }); }
   function kill(R, v, k) {
-    if (!v.alive) return;
+    if (!v.alive || v.god) return;
     v.alive = false; v.weaponOut = false;
     addBody(R, v);
     emit(R, { t: 'fx', k: 'blood', x: v.x, y: v.y });
@@ -396,7 +397,7 @@
       if (k.role === 'murderer') {
         if (!k.human) { k.ai.grace = rand(3, 8); k.ai.target = null; } // lay low after a kill
         for (const b of R.ents) if (!b.human && b.alive && b !== k && dist(b, k) < 420 && los(R.M, b.x, b.y, k.x, k.y)) { b.ai.know = k; b.ai.lastSeen = { x: k.x, y: k.y }; }
-      } else if (v.role !== 'murderer' && k.alive) {
+      } else if (v.role !== 'murderer' && k.alive && !k.god) {
         // sheriff/hero shot an innocent → they die too
         emit(R, { t: 'badShot', name: k.name, id: k.id });
         k.alive = false; k.weaponOut = false;
@@ -575,7 +576,7 @@
   }
 
   // ===================== Cheats (practice, or admins online) =====================
-  const CHEATS = { sheffeme: 'Get the gun', murdme: 'Become the murderer', speed: 'Run faster (type again to stop)', whoisit: 'See who the murderer is', r: 'Come back to life' };
+  const CHEATS = { sheffeme: 'Get the gun', murdme: 'Become the murderer', speed: 'Run faster (type again to stop)', whoisit: 'See who the murderer is', r: 'Come back to life', god: 'Nothing can kill you (type again to stop)' };
   function cheat(R, id, cmd) {
     const e = entById(R, id);
     cmd = String(cmd || '').toLowerCase().replace(/^\//, '').trim();
@@ -628,6 +629,7 @@
       e.speed = e.speed > base ? base : Math.round(base * 1.6);
       return e.speed > base ? 'Speed boost on 💨' : 'Speed boost off';
     }
+    if (cmd === 'god') { e.god = !e.god; return e.god ? 'God mode on 😇 Nothing can kill you' : 'God mode off'; }
     if (cmd === 'whoisit') return `The murderer is ${R.murderer.id === e.id ? 'YOU lol' : R.murderer.name} 👀`;
   }
 
