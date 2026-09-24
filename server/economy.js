@@ -42,10 +42,14 @@ function redeem(p, rawCode) {
   if (c.expires && Date.now() > Date.parse(c.expires + 'T23:59:59Z')) throw new Error('That code expired');
   p.redeemed = p.redeemed || [];
   if (p.redeemed.includes(code)) throw new Error('You already used that code');
-  const pool = c.reward.item ? [Sim.ITEM[c.reward.item]] : Sim.ITEMS.filter(i => !i.nodrop && i.r === c.reward.rarity);
-  const inst = addItem(p, pool[Math.floor(Math.random() * pool.length)].id);
+  let out;
+  if (c.reward.coins) { p.coins += c.reward.coins; out = { coins: c.reward.coins }; }
+  else {
+    const pool = c.reward.item ? [Sim.ITEM[c.reward.item]] : Sim.ITEMS.filter(i => !i.nodrop && i.r === c.reward.rarity);
+    out = { inst: addItem(p, pool[Math.floor(Math.random() * pool.length)].id) };
+  }
   p.redeemed.push(code);
-  return inst;
+  return out;
 }
 function equip(p, u) {
   if (u === null || u === undefined) return;

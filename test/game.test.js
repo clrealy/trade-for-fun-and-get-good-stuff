@@ -53,8 +53,10 @@ test('trades validate ownership and swap items', () => {
 
 test('codes give their reward once per account', () => {
   const p = defaultProfile('t');
-  const inst = Eco.redeem(p, ' godly26 ');
+  const { inst } = Eco.redeem(p, ' godly26 ');
   assert.strictEqual(Sim.ITEM[inst.id].r, 'Godly');
+  const c0 = p.coins; assert.deepStrictEqual(Eco.redeem(p, 'freecash'), { coins: 500 }); assert.strictEqual(p.coins, c0 + 500);
+  assert.strictEqual(Eco.redeem(p, 'CHROMA4LIFE').inst.id, 'g13');
   assert.throws(() => Eco.redeem(p, 'GODLY26'), /already used/);
   assert.throws(() => Eco.redeem(p, 'FAKECODE'), /doesn't exist/);
   assert.throws(() => Eco.redeem(p, '__proto__'), /doesn't exist/);

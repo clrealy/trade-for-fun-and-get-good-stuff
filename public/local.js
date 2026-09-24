@@ -24,7 +24,7 @@
       try {
         switch (m.t) {
           case 'crate': { const i = mutate(p => Eco.openCrate(p, m.id)); emit({ t: 'unboxed', item: i.id, crate: m.id }); break; }
-          case 'redeem': { const i = mutate(p => Eco.redeem(p, m.code)); emit({ t: 'unboxed', item: i.id, crate: 'mystery' }); break; }
+          case 'redeem': { const r = mutate(p => Eco.redeem(p, m.code)); emit(r.inst ? { t: 'unboxed', item: r.inst.id, crate: 'mystery' } : { t: 'codeCoins', coins: r.coins }); break; }
           case 'equip': mutate(p => Eco.equip(p, m.u)); break;
           case 'traders': if (m.refresh) traders = Eco.genTraders(); emit({ t: 'traders', traders: Eco.tradersView(traders) }); break;
           case 'trade': {
