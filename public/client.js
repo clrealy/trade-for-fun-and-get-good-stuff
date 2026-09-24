@@ -564,7 +564,7 @@ function itemCard(it, opts = {}) {
   const rc = rarColor(it.r);
   return `<div class="item ${it.r === 'Chroma' ? 'chroma' : ''} ${opts.eq ? 'eq' : ''} ${opts.sel ? 'sel' : ''}" style="border-color:${rc}" ${opts.attr || ''}>
     <div class="ic" style="${it.col === 'chroma' ? '' : `text-shadow:0 0 12px ${it.col}`}">${it.type === 'knife' ? '🔪' : '🔫'}</div>
-    <div class="nm">${esc(it.name)}</div><div class="rr" style="color:${rc}">${it.r}</div>${opts.noval ? '' : `<div class="vv">value ${it.val.toLocaleString()}</div>`}</div>`;
+    <div class="nm">${esc(it.name)}</div><div class="rr" style="color:${rc}">${it.r}</div>${it.noCooldown ? '<div class="fastTag">⚡ No cooldown</div>' : ''}${opts.noval ? '' : `<div class="vv">value ${it.val.toLocaleString()}</div>`}</div>`;
 }
 let curTab = 'play';
 document.querySelectorAll('.tab').forEach(b => b.onclick = () => {

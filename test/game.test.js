@@ -64,3 +64,13 @@ test('codes give their reward once per account', () => {
   assert.throws(() => Eco.redeem(p, 'FAKECODE'), /doesn't exist/);
   assert.throws(() => Eco.redeem(p, '__proto__'), /doesn't exist/);
 });
+
+test('no-cooldown skins skip the reload timer', () => {
+  const R = Sim.createRound({ players: [{ pid: 'a', name: 'a', gun: 'g14' }, { pid: 'b', name: 'b', gun: 'g1' }], fillBots: false });
+  R.phase = 'play';
+  for (const e of R.ents) { e.role = 'sheriff'; e.hasGun = true; Sim.setInput(R, e.id, { x: e.x, y: e.y, a: 0, atk: true }); }
+  Sim.step(R, 1 / 30);
+  const [fastE, slowE] = R.ents;
+  assert.ok(fastE.atkCd < 0.2, `ginger scope cooldown ${fastE.atkCd}`);
+  assert.ok(slowE.atkCd > 2, `normal gun cooldown ${slowE.atkCd}`);
+});

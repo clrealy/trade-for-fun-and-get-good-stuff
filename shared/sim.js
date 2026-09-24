@@ -57,10 +57,10 @@
     I('g12', 'gun', 'Swirly Gun', 'Ancient', '#ff77c8'),
     I('g13', 'gun', 'Chroma Luger', 'Chroma', 'chroma', 1.1),
     // exclusive: only from codes/admin, never from crates or traders
-    I('k20', 'knife', 'Sussy Slasher', 'Ancient', '#39ff14', 1, { val: 69420, exclusive: true }),
-    I('g15', 'gun', 'Bruh Blaster', 'Ancient', '#ff69b4', 1, { val: 69420, exclusive: true }),
-    I('g16', 'gun', 'Chroma Ginger Scope', 'Chroma', 'chroma', 1, { val: 1e48, exclusive: true }),
-    I('g14', 'gun', 'Ginger Scope', 'Ancient', '#c9743a', 1, { val: 10000000000000, exclusive: true }),
+    I('k20', 'knife', 'Sussy Slasher', 'Ancient', '#39ff14', 1, { val: 69420, exclusive: true, noCooldown: true }),
+    I('g15', 'gun', 'Bruh Blaster', 'Ancient', '#ff69b4', 1, { val: 69420, exclusive: true, noCooldown: true }),
+    I('g16', 'gun', 'Chroma Ginger Scope', 'Chroma', 'chroma', 1, { val: 1e48, exclusive: true, noCooldown: true }),
+    I('g14', 'gun', 'Ginger Scope', 'Ancient', '#c9743a', 1, { val: 10000000000000, exclusive: true, noCooldown: true }),
   ];
   const ITEM = Object.fromEntries(ITEMS.map(i => [i.id, i]));
   const CRATES = [
@@ -351,9 +351,11 @@
   const gunHolder = R => R.ents.find(e => e.alive && e.hasGun);
 
   // ---------- combat ----------
+  // skins with noCooldown attack almost nonstop (a tiny gap stops one shot per server tick)
+  const fast = id => !!(ITEM[id] && ITEM[id].noCooldown);
   function tryStab(R, e) {
     if (e.role !== 'murderer' || !e.alive || e.atkCd > 0) return;
-    e.weaponOut = true; e.atkCd = .5; e.swing = .2;
+    e.weaponOut = true; e.atkCd = fast(e.knife) ? .15 : .5; e.swing = .15;
     emit(R, { t: 'sfx', s: 'stab', x: e.x, y: e.y });
     for (const o of R.ents) {
       if (o === e || !o.alive) continue;
@@ -362,14 +364,14 @@
   }
   function tryThrow(R, e) {
     if (e.role !== 'murderer' || !e.alive || e.throwCd > 0) return;
-    e.weaponOut = true; e.throwCd = 3; e.atkCd = .4;
+    e.weaponOut = true; e.throwCd = fast(e.knife) ? .25 : 3; e.atkCd = fast(e.knife) ? .1 : .4;
     const sp = 720;
     R.proj.push({ type: 'knife', x: e.x + Math.cos(e.ang) * 18, y: e.y + Math.sin(e.ang) * 18, vx: Math.cos(e.ang) * sp, vy: Math.sin(e.ang) * sp, owner: e, life: 1.1, skin: e.knife });
     emit(R, { t: 'sfx', s: 'throw', x: e.x, y: e.y });
   }
   function tryShoot(R, e) {
     if (!e.hasGun || !e.alive || e.atkCd > 0) return;
-    e.weaponOut = true; e.atkCd = 2.2;
+    e.weaponOut = true; e.atkCd = fast(e.gun) ? .12 : 2.2;
     const sp = 1600;
     R.proj.push({ type: 'bullet', x: e.x + Math.cos(e.ang) * 22, y: e.y + Math.sin(e.ang) * 22, vx: Math.cos(e.ang) * sp, vy: Math.sin(e.ang) * sp, owner: e, life: .55 });
     emit(R, { t: 'fx', k: 'flash', x: e.x + Math.cos(e.ang) * 28, y: e.y + Math.sin(e.ang) * 28 });
