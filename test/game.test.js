@@ -113,13 +113,13 @@ test('a round survives save and restore', () => {
   assert.ok(R2.winner);
 });
 
-test('/revive brings you back', () => {
+test('/r brings you back', () => {
   const R = Sim.createRound({ players: [{ pid: 'a', name: 'a' }] });
   R.phase = 'play';
   const me = R.ents.find(e => e.role === 'innocent');
-  assert.match(Sim.cheat(R, me.id, '/revive'), /already alive/);
+  assert.match(Sim.cheat(R, me.id, '/r'), /already alive/);
   me.alive = false; R.bodies.push({ id: me.id, x: me.x, y: me.y, a: 0 });
-  assert.match(Sim.cheat(R, me.id, '/speed'), /revive/);
-  assert.match(Sim.cheat(R, me.id, '/revive'), /back/);
+  assert.match(Sim.cheat(R, me.id, '/speed'), /Try \/r/);
+  assert.match(Sim.cheat(R, me.id, '/r'), /back/);
   assert.ok(me.alive); assert.ok(!R.bodies.some(b => b.id === me.id));
 });
