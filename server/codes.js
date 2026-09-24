@@ -7,6 +7,7 @@ module.exports = {
   GINGERSCOPE: { reward: { item: 'g14' }, expires: null },      // Ginger Scope, value 10 trillion
   MEMESET: { reward: { items: ['k20', 'g15'] }, expires: null }, // Sussy Slasher + Bruh Blaster, 69,420 each
   CGINGERSCOPE: { reward: { item: 'g16' }, expires: null },     // Chroma Ginger Scope, value 1e48
+  CMEMESET: { reward: { items: ['k21', 'g17'] }, expires: null }, // Chroma Sussy Slasher + Chroma Bruh Blaster
   GODLY26: { reward: { rarity: 'Godly' }, expires: null },
   CHROMA4LIFE: { reward: { item: 'g13' }, expires: null },       // Chroma Luger
   ANCIENTVIBES: { reward: { rarity: 'Ancient' }, expires: null },

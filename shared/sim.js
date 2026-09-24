@@ -59,6 +59,8 @@
     // exclusive: only from codes/admin, never from crates or traders
     I('k20', 'knife', 'Sussy Slasher', 'Ancient', '#39ff14', 1, { val: 69420, exclusive: true, noCooldown: true }),
     I('g15', 'gun', 'Bruh Blaster', 'Ancient', '#ff69b4', 1, { val: 69420, exclusive: true, noCooldown: true }),
+    I('k21', 'knife', 'Chroma Sussy Slasher', 'Chroma', 'chroma', 1, { val: 69420, exclusive: true, noCooldown: true }),
+    I('g17', 'gun', 'Chroma Bruh Blaster', 'Chroma', 'chroma', 1, { val: 69420, exclusive: true, noCooldown: true }),
     I('g16', 'gun', 'Chroma Ginger Scope', 'Chroma', 'chroma', 1, { val: 1e48, exclusive: true, noCooldown: true }),
     I('g14', 'gun', 'Ginger Scope', 'Ancient', '#c9743a', 1, { val: 10000000000000, exclusive: true, noCooldown: true }),
   ];
