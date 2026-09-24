@@ -573,14 +573,23 @@
   }
 
   // ===================== Cheats (practice, or admins online) =====================
-  const CHEATS = { sheffeme: 'Get the gun', murdme: 'Become the murderer', speed: 'Run faster (type again to stop)', whoisit: 'See who the murderer is' };
+  const CHEATS = { sheffeme: 'Get the gun', murdme: 'Become the murderer', speed: 'Run faster (type again to stop)', whoisit: 'See who the murderer is', revive: 'Come back to life' };
   function cheat(R, id, cmd) {
     const e = entById(R, id);
     cmd = String(cmd || '').toLowerCase().replace(/^\//, '').trim();
     if (cmd === 'help') return 'Cheats: ' + Object.entries(CHEATS).map(([k, v]) => `/${k} (${v})`).join(', ');
     if (!Object.hasOwn(CHEATS, cmd)) return `Unknown command /${cmd}. Type /help`;
-    if (!e || !e.alive) return 'You need to be alive for that';
+    if (!e) return 'You\'re not in this round';
     if (R.phase === 'end') return 'The round is over';
+    if (cmd === 'revive') {
+      if (e.alive) return 'You\'re already alive lol';
+      e.alive = true; e.weaponOut = false; e.atkCd = 0; e.throwCd = 0;
+      if (!e.hasGun && (e.role === 'sheriff' || e.role === 'hero')) e.role = 'innocent';
+      R.bodies = R.bodies.filter(b => b.id !== e.id);
+      emit(R, { t: 'sfx', s: 'gun', x: e.x, y: e.y });
+      return 'You\'re back 😎 ' + (e.role === 'innocent' ? 'You\'re innocent now, the gun stayed where it dropped.' : '');
+    }
+    if (!e.alive) return 'You need to be alive for that. Try /revive';
     if (cmd === 'sheffeme') {
       if (e.hasGun) return 'You already have the gun';
       // everyone else's gun goes bye bye (including one on the floor)
