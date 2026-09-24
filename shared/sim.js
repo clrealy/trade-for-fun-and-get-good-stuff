@@ -584,10 +584,11 @@
     if (cmd === 'r') {
       if (e.alive) return 'You\'re already alive lol';
       e.alive = true; e.weaponOut = false; e.atkCd = 0; e.throwCd = 0;
-      if (!e.hasGun && (e.role === 'sheriff' || e.role === 'hero')) e.role = 'innocent';
+      const lostGun = !e.hasGun && (e.role === 'sheriff' || e.role === 'hero');
+      if (lostGun) e.role = 'innocent';
       R.bodies = R.bodies.filter(b => b.id !== e.id);
       emit(R, { t: 'sfx', s: 'gun', x: e.x, y: e.y });
-      return 'You\'re back 😎 ' + (e.role === 'innocent' ? 'You\'re innocent now, the gun stayed where it dropped.' : '');
+      return 'You\'re back 😎' + (lostGun ? ' You\'re innocent now, the gun stayed where it dropped.' : '');
     }
     if (!e.alive) return 'You need to be alive for that. Try /r';
     if (cmd === 'sheffeme') {
