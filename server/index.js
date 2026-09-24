@@ -12,6 +12,7 @@ const PORT = +process.env.PORT || 8080;
 const ROOT = path.join(__dirname, '..');
 const TICK = 1 / 30;
 const WAIT_TIME = 12, POST_TIME = 7;
+const ADMIN_UIDS = new Set((process.env.ADMIN_UIDS || '').split(',').map(s => s.trim()).filter(Boolean));
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
 
 // ---------- auth + storage setup ----------
@@ -223,6 +224,20 @@ const HANDLERS = {
   },
   leave(c) { leaveRoom(c); sendMsg(c, { t: 'left' }); },
   in(c, m) { if (c.room && c.room.R && c.entId) Sim.setInput(c.room.R, c.entId, m); },
+  chat(c, m) {
+    const text = String(m.text || '').replace(/\s+/g, ' ').trim().slice(0, 120);
+    if (!text || !c.room) return;
+    if (text.startsWith('/')) {
+      // cheats: only admins (ADMIN_UIDS), or anyone on a local dev server
+      if (authMode !== 'dev' && !ADMIN_UIDS.has(c.uid)) throw new Error('Cheats only work in Practice');
+      if (!c.room.R || !c.entId) throw new Error('Cheats only work during a round');
+      sendMsg(c, { t: 'chat', sys: true, text: Sim.cheat(c.room.R, c.entId, text) });
+      return;
+    }
+    const l = text.toLowerCase();
+    if (BLOCKED.some(b => l.includes(b))) throw new Error('Keep the chat clean');
+    broadcast(c.room, { t: 'chat', name: c.profile.name, text });
+  },
   async crate(c, m) { const inst = await mutate(c, p => Eco.openCrate(p, m.id)); sendMsg(c, { t: 'unboxed', item: inst.id, crate: m.id }); },
   async redeem(c, m) { const r = await mutate(c, p => Eco.redeem(p, m.code)); sendMsg(c, r.inst ? { t: 'unboxed', item: r.inst.id, crate: 'mystery' } : r.all ? { t: 'codeAll', count: r.all.length } : r.items ? { t: 'codeItems', items: r.items } : { t: 'codeCoins', coins: r.coins }); },
   async equip(c, m) { await mutate(c, p => Eco.equip(p, m.u)); },

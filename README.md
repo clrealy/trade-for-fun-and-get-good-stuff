@@ -65,6 +65,12 @@ The last argument is a rarity (Common … Chroma) or an item id like `g13`. It o
 
 Players type codes in **Inventory → Add code**. Each account can use each code once. Add or remove codes in `server/codes.js` and redeploy. `GODLY26` gives a random Godly.
 
+## Chat and cheats
+
+Press **Enter** (or **/**) in a round to chat. Commands start with `/`, and `/help` lists them. `/sheffeme` gives you the gun (Murderers can't use it).
+
+Cheats always work in Practice and on a dev server. Online, only accounts listed in `ADMIN_UIDS` can use them. That's a comma-separated list of Firebase user IDs, found under **Authentication → Users**.
+
 ## Solo build
 
 `node scripts/build-standalone.js` writes `dist/standalone.html`, a single file you can open with no server. You play vs bots, and the shop, codes and trading save in your browser. It is not cheat-proof, so the online game never uses it.

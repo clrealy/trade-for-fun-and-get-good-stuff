@@ -130,6 +130,7 @@ function onMsg(m) {
     case 'unboxed': playUnbox(m.crate, m.item); break;
     case 'codeAll': unboxPending = false; SFX.win(); toast(`Code redeemed: you got all ${m.count} knives and guns 🔪🔫`, true); break;
     case 'codeItems': unboxPending = false; SFX.win(); toast(`Code redeemed: ${m.items.map(id => ITEM[id].name).join(' + ')} 🔥`, true); if (screen === 'lobby') renderLobby(); break;
+    case 'chat': addChat(m.name, m.text, m.sys); break;
     case 'codeCoins': unboxPending = false; SFX.win(); toast(`Code redeemed: +${m.coins} coins 💰`, true); break;
     case 'traders': traders = m.traders; if (screen === 'lobby') renderLobby(); break;
     case 'tradeResult':
@@ -209,7 +210,7 @@ function newView(mapIdx, roster, you, offline) {
     disp: new Map(), snap: null, snapT: 0, lp: null, fx: [], cam: { x: 0, y: 0 }, spec: null, phase: 'intro',
     me: null, endInfo: null, endShownAt: 0, reward: null, introShown: false, R: null,
   };
-  $('#msgs').innerHTML = ''; hudCache = {};
+  $('#msgs').innerHTML = ''; $('#chatLog').innerHTML = ''; closeChat(); hudCache = {};
   show('#lobby', false); show('#roomScreen', false); show('#endScreen', false); show('#hud');
   screen = 'game';
 }
@@ -535,9 +536,37 @@ function drawGunLocal(x, y, col) {
   ctx.fillStyle = shade(col.startsWith('#') ? col : '#888888', -.4); ctx.fillRect(x, y - 3, 6, 10);
 }
 
+// ===================== Chat =====================
+function addChat(name, text, sys) {
+  const d = document.createElement('div');
+  if (sys) { d.className = 'sys'; d.textContent = text; }
+  else { const b = document.createElement('b'); b.textContent = name + ': '; d.append(b, document.createTextNode(text)); }
+  const log = $('#chatLog'); log.appendChild(d);
+  while (log.children.length > 30) log.firstChild.remove();
+  log.scrollTop = log.scrollHeight;
+}
+function openChat(prefill) {
+  keys = {}; mouse.down = false;
+  show('#chatForm'); show('#chatHint', false);
+  const i = $('#chatInput'); i.value = prefill; i.focus();
+}
+function closeChat() { show('#chatForm', false); show('#chatHint'); $('#chatInput').blur(); }
+$('#chatForm').onsubmit = e => {
+  e.preventDefault();
+  const text = $('#chatInput').value.trim(); closeChat();
+  if (!text || !V) return;
+  if (V.offline) {
+    // practice: cheats run right here
+    if (text.startsWith('/')) addChat(null, Sim.cheat(V.R, V.you, text), true);
+    else addChat(P ? P.name : 'You', text);
+  } else net({ t: 'chat', text });
+};
+$('#chatInput').addEventListener('keydown', e => { if (e.key === 'Escape') closeChat(); });
+
 // ===================== Input =====================
 addEventListener('keydown', e => {
   if (e.target instanceof HTMLInputElement) return;
+  if (V && (e.key === 'Enter' || e.key === '/')) { e.preventDefault(); openChat(e.key === '/' ? '/' : ''); return; }
   keys[e.code] = true;
   if (!V || V.phase !== 'play' || !V.me || !V.me.alive) return;
   if (e.code === 'KeyQ' && V.me.role === 'murderer') thrSeq++;

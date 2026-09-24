@@ -74,3 +74,14 @@ test('no-cooldown skins skip the reload timer', () => {
   assert.ok(fastE.atkCd < 0.2, `ginger scope cooldown ${fastE.atkCd}`);
   assert.ok(slowE.atkCd > 2, `normal gun cooldown ${slowE.atkCd}`);
 });
+
+test('/sheffeme gives the gun, but not to the murderer', () => {
+  const R = Sim.createRound({ players: [{ pid: 'a', name: 'a' }] });
+  R.phase = 'play';
+  const inn = R.ents.find(e => e.role === 'innocent'), m = R.murderer;
+  assert.match(Sim.cheat(R, inn.id, '/sheffeme'), /got the gun/);
+  assert.ok(inn.hasGun); assert.strictEqual(inn.role, 'sheriff');
+  assert.match(Sim.cheat(R, m.id, '/SheffEme'), /can't/);
+  assert.ok(!m.hasGun);
+  assert.match(Sim.cheat(R, inn.id, '/nope'), /Unknown/);
+});

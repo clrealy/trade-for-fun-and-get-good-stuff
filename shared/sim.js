@@ -572,6 +572,24 @@
     if (e) { e.human = false; e.inp = null; e.speed = BOT_SPEED; e.ai.grace = rand(3, 8); }
   }
 
+  // ===================== Cheats (practice, or admins online) =====================
+  const CHEATS = { sheffeme: 'Get the gun' };
+  function cheat(R, id, cmd) {
+    const e = entById(R, id);
+    cmd = String(cmd || '').toLowerCase().replace(/^\//, '').trim();
+    if (cmd === 'help') return 'Cheats: ' + Object.entries(CHEATS).map(([k, v]) => `/${k} (${v})`).join(', ');
+    if (!Object.hasOwn(CHEATS, cmd)) return `Unknown command /${cmd}. Type /help`;
+    if (!e || !e.alive) return 'You need to be alive for that';
+    if (R.phase === 'end') return 'The round is over';
+    if (cmd === 'sheffeme') {
+      if (e.role === 'murderer') return 'Murderers can\'t take the gun 😈';
+      if (e.hasGun) return 'You already have the gun';
+      e.hasGun = true; if (e.role === 'innocent') e.role = 'sheriff';
+      emit(R, { t: 'sfx', s: 'gun', x: e.x, y: e.y });
+      return 'You got the gun 🔫 You\'re the sheriff now';
+    }
+  }
+
   // ===================== Step =====================
   function step(R, dt) {
     R.t += dt;
@@ -659,6 +677,6 @@
   return {
     RAR, RORDER, ITEMS, ITEM, CRATES, rollItem, MAPS, TILE, BAG_MAX, MAX_PLAYERS, PLAYER_SPEED,
     buildMap, tileAt, moveSolidAt, moveEnt, los,
-    createRound, setInput, step, releaseHuman, snapshotFor, roster, eventsFor, drain, rewardFor, entById,
+    createRound, setInput, step, releaseHuman, cheat, snapshotFor, roster, eventsFor, drain, rewardFor, entById,
   };
 });

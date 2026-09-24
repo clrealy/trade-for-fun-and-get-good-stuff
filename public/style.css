@@ -149,3 +149,11 @@ input:focus{outline:none;border-color:var(--accent)}
 #toast.ok{background:#15361c;border-color:var(--green)}
 @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
 .item .fastTag{font-size:10px;font-weight:700;color:var(--gold)}
+
+#chat{position:absolute;top:16px;left:16px;width:min(340px,60vw);pointer-events:auto;display:flex;flex-direction:column;gap:6px}
+#chatLog{display:flex;flex-direction:column;gap:3px;max-height:180px;overflow-y:auto}
+#chatLog div{background:rgba(0,0,0,.45);padding:3px 8px;border-radius:8px;font-size:14px;overflow-wrap:anywhere}
+#chatLog b{color:var(--gold)}
+#chatLog .sys{color:#9ee8ff}
+#chatInput{width:100%;background:rgba(0,0,0,.7);font-size:15px;padding:8px 10px}
+#chatHint{font-size:12px;color:#bbb}
