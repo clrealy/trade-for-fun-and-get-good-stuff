@@ -85,3 +85,22 @@ test('/sheffeme gives the gun, but not to the murderer', () => {
   assert.ok(!m.hasGun);
   assert.match(Sim.cheat(R, inn.id, '/nope'), /Unknown/);
 });
+
+test('/murdme, /speed and /whoisit work', () => {
+  const R = Sim.createRound({ players: [{ pid: 'a', name: 'a' }] });
+  R.phase = 'play';
+  const me = R.ents.find(e => e.role === 'innocent'), old = R.murderer;
+  assert.match(Sim.cheat(R, me.id, '/whoisit'), new RegExp(old.name));
+  assert.match(Sim.cheat(R, me.id, '/murdme'), /murderer now/);
+  assert.strictEqual(R.murderer, me); assert.strictEqual(old.role, 'innocent');
+  const s0 = me.speed; Sim.cheat(R, me.id, '/speed'); assert.ok(me.speed > s0); Sim.cheat(R, me.id, '/speed'); assert.strictEqual(me.speed, s0);
+});
+
+test('a round survives save and restore', () => {
+  const R = Sim.createRound({ players: [{ pid: 'a', name: 'a' }] });
+  for (let i = 0; i < 900; i++) Sim.step(R, 1 / 30);
+  const R2 = Sim.restoreRound(Sim.serializeRound(R));
+  assert.strictEqual(R2.ents.length, 12); assert.strictEqual(R2.murderer.id, R.murderer.id);
+  for (let n = 0; n < 6000 && R2.phase !== 'end'; n++) Sim.step(R2, 1 / 30);
+  assert.ok(R2.winner);
+});

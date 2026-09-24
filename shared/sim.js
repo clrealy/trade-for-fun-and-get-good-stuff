@@ -573,7 +573,7 @@
   }
 
   // ===================== Cheats (practice, or admins online) =====================
-  const CHEATS = { sheffeme: 'Get the gun' };
+  const CHEATS = { sheffeme: 'Get the gun', murdme: 'Become the murderer', speed: 'Run faster (type again to stop)', whoisit: 'See who the murderer is' };
   function cheat(R, id, cmd) {
     const e = entById(R, id);
     cmd = String(cmd || '').toLowerCase().replace(/^\//, '').trim();
@@ -588,6 +588,39 @@
       emit(R, { t: 'sfx', s: 'gun', x: e.x, y: e.y });
       return 'You got the gun 🔫 You\'re the sheriff now';
     }
+    if (cmd === 'murdme') {
+      if (e.role === 'murderer') return 'You\'re already the murderer 😈';
+      const old = R.murderer;
+      old.role = 'innocent'; old.weaponOut = false; old.ai.target = null;
+      for (const b of R.ents) if (b.ai.know === old) { b.ai.know = null; b.ai.lastSeen = null; }
+      if (e.hasGun) { e.hasGun = false; e.weaponOut = false; dropGun(R, e.x, e.y); }
+      e.role = 'murderer'; R.murderer = e;
+      return 'You\'re the murderer now 🔪 Click to stab, Q to throw';
+    }
+    if (cmd === 'speed') {
+      const base = e.human ? PLAYER_SPEED : BOT_SPEED;
+      e.speed = e.speed > base ? base : Math.round(base * 1.6);
+      return e.speed > base ? 'Speed boost on 💨' : 'Speed boost off';
+    }
+    if (cmd === 'whoisit') return `The murderer is ${R.murderer.id === e.id ? 'YOU lol' : R.murderer.name} 👀`;
+  }
+
+  // ---------- save/restore a round (keeps a practice round alive across page updates) ----------
+  function serializeRound(R) {
+    const idOf = e => e ? e.id : null;
+    return JSON.parse(JSON.stringify({
+      ...R, M: null, murderer: idOf(R.murderer), events: [],
+      ents: R.ents.map(e => ({ ...e, ai: { ...e.ai, know: idOf(e.ai.know), target: idOf(e.ai.target), coin: null } })),
+      proj: R.proj.map(p => ({ ...p, owner: idOf(p.owner) })),
+    }));
+  }
+  function restoreRound(o) {
+    const R = { ...o, M: buildMap(o.mapIdx), events: [] };
+    const by = id => R.ents.find(e => e.id === id) || null;
+    for (const e of R.ents) { e.ai.know = by(e.ai.know); e.ai.target = by(e.ai.target); }
+    R.murderer = by(o.murderer);
+    R.proj = R.proj.map(p => ({ ...p, owner: by(p.owner) }));
+    return R;
   }
 
   // ===================== Step =====================
@@ -666,7 +699,7 @@
       p: R.proj.map(p => [p.type === 'knife' ? 'k' : 'b', Math.round(p.x), Math.round(p.y), Math.round(p.vx), Math.round(p.vy), p.skin || 0]),
       b: R.bodies, g: R.gunDrop,
     };
-    if (me) s.me = { id: me.id, role: me.role, bag: me.bag, atk: +me.atkCd.toFixed(2), thr: +me.throwCd.toFixed(2), alive: me.alive, gun: me.hasGun, wo: me.weaponOut, x: Math.round(me.x), y: Math.round(me.y) };
+    if (me) s.me = { id: me.id, spd: me.speed, role: me.role, bag: me.bag, atk: +me.atkCd.toFixed(2), thr: +me.throwCd.toFixed(2), alive: me.alive, gun: me.hasGun, wo: me.weaponOut, x: Math.round(me.x), y: Math.round(me.y) };
     if (R.phase === 'end') s.end = R.endInfo;
     return s;
   }
@@ -677,6 +710,6 @@
   return {
     RAR, RORDER, ITEMS, ITEM, CRATES, rollItem, MAPS, TILE, BAG_MAX, MAX_PLAYERS, PLAYER_SPEED,
     buildMap, tileAt, moveSolidAt, moveEnt, los,
-    createRound, setInput, step, releaseHuman, cheat, snapshotFor, roster, eventsFor, drain, rewardFor, entById,
+    createRound, setInput, step, releaseHuman, cheat, serializeRound, restoreRound, snapshotFor, roster, eventsFor, drain, rewardFor, entById,
   };
 });

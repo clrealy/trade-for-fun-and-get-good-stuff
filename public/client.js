@@ -182,8 +182,12 @@ $('#nameForm').onsubmit = e => { e.preventDefault(); $('#nameErr').textContent =
 $('#logoutBtn').onclick = () => { wantOnline = false; disconnect(); P = null; if (fbAuth) fbAuth.signOut(); else setScreen('auth'); };
 
 // ---------- rooms ----------
+let lastRoom = null;
 function onRoom(m) {
+  lastRoom = m;
   if (m.state === 'waiting') {
+    // stay on the results until the player clicks Continue
+    if (V && !V.offline && V.endInfo) { $('#endNext').textContent = `Next round starts in ${m.timer}s`; return; }
     if (V && !V.offline) endGameView();
     setScreen('room');
     $('#roomTitle').textContent = m.private ? 'Private room' : 'Public match';
@@ -313,7 +317,7 @@ function showEnd() {
   if (V.offline) { if (!window.LocalServer) $('#endRewards').innerHTML = 'Practice round: no coins or XP.'; $('#endNext').textContent = ''; $('#endBtn').textContent = 'Back to lobby'; }
   else if (!V.me) { $('#endRewards').innerHTML = 'You were spectating this one.'; }
   else if (!V.reward) $('#endRewards').innerHTML = 'Counting your rewards…';
-  if (!V.offline) { $('#endNext').textContent = 'Next round starts soon.'; $('#endBtn').textContent = 'Leave room'; }
+  if (!V.offline) { $('#endNext').textContent = 'Next round starts soon.'; $('#endBtn').textContent = 'Continue'; }
   if (V.reward) showReward(V.reward);
   show('#endScreen');
 }
@@ -323,8 +327,9 @@ function showReward(r) {
   $('#endRewards').innerHTML = `${r.won ? '<b style="color:#5bd46a">You won!</b>' : '<b style="color:#ff4d5e">You lost</b>'}<br>💰 +${r.coins} coins · ⭐ +${r.xp} XP` + (r.kills ? ` · ☠️ ${r.kills} kill${r.kills > 1 ? 's' : ''}` : '') + (r.levelUps ? `<br><b style="color:#ffc233">LEVEL UP! You're level ${P ? P.level : ''} 🎉</b>` : '');
 }
 $('#endBtn').onclick = () => {
-  if (V && V.offline) { endGameView(); setScreen('lobby'); }
-  else { net({ t: 'leave' }); }
+  if (V && V.offline) { endGameView(); setScreen('lobby'); return; }
+  endGameView();
+  if (lastRoom && lastRoom.state === 'waiting') onRoom(lastRoom); else setScreen('room');
 };
 
 function focusEnt() {
@@ -352,7 +357,7 @@ function update(dt) {
     if (keys.KeyW || keys.ArrowUp) dy--; if (keys.KeyS || keys.ArrowDown) dy++;
     if (keys.KeyA || keys.ArrowLeft) dx--; if (keys.KeyD || keys.ArrowRight) dx++;
     const l = Math.hypot(dx, dy) || 1;
-    Sim.moveEnt(V.M, V.lp, dx / l, dy / l, dt, Sim.PLAYER_SPEED);
+    Sim.moveEnt(V.M, V.lp, dx / l, dy / l, dt, me.spd || Sim.PLAYER_SPEED);
     const d = V.disp.get(V.you); if (d && (dx || dy)) d.walk += dt * 12;
   }
   if (!V.offline) { sendT -= dt; if (sendT <= 0 && me) { sendT = 1 / 30; net({ t: 'in', ...currentInput() }); } }
@@ -703,5 +708,20 @@ function frame(t) {
   render();
   requestAnimationFrame(frame);
 }
-requestAnimationFrame(frame);
-boot();
+// When this page is updated while open, keep a practice round going instead of dropping the player.
+function resumePractice(data) {
+  const R = Sim.restoreRound(data.round);
+  newView(R.mapIdx, Sim.roster(R), data.you, true);
+  V.R = R; V.introShown = R.phase !== 'intro';
+  applySnap(Sim.snapshotFor(R, V.you));
+}
+const hot = window.claude && window.claude.hot;
+if (hot && hot.snapshot) {
+  try { hot.snapshot(() => (V && V.offline && V.R && V.R.phase !== 'end') ? { round: Sim.serializeRound(V.R), you: V.you } : {}); } catch (e) { }
+}
+function startApp(data) {
+  requestAnimationFrame(frame);
+  boot();
+  if (data && data.round) { try { resumePractice(data); } catch (e) { console.warn('Could not resume round', e); } }
+}
+if (hot && hot.ready) hot.ready(startApp); else startApp((hot && hot.data) || {});
