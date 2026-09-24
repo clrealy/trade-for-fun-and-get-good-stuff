@@ -65,6 +65,10 @@ The last argument is a rarity (Common … Chroma) or an item id like `g13`. It o
 
 Players type codes in **Inventory → Add code**. Each account can use each code once. Add or remove codes in `server/codes.js` and redeploy. `GODLY26` gives a random Godly.
 
+## Solo build
+
+`node scripts/build-standalone.js` writes `dist/standalone.html`, a single file you can open with no server. You play vs bots, and the shop, codes and trading save in your browser. It is not cheat-proof, so the online game never uses it.
+
 ## Controls
 
 WASD to move, mouse to aim, left click to stab or shoot, right click or Q to throw the knife, E to pull out or put away your weapon.

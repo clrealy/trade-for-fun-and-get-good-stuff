@@ -70,6 +70,8 @@ function loadScript(src) {
   return new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => rej(new Error('Could not load ' + src)); document.head.appendChild(s); });
 }
 async function boot() {
+  // standalone build: everything runs in this browser (see public/local.js)
+  if (window.LocalServer) { show('#logoutBtn', false); window.LocalServer.start(onMsg); return; }
   setScreen('connecting');
   try { CFG = await (await fetch('/config.json', { cache: 'no-store' })).json(); }
   catch (e) { $('#connText').textContent = 'Could not reach the game server.'; return; }
@@ -106,7 +108,7 @@ async function connect() {
   };
 }
 function disconnect() { clearTimeout(reconnectT); if (ws) { const s = ws; ws = null; s.close(); } }
-function net(m) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(m)); }
+function net(m) { if (window.LocalServer) window.LocalServer.send(m); else if (ws && ws.readyState === 1) ws.send(JSON.stringify(m)); }
 
 function onMsg(m) {
   switch (m.t) {
@@ -288,6 +290,7 @@ function handleEvent(ev) {
 function onEnd(info) {
   if (V.endInfo) return;
   V.endInfo = info; V.endAt = performance.now();
+  if (V.offline && window.LocalServer) window.LocalServer.result(V.R.results.find(r => r.pid === 'me'));
   if (V.me) {
     const won = (info.w === 'murderer') === (startRoleOf(info) === 'murderer');
     won ? SFX.win() : SFX.lose();
@@ -303,7 +306,7 @@ function showEnd() {
   $('#endTitle').style.color = info.w === 'murderer' ? '#ff4d5e' : '#5bd46a';
   $('#endRoles').innerHTML = `<div>🔪 Murderer: <b style="color:#ff4d5e">${esc(info.murderer)}</b></div><div>🔫 Sheriff: <b style="color:#4da3ff">${esc(info.sheriff)}</b></div>` +
     (info.hero ? `<div>🦸 Hero: <b style="color:#ffc233">${esc(info.hero)}</b></div>` : '');
-  if (V.offline) { $('#endRewards').innerHTML = 'Practice round: no coins or XP.'; $('#endNext').textContent = ''; $('#endBtn').textContent = 'Back to lobby'; }
+  if (V.offline) { if (!window.LocalServer) $('#endRewards').innerHTML = 'Practice round: no coins or XP.'; $('#endNext').textContent = ''; $('#endBtn').textContent = 'Back to lobby'; }
   else if (!V.me) { $('#endRewards').innerHTML = 'You were spectating this one.'; }
   else if (!V.reward) $('#endRewards').innerHTML = 'Counting your rewards…';
   if (!V.offline) { $('#endNext').textContent = 'Next round starts soon.'; $('#endBtn').textContent = 'Leave room'; }

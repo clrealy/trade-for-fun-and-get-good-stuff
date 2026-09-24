@@ -4,3 +4,4 @@ node_modules/
 # never commit Firebase service account keys
 *serviceAccount*.json
 *-firebase-adminsdk-*.json
+dist/
