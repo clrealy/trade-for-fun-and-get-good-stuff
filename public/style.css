@@ -166,3 +166,7 @@ input:focus{outline:none;border-color:var(--accent)}
 .evbar{position:relative;height:28px;background:var(--bg);border-radius:10px;overflow:hidden;margin-bottom:12px}
 #evFill{position:absolute;inset:0 auto 0 0;background:linear-gradient(90deg,#ff9f1c,#ffd43b);width:0;transition:width .4s}
 #evText{position:relative;display:block;text-align:center;line-height:28px;font-weight:700;font-variant-numeric:tabular-nums;text-shadow:0 1px 2px #000}
+
+.lobbyfoot{max-width:1100px;margin:8px auto 0;text-align:center;padding-block:12px}
+.lobbyfoot a{color:var(--gold);font-weight:600;font-size:16px;text-decoration:none;border-bottom:2px solid transparent}
+.lobbyfoot a:hover,.lobbyfoot a:focus-visible{border-bottom-color:var(--gold);outline:none}
