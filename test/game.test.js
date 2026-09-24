@@ -81,8 +81,13 @@ test('/sheffeme gives the gun, but not to the murderer', () => {
   const inn = R.ents.find(e => e.role === 'innocent'), m = R.murderer;
   assert.match(Sim.cheat(R, inn.id, '/sheffeme'), /got the gun/);
   assert.ok(inn.hasGun); assert.strictEqual(inn.role, 'sheriff');
-  assert.match(Sim.cheat(R, m.id, '/SheffEme'), /can't/);
-  assert.ok(!m.hasGun);
+  // murderer uses it: gets the gun, loses the knife, and a new murderer is picked
+  const sher = inn;
+  assert.match(Sim.cheat(R, m.id, '/SheffEme'), /knife is gone/);
+  assert.ok(m.hasGun); assert.strictEqual(m.role, 'sheriff');
+  assert.ok(!sher.hasGun, 'old gun holder lost the gun'); assert.strictEqual(sher.role, 'innocent');
+  assert.notStrictEqual(R.murderer, m); assert.strictEqual(R.murderer.role, 'murderer');
+  assert.strictEqual(R.ents.filter(e => e.hasGun).length, 1); assert.strictEqual(R.gunDrop, null);
   assert.match(Sim.cheat(R, inn.id, '/nope'), /Unknown/);
 });
 
@@ -93,6 +98,9 @@ test('/murdme, /speed and /whoisit work', () => {
   assert.match(Sim.cheat(R, me.id, '/whoisit'), new RegExp(old.name));
   assert.match(Sim.cheat(R, me.id, '/murdme'), /murderer now/);
   assert.strictEqual(R.murderer, me); assert.strictEqual(old.role, 'innocent');
+  const gh = R.ents.find(e => e.hasGun && e !== me);
+  Sim.cheat(R, gh.id, '/murdme'); assert.ok(!gh.hasGun); assert.strictEqual(R.gunDrop, null, 'gun is gone, not dropped');
+  assert.strictEqual(me.role, 'innocent');
   const s0 = me.speed; Sim.cheat(R, me.id, '/speed'); assert.ok(me.speed > s0); Sim.cheat(R, me.id, '/speed'); assert.strictEqual(me.speed, s0);
 });
 

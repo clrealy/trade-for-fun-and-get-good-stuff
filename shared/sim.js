@@ -582,20 +582,34 @@
     if (!e || !e.alive) return 'You need to be alive for that';
     if (R.phase === 'end') return 'The round is over';
     if (cmd === 'sheffeme') {
-      if (e.role === 'murderer') return 'Murderers can\'t take the gun 😈';
       if (e.hasGun) return 'You already have the gun';
-      e.hasGun = true; if (e.role === 'innocent') e.role = 'sheriff';
+      // everyone else's gun goes bye bye (including one on the floor)
+      for (const o of R.ents) if (o !== e && o.hasGun) { o.hasGun = false; o.weaponOut = false; if (o.role === 'sheriff' || o.role === 'hero') o.role = 'innocent'; }
+      R.gunDrop = null;
+      let extra = '';
+      if (e.role === 'murderer') {
+        // someone else has to be the murderer now
+        const pool = R.ents.filter(o => o !== e && o.alive);
+        if (!pool.length) return 'Nobody left to be the murderer';
+        const m = pool[Math.floor(Math.random() * pool.length)];
+        m.role = 'murderer'; m.hasGun = false; m.ai.grace = rand(4, 8); m.ai.target = null; R.murderer = m;
+        for (const b of R.ents) if (b.ai.know === e) { b.ai.know = null; b.ai.lastSeen = null; }
+        extra = ' Your knife is gone and someone else is the murderer now 👀';
+      }
+      e.weaponOut = false; e.hasGun = true; e.role = 'sheriff';
       emit(R, { t: 'sfx', s: 'gun', x: e.x, y: e.y });
-      return 'You got the gun 🔫 You\'re the sheriff now';
+      return 'You got the gun 🔫 You\'re the sheriff now.' + extra;
     }
     if (cmd === 'murdme') {
       if (e.role === 'murderer') return 'You\'re already the murderer 😈';
+      // the old murderer's knife goes bye bye
       const old = R.murderer;
       old.role = 'innocent'; old.weaponOut = false; old.ai.target = null;
       for (const b of R.ents) if (b.ai.know === old) { b.ai.know = null; b.ai.lastSeen = null; }
-      if (e.hasGun) { e.hasGun = false; e.weaponOut = false; dropGun(R, e.x, e.y); }
-      e.role = 'murderer'; R.murderer = e;
-      return 'You\'re the murderer now 🔪 Click to stab, Q to throw';
+      let extra = '';
+      if (e.hasGun) { e.hasGun = false; extra = ' Your gun is gone.'; }
+      e.weaponOut = false; e.role = 'murderer'; R.murderer = e;
+      return 'You\'re the murderer now 🔪 Click to stab, Q to throw.' + extra;
     }
     if (cmd === 'speed') {
       const base = e.human ? PLAYER_SPEED : BOT_SPEED;
