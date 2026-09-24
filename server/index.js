@@ -224,7 +224,7 @@ const HANDLERS = {
   leave(c) { leaveRoom(c); sendMsg(c, { t: 'left' }); },
   in(c, m) { if (c.room && c.room.R && c.entId) Sim.setInput(c.room.R, c.entId, m); },
   async crate(c, m) { const inst = await mutate(c, p => Eco.openCrate(p, m.id)); sendMsg(c, { t: 'unboxed', item: inst.id, crate: m.id }); },
-  async redeem(c, m) { const r = await mutate(c, p => Eco.redeem(p, m.code)); sendMsg(c, r.inst ? { t: 'unboxed', item: r.inst.id, crate: 'mystery' } : { t: 'codeCoins', coins: r.coins }); },
+  async redeem(c, m) { const r = await mutate(c, p => Eco.redeem(p, m.code)); sendMsg(c, r.inst ? { t: 'unboxed', item: r.inst.id, crate: 'mystery' } : r.all ? { t: 'codeAll', count: r.all.length } : { t: 'codeCoins', coins: r.coins }); },
   async equip(c, m) { await mutate(c, p => Eco.equip(p, m.u)); },
   traders(c, m) { if (m.refresh) c.traders = Eco.genTraders(); sendMsg(c, { t: 'traders', traders: Eco.tradersView(c.traders) }); },
   async trade(c, m) {

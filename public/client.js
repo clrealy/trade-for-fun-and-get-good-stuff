@@ -128,6 +128,7 @@ function onMsg(m) {
     case 's': if (V && !V.offline) { if (m.s) applySnap(m.s); if (m.ev) m.ev.forEach(handleEvent); } break;
     case 'reward': showReward(m.r); break;
     case 'unboxed': playUnbox(m.crate, m.item); break;
+    case 'codeAll': unboxPending = false; SFX.win(); toast(`Code redeemed: you got all ${m.count} knives and guns 🔪🔫`, true); break;
     case 'codeCoins': unboxPending = false; SFX.win(); toast(`Code redeemed: +${m.coins} coins 💰`, true); break;
     case 'traders': traders = m.traders; if (screen === 'lobby') renderLobby(); break;
     case 'tradeResult':

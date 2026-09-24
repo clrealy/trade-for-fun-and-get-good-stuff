@@ -58,6 +58,7 @@ test('codes give their reward once per account', () => {
   const c0 = p.coins; assert.deepStrictEqual(Eco.redeem(p, 'freecash'), { coins: 500 }); assert.strictEqual(p.coins, c0 + 500);
   assert.strictEqual(Eco.redeem(p, 'CHROMA4LIFE').inst.id, 'g13');
   assert.throws(() => Eco.redeem(p, 'GODLY26'), /already used/);
+  assert.strictEqual(Eco.redeem(p, 'gimmeall').all.length, Sim.ITEMS.filter(i => !i.nodrop).length);
   assert.throws(() => Eco.redeem(p, 'FAKECODE'), /doesn't exist/);
   assert.throws(() => Eco.redeem(p, '__proto__'), /doesn't exist/);
 });

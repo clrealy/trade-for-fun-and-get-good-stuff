@@ -43,7 +43,11 @@ function redeem(p, rawCode) {
   p.redeemed = p.redeemed || [];
   if (p.redeemed.includes(code)) throw new Error('You already used that code');
   let out;
-  if (c.reward.coins) { p.coins += c.reward.coins; out = { coins: c.reward.coins }; }
+  if (c.reward.all) {
+    const all = Sim.ITEMS.filter(i => !i.nodrop);
+    if (p.inv.length + all.length > MAX_INV) throw new Error('Inventory full (500 items)');
+    out = { all: all.map(i => addItem(p, i.id).id) };
+  } else if (c.reward.coins) { p.coins += c.reward.coins; out = { coins: c.reward.coins }; }
   else {
     const pool = c.reward.item ? [Sim.ITEM[c.reward.item]] : Sim.ITEMS.filter(i => !i.nodrop && i.r === c.reward.rarity);
     out = { inst: addItem(p, pool[Math.floor(Math.random() * pool.length)].id) };
