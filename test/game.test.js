@@ -63,6 +63,7 @@ test('codes give their reward once per account', () => {
   assert.strictEqual(Sim.ITEM.k20.val, 69420);
   assert.deepStrictEqual(Eco.redeem(p, 'c memeset').items, ['k21', 'g17']);
   assert.ok(Sim.ITEM.g17.noCooldown && Sim.ITEM.k21.r === 'Chroma');
+  assert.deepStrictEqual(Eco.redeem(p, 'cngs').items, ['k22', 'k23']);
   assert.throws(() => Eco.redeem(p, 'FAKECODE'), /doesn't exist/);
   assert.throws(() => Eco.redeem(p, '__proto__'), /doesn't exist/);
 });
