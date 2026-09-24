@@ -65,6 +65,10 @@ The last argument is a rarity (Common … Chroma) or an item id like `g13`. It o
 
 Players type codes in **Inventory → Add code**. Codes ignore caps and spaces, and each account can use each code once. Add or remove codes in `server/codes.js` and redeploy. `GODLY26` gives a random Godly.
 
+## Summer Event
+
+The Play tab tracks kills. At 50 kills a player can claim the summer set (Sunburn + Splash Blaster). The Chroma versions only drop from the ☀️ Sum Box in the Shop (5% chance). Change the goal or rewards in `EVENT` in `server/economy.js`.
+
 ## Chat and cheats
 
 Press **Enter** (or **/**) in a round to chat. Commands start with `/`, and `/help` lists them. `/sheffeme` gives you the gun (Murderers can't use it), `/murdme` makes you the Murderer, `/speed` toggles a speed boost, `/whoisit` tells you who the Murderer is, `/r` brings you back to life, and `/god` stops you from dying.

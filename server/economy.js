@@ -4,10 +4,25 @@ const Sim = require('../shared/sim.js');
 const CODES = require('./codes.js');
 
 const xpNeed = lvl => 100 + lvl * 60;
+// Seasonal event: get `goal` kills (counted from when the event starts) to claim the rewards.
+const EVENT = { id: 'summer26', name: 'Summer Event', goal: 50, rewards: ['k24', 'g18'] };
+function eventState(p) {
+  p.events = p.events || {};
+  return (p.events[EVENT.id] = p.events[EVENT.id] || { kills: 0, claimed: false });
+}
+function claimEvent(p) {
+  const ev = eventState(p);
+  if (ev.claimed) throw new Error('You already claimed the summer rewards');
+  if (ev.kills < EVENT.goal) throw new Error(`You need ${EVENT.goal - ev.kills} more kills`);
+  if (p.inv.length + EVENT.rewards.length > MAX_INV) throw new Error('Inventory full (500 items)');
+  ev.claimed = true;
+  return EVENT.rewards.map(id => addItem(p, id).id);
+}
 const MAX_INV = 500;
 
 function publicProfile(p) {
-  return { name: p.name, coins: p.coins, xp: p.xp, level: p.level, xpNeed: xpNeed(p.level), inv: p.inv, equip: p.equip, mT: p.mT, sT: p.sT, stats: p.stats };
+  const ev = (p.events && p.events[EVENT.id]) || { kills: 0, claimed: false };
+  return { name: p.name, coins: p.coins, xp: p.xp, level: p.level, xpNeed: xpNeed(p.level), inv: p.inv, equip: p.equip, mT: p.mT, sT: p.sT, stats: p.stats, event: { ...EVENT, kills: Math.min(ev.kills, EVENT.goal), claimed: ev.claimed } };
 }
 function equippedId(p, type) {
   const inst = p.inv.find(i => i.u === p.equip[type]);
@@ -30,7 +45,7 @@ function openCrate(p, crateId) {
   if (!c) throw new Error('Unknown crate');
   if (p.coins < c.price) throw new Error('Not enough coins');
   p.coins -= c.price;
-  const item = Sim.rollItem(c.w, c.type);
+  const item = Sim.rollCrate(c);
   const inst = addItem(p, item.id);
   p.stats.unboxed++;
   return inst;
@@ -67,7 +82,7 @@ function equip(p, u) {
 function applyRoundResult(p, res) {
   const r = Sim.rewardFor(res);
   p.coins += r.coins; p.stats.coins += r.coins; p.xp += r.xp;
-  p.stats.rounds++; p.stats.kills += res.kills; if (res.won) p.stats.wins++; if (!res.alive) p.stats.deaths++;
+  p.stats.rounds++; p.stats.kills += res.kills; eventState(p).kills += res.kills; if (res.won) p.stats.wins++; if (!res.alive) p.stats.deaths++;
   let lv = 0; while (p.xp >= xpNeed(p.level)) { p.xp -= xpNeed(p.level); p.level++; lv++; }
   p.mT = res.role === 'murderer' ? 1 : Math.min(50, p.mT + 1);
   p.sT = res.role === 'sheriff' ? 1 : Math.min(50, p.sT + 1);
@@ -116,4 +131,4 @@ function trade(p, trader, mineU, theirsU) {
   return { ok, line };
 }
 
-module.exports = { publicProfile, equippedId, openCrate, redeem, equip, applyRoundResult, genTraders, tradersView, trade, xpNeed };
+module.exports = { EVENT, claimEvent, publicProfile, equippedId, openCrate, redeem, equip, applyRoundResult, genTraders, tradersView, trade, xpNeed };

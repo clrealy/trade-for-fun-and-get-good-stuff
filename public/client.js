@@ -129,7 +129,7 @@ function onMsg(m) {
     case 'reward': showReward(m.r); break;
     case 'unboxed': playUnbox(m.crate, m.item); break;
     case 'codeAll': unboxPending = false; SFX.win(); toast(`Code redeemed: you got all ${m.count} knives and guns 🔪🔫`, true); break;
-    case 'codeItems': unboxPending = false; SFX.win(); toast(`Code redeemed: ${m.items.map(id => ITEM[id].name).join(' + ')} 🔥`, true); if (screen === 'lobby') renderLobby(); break;
+    case 'codeItems': unboxPending = false; SFX.win(); toast(`${m.from === 'event' ? 'Summer set unlocked' : 'Code redeemed'}: ${m.items.map(id => ITEM[id].name).join(' + ')} 🔥`, true); if (screen === 'lobby') renderLobby(); break;
     case 'chat': addChat(m.name, m.text, m.sys); break;
     case 'codeCoins': unboxPending = false; SFX.win(); toast(`Code redeemed: +${m.coins} coins 💰`, true); break;
     case 'traders': traders = m.traders; if (screen === 'lobby') renderLobby(); break;
@@ -324,7 +324,7 @@ function showEnd() {
 function showReward(r) {
   if (!V) return;
   V.reward = r;
-  $('#endRewards').innerHTML = `${r.won ? '<b style="color:#5bd46a">You won!</b>' : '<b style="color:#ff4d5e">You lost</b>'}<br>💰 +${r.coins} coins · ⭐ +${r.xp} XP` + (r.kills ? ` · ☠️ ${r.kills} kill${r.kills > 1 ? 's' : ''}` : '') + (r.levelUps ? `<br><b style="color:#ffc233">LEVEL UP! You're level ${P ? P.level : ''} 🎉</b>` : '');
+  $('#endRewards').innerHTML = `${r.won ? '<b style="color:#5bd46a">You won!</b>' : '<b style="color:#ff4d5e">You lost</b>'}<br>💰 +${r.coins} coins · ⭐ +${r.xp} XP` + (r.kills ? ` · ☠️ ${r.kills} kill${r.kills > 1 ? 's' : ''}` : '') + (r.levelUps ? `<br><b style="color:#ffc233">LEVEL UP! You're level ${P ? P.level : ''} 🎉</b>` : '') + (P && P.event && !P.event.claimed ? `<br>☀️ Summer kills: ${P.event.kills} / ${P.event.goal}` : '');
 }
 $('#endBtn').onclick = () => {
   if (V && V.offline) { endGameView(); setScreen('lobby'); return; }
@@ -619,6 +619,7 @@ document.querySelectorAll('.tab').forEach(b => b.onclick = () => {
   renderLobby();
 });
 $('#mapSel').innerHTML = '<option value="-1">🎲 Random map</option>' + Sim.MAPS.map((m, i) => `<option value="${i}">${m.name}</option>`).join('');
+$('#evClaim').onclick = () => net({ t: 'claimEvent' });
 $('#practiceBtn').onclick = () => { tone(600, .1); startPractice(); };
 
 function sortedInv() { return P.inv.slice().sort((a, b) => ITEM[b.id].val - ITEM[a.id].val); }
@@ -629,6 +630,16 @@ function renderLobby() {
   $('#lvlPill').textContent = `Lv ${P.level}`;
   $('#xpFill').style.width = (P.xp / P.xpNeed * 100) + '%';
   if (curTab === 'play') {
+    const ev = P.event;
+    if (ev) {
+      $('#evName').textContent = ev.name;
+      $('#evRewards').innerHTML = ev.rewards.map(id => itemCard(ITEM[id], { noval: true })).join('');
+      $('#evFill').style.width = (ev.kills / ev.goal * 100) + '%';
+      $('#evText').textContent = ev.claimed ? 'Claimed ✅' : `${ev.kills} / ${ev.goal} kills`;
+      const btn = $('#evClaim');
+      btn.disabled = ev.claimed || ev.kills < ev.goal;
+      btn.textContent = ev.claimed ? 'Claimed' : ev.kills >= ev.goal ? 'Claim summer set 🎁' : `${ev.goal - ev.kills} more kills`;
+    }
     const n = Sim.MAX_PLAYERS, pm = P.mT / (P.mT + n - 1), ps = (1 - pm) * (P.sT / (P.sT + n - 2));
     $('#mChance').textContent = Math.round(pm * 100) + '%';
     $('#sChance').textContent = Math.round(ps * 100) + '%';
@@ -655,7 +666,7 @@ function playUnbox(crateId, winId) {
   unboxPending = false;
   const c = CRATES.find(x => x.id === crateId) || CRATES[0], win = ITEM[winId];
   const N = 45, WIN = 38, cards = [];
-  for (let i = 0; i < N; i++) cards.push(i === WIN ? win : Sim.rollItem(c.w, c.type));
+  for (let i = 0; i < N; i++) cards.push(i === WIN ? win : Sim.rollCrate(c));
   const reel = $('#reel');
   reel.style.transition = 'none'; reel.style.transform = 'translateX(0)';
   reel.innerHTML = cards.map(it => itemCard(it, { noval: true })).join('');

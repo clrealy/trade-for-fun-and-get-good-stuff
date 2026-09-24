@@ -63,6 +63,12 @@
     I('g17', 'gun', 'Chroma Bruh Blaster', 'Chroma', 'chroma', 1, { val: 69420, exclusive: true, noCooldown: true }),
     I('k22', 'knife', 'Ginger Scope Knife', 'Ancient', '#c9743a', 1, { val: 10000000000000, exclusive: true, noCooldown: true, long: true }),
     I('k23', 'knife', 'Chroma Ginger Scope Knife', 'Chroma', 'chroma', 1, { val: 1e48, exclusive: true, noCooldown: true, long: true }),
+    // Summer Event rewards (50 kills)
+    I('k24', 'knife', 'Sunburn', 'Godly', '#ff9f1c', 1, { val: 5000, exclusive: true }),
+    I('g18', 'gun', 'Splash Blaster', 'Godly', '#2ec4f1', 1, { val: 5000, exclusive: true }),
+    // only from the Sum Box
+    I('k25', 'knife', 'Chroma Sunburn', 'Chroma', 'chroma', 1, { val: 8000, exclusive: true }),
+    I('g19', 'gun', 'Chroma Splash Blaster', 'Chroma', 'chroma', 1, { val: 8000, exclusive: true }),
     I('g16', 'gun', 'Chroma Ginger Scope', 'Chroma', 'chroma', 1, { val: 1e48, exclusive: true, noCooldown: true, long: true }),
     I('g14', 'gun', 'Ginger Scope', 'Ancient', '#c9743a', 1, { val: 10000000000000, exclusive: true, noCooldown: true, long: true }),
   ];
@@ -70,8 +76,14 @@
   const CRATES = [
     { id: 'knifebox', name: 'Knife Box', icon: '🗡️', price: 60, type: 'knife', desc: 'A random knife skin.', w: { Common: 45, Uncommon: 28, Rare: 16, Legendary: 8, Godly: 2.5, Ancient: 0.4, Chroma: 0.1 } },
     { id: 'gunbox', name: 'Gun Box', icon: '🔫', price: 60, type: 'gun', desc: 'A random gun skin.', w: { Common: 45, Uncommon: 28, Rare: 16, Legendary: 8, Godly: 2.5, Ancient: 0.4, Chroma: 0.1 } },
+    { id: 'sumbox', name: 'Sum Box', icon: '☀️', price: 200, type: null, desc: '5% chance at a Chroma Sunburn or Chroma Splash Blaster 🌈', special: { ids: ['k25', 'g19'], chance: .05 }, w: { Common: 18, Uncommon: 30, Rare: 26, Legendary: 16, Godly: 7.5, Ancient: 2, Chroma: 0.5 } },
     { id: 'mystery', name: 'Mystery Box', icon: '🎁', price: 175, type: null, desc: 'Way better odds. Godly hunting 👀', w: { Common: 18, Uncommon: 30, Rare: 26, Legendary: 16, Godly: 7.5, Ancient: 2, Chroma: 0.5 } },
   ];
+  // a crate roll: its special items first (if it has any), otherwise by rarity
+  function rollCrate(c) {
+    if (c.special && Math.random() < c.special.chance) return ITEM[pick(c.special.ids)];
+    return rollItem(c.w, c.type);
+  }
   function rollItem(weights, type) {
     let tot = 0; for (const r in weights) tot += weights[r];
     let x = Math.random() * tot, rar = 'Common';
@@ -738,7 +750,7 @@
   function drain(R) { const e = R.events; R.events = []; return e; }
 
   return {
-    RAR, RORDER, ITEMS, ITEM, CRATES, rollItem, MAPS, TILE, BAG_MAX, MAX_PLAYERS, PLAYER_SPEED,
+    RAR, RORDER, ITEMS, ITEM, CRATES, rollItem, rollCrate, MAPS, TILE, BAG_MAX, MAX_PLAYERS, PLAYER_SPEED,
     buildMap, tileAt, moveSolidAt, moveEnt, los,
     createRound, setInput, step, releaseHuman, cheat, serializeRound, restoreRound, snapshotFor, roster, eventsFor, drain, rewardFor, entById,
   };

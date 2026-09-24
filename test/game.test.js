@@ -151,3 +151,27 @@ test('/god stops you from dying', () => {
   stab();
   assert.ok(!me.alive, 'without god mode the stab lands');
 });
+
+test('summer event unlocks at 50 kills', () => {
+  const p = defaultProfile('t');
+  assert.throws(() => Eco.claimEvent(p), /50 more kills/);
+  Eco.applyRoundResult(p, { role: 'murderer', won: true, alive: true, bag: 0, kills: 11 });
+  assert.strictEqual(Eco.publicProfile(p).event.kills, 11);
+  assert.throws(() => Eco.claimEvent(p), /39 more kills/);
+  for (let i = 0; i < 4; i++) Eco.applyRoundResult(p, { role: 'murderer', won: true, alive: true, bag: 0, kills: 11 });
+  assert.deepStrictEqual(Eco.claimEvent(p), ['k24', 'g18']);
+  assert.throws(() => Eco.claimEvent(p), /already claimed/);
+  assert.ok(Eco.publicProfile(p).event.claimed);
+});
+
+test('the Sum Box is the only place the Chroma summer items drop', () => {
+  const sum = Sim.CRATES.find(c => c.id === 'sumbox');
+  let special = 0, elsewhere = 0;
+  for (let i = 0; i < 20000; i++) {
+    if (['k25', 'g19'].includes(Sim.rollCrate(sum).id)) special++;
+    for (const c of Sim.CRATES) if (c !== sum && ['k25', 'g19'].includes(Sim.rollCrate(c).id)) elsewhere++;
+  }
+  assert.ok(special > 700 && special < 1300, `sum box specials ${special}/20000`);
+  assert.strictEqual(elsewhere, 0);
+  const p = defaultProfile('t'); p.coins = 200; Eco.openCrate(p, 'sumbox'); assert.strictEqual(p.coins, 0);
+});
