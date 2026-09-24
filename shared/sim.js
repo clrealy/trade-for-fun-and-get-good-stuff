@@ -56,6 +56,11 @@
     I('g11', 'gun', 'Lightbringer', 'Godly', '#fff4a8', 1.3),
     I('g12', 'gun', 'Swirly Gun', 'Ancient', '#ff77c8'),
     I('g13', 'gun', 'Chroma Luger', 'Chroma', 'chroma', 1.1),
+    // exclusive: only from codes/admin, never from crates or traders
+    I('k20', 'knife', 'Sussy Slasher', 'Ancient', '#39ff14', 1, { val: 69420, exclusive: true }),
+    I('g15', 'gun', 'Bruh Blaster', 'Ancient', '#ff69b4', 1, { val: 69420, exclusive: true }),
+    I('g16', 'gun', 'Chroma Ginger Scope', 'Chroma', 'chroma', 1, { val: 1e48, exclusive: true }),
+    I('g14', 'gun', 'Ginger Scope', 'Ancient', '#c9743a', 1, { val: 10000000000000, exclusive: true }),
   ];
   const ITEM = Object.fromEntries(ITEMS.map(i => [i.id, i]));
   const CRATES = [
@@ -67,8 +72,8 @@
     let tot = 0; for (const r in weights) tot += weights[r];
     let x = Math.random() * tot, rar = 'Common';
     for (const r in weights) { x -= weights[r]; if (x <= 0) { rar = r; break; } }
-    let pool = ITEMS.filter(i => !i.nodrop && i.r === rar && (!type || i.type === type));
-    if (!pool.length) pool = ITEMS.filter(i => !i.nodrop && (!type || i.type === type));
+    let pool = ITEMS.filter(i => !i.nodrop && !i.exclusive && i.r === rar && (!type || i.type === type));
+    if (!pool.length) pool = ITEMS.filter(i => !i.nodrop && !i.exclusive && (!type || i.type === type));
     return pick(pool);
   }
 

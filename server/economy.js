@@ -47,9 +47,12 @@ function redeem(p, rawCode) {
     const all = Sim.ITEMS.filter(i => !i.nodrop);
     if (p.inv.length + all.length > MAX_INV) throw new Error('Inventory full (500 items)');
     out = { all: all.map(i => addItem(p, i.id).id) };
+  } else if (c.reward.items) {
+    if (p.inv.length + c.reward.items.length > MAX_INV) throw new Error('Inventory full (500 items)');
+    out = { items: c.reward.items.map(id => addItem(p, id).id) };
   } else if (c.reward.coins) { p.coins += c.reward.coins; out = { coins: c.reward.coins }; }
   else {
-    const pool = c.reward.item ? [Sim.ITEM[c.reward.item]] : Sim.ITEMS.filter(i => !i.nodrop && i.r === c.reward.rarity);
+    const pool = c.reward.item ? [Sim.ITEM[c.reward.item]] : Sim.ITEMS.filter(i => !i.nodrop && !i.exclusive && i.r === c.reward.rarity);
     out = { inst: addItem(p, pool[Math.floor(Math.random() * pool.length)].id) };
   }
   p.redeemed.push(code);

@@ -9,7 +9,7 @@ const Sim = require('../shared/sim.js');
 const [name, countArg, what = 'Godly'] = process.argv.slice(2);
 const count = parseInt(countArg, 10);
 if (!name || !(count > 0 && count <= 500)) { console.error('Usage: node scripts/grant.js <username> <count 1-500> [rarity|itemId]'); process.exit(1); }
-const pool = Sim.ITEM[what] ? [Sim.ITEM[what]] : Sim.ITEMS.filter(i => !i.nodrop && i.r.toLowerCase() === what.toLowerCase());
+const pool = Sim.ITEM[what] ? [Sim.ITEM[what]] : Sim.ITEMS.filter(i => !i.nodrop && !i.exclusive && i.r.toLowerCase() === what.toLowerCase());
 if (!pool.length) { console.error(`Unknown rarity or item "${what}". Rarities: ${Sim.RORDER.join(', ')}`); process.exit(1); }
 
 const raw = process.env.FIREBASE_SERVICE_ACCOUNT;

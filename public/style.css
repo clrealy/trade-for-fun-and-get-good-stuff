@@ -84,7 +84,7 @@ select{background:var(--panel2);color:var(--text);border:0;border-radius:10px;pa
 .grid.small .item .ic{font-size:22px}
 .item .nm{font-size:13px;font-weight:600;line-height:1.15;margin-top:2px}
 .item .rr{font-size:11px;font-weight:700;text-transform:uppercase}
-.item .vv{font-size:11px;color:var(--muted)}
+.item .vv{font-size:11px;color:var(--muted);overflow-wrap:anywhere}
 .item.eq::after{content:"EQUIPPED";position:absolute;top:-8px;left:50%;transform:translateX(-50%);background:var(--green);color:#000;font-size:10px;font-weight:700;padding:1px 6px;border-radius:6px}
 .item.sel{outline:3px solid #fff;opacity:.5}
 .item.chroma{animation:chroma 2s linear infinite}

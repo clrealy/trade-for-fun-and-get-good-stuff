@@ -129,6 +129,7 @@ function onMsg(m) {
     case 'reward': showReward(m.r); break;
     case 'unboxed': playUnbox(m.crate, m.item); break;
     case 'codeAll': unboxPending = false; SFX.win(); toast(`Code redeemed: you got all ${m.count} knives and guns 🔪🔫`, true); break;
+    case 'codeItems': unboxPending = false; SFX.win(); toast(`Code redeemed: ${m.items.map(id => ITEM[id].name).join(' + ')} 🔥`, true); if (screen === 'lobby') renderLobby(); break;
     case 'codeCoins': unboxPending = false; SFX.win(); toast(`Code redeemed: +${m.coins} coins 💰`, true); break;
     case 'traders': traders = m.traders; if (screen === 'lobby') renderLobby(); break;
     case 'tradeResult':
@@ -563,7 +564,7 @@ function itemCard(it, opts = {}) {
   const rc = rarColor(it.r);
   return `<div class="item ${it.r === 'Chroma' ? 'chroma' : ''} ${opts.eq ? 'eq' : ''} ${opts.sel ? 'sel' : ''}" style="border-color:${rc}" ${opts.attr || ''}>
     <div class="ic" style="${it.col === 'chroma' ? '' : `text-shadow:0 0 12px ${it.col}`}">${it.type === 'knife' ? '🔪' : '🔫'}</div>
-    <div class="nm">${esc(it.name)}</div><div class="rr" style="color:${rc}">${it.r}</div>${opts.noval ? '' : `<div class="vv">value ${it.val}</div>`}</div>`;
+    <div class="nm">${esc(it.name)}</div><div class="rr" style="color:${rc}">${it.r}</div>${opts.noval ? '' : `<div class="vv">value ${it.val.toLocaleString()}</div>`}</div>`;
 }
 let curTab = 'play';
 document.querySelectorAll('.tab').forEach(b => b.onclick = () => {
@@ -656,7 +657,7 @@ function renderTrade() {
   $('#trTheirs').querySelectorAll('.item').forEach(el => el.onclick = () => toggle(offTheirs, tr.inv.find(i => i.u === +el.dataset.u)));
   $('#offTheirs').querySelectorAll('.item').forEach(el => el.onclick = () => toggle(offTheirs, offTheirs.find(i => i.u === +el.dataset.u)));
   const mv = val(offMine), tv = val(offTheirs);
-  $('#myVal').textContent = `(value ${mv})`; $('#theirVal').textContent = `(value ${tv})`;
+  $('#myVal').textContent = `(value ${mv.toLocaleString()})`; $('#theirVal').textContent = `(value ${tv.toLocaleString()})`;
   const wfl = $('#wfl');
   if (!mv && !tv) wfl.textContent = '';
   else { const r = tv / Math.max(1, mv); wfl.textContent = r > 1.1 ? 'W 🟢' : r < .9 ? 'L 🔴' : 'FAIR 🟡'; wfl.style.color = r > 1.1 ? '#5bd46a' : r < .9 ? '#ff4d5e' : '#ffc233'; }
