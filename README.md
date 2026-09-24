@@ -61,6 +61,10 @@ FIREBASE_SERVICE_ACCOUNT="$(cat key.json)" node scripts/grant.js <username> 25 G
 
 The last argument is a rarity (Common … Chroma) or an item id like `g13`. It only works with the service account key, so players can't run it.
 
+## Redeem codes
+
+Players type codes in **Inventory → Add code**. Each account can use each code once. Add or remove codes in `server/codes.js` and redeploy. `GODLY26` gives a random Godly.
+
 ## Controls
 
 WASD to move, mouse to aim, left click to stab or shoot, right click or Q to throw the knife, E to pull out or put away your weapon.

@@ -50,3 +50,12 @@ test('trades validate ownership and swap items', () => {
   assert.strictEqual(p.equip.knife, null);
   assert.ok(trader.inv.some(i => i.id === 'k13'));
 });
+
+test('codes give their reward once per account', () => {
+  const p = defaultProfile('t');
+  const inst = Eco.redeem(p, ' godly26 ');
+  assert.strictEqual(Sim.ITEM[inst.id].r, 'Godly');
+  assert.throws(() => Eco.redeem(p, 'GODLY26'), /already used/);
+  assert.throws(() => Eco.redeem(p, 'FAKECODE'), /doesn't exist/);
+  assert.throws(() => Eco.redeem(p, '__proto__'), /doesn't exist/);
+});

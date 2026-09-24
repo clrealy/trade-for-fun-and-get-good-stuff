@@ -5,6 +5,7 @@
 function defaultProfile(name) {
   return {
     name, coins: 120, xp: 0, level: 1, inv: [], nextUid: 1, equip: { knife: null, gun: null }, mT: 1, sT: 1,
+    redeemed: [],
     stats: { rounds: 0, wins: 0, kills: 0, deaths: 0, coins: 0, unboxed: 0, trades: 0 },
     createdAt: Date.now(),
   };

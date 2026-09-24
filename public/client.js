@@ -621,6 +621,11 @@ function playUnbox(crateId, winId) {
     show('#unboxBtn');
   }, 4700);
 }
+$('#codeForm').onsubmit = e => {
+  e.preventDefault();
+  const code = $('#redeemInput').value.trim(); if (!code || unboxPending) return;
+  unboxPending = true; net({ t: 'redeem', code }); $('#redeemInput').value = '';
+};
 $('#unboxBtn').onclick = () => { show('#unbox', false); renderLobby(); };
 
 // ---------- trading ----------

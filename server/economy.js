@@ -1,6 +1,7 @@
 'use strict';
 // All coin/item changes happen here, on the server. The client only asks.
 const Sim = require('../shared/sim.js');
+const CODES = require('./codes.js');
 
 const xpNeed = lvl => 100 + lvl * 60;
 const MAX_INV = 500;
@@ -32,6 +33,18 @@ function openCrate(p, crateId) {
   const item = Sim.rollItem(c.w, c.type);
   const inst = addItem(p, item.id);
   p.stats.unboxed++;
+  return inst;
+}
+function redeem(p, rawCode) {
+  const code = String(rawCode || '').trim().toUpperCase();
+  const c = Object.hasOwn(CODES, code) ? CODES[code] : null;
+  if (!c) throw new Error('That code doesn\'t exist');
+  if (c.expires && Date.now() > Date.parse(c.expires + 'T23:59:59Z')) throw new Error('That code expired');
+  p.redeemed = p.redeemed || [];
+  if (p.redeemed.includes(code)) throw new Error('You already used that code');
+  const pool = c.reward.item ? [Sim.ITEM[c.reward.item]] : Sim.ITEMS.filter(i => !i.nodrop && i.r === c.reward.rarity);
+  const inst = addItem(p, pool[Math.floor(Math.random() * pool.length)].id);
+  p.redeemed.push(code);
   return inst;
 }
 function equip(p, u) {
@@ -92,4 +105,4 @@ function trade(p, trader, mineU, theirsU) {
   return { ok, line };
 }
 
-module.exports = { publicProfile, equippedId, openCrate, equip, applyRoundResult, genTraders, tradersView, trade, xpNeed };
+module.exports = { publicProfile, equippedId, openCrate, redeem, equip, applyRoundResult, genTraders, tradersView, trade, xpNeed };
