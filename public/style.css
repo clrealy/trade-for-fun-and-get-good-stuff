@@ -117,3 +117,34 @@ select{background:var(--panel2);color:var(--text);border:0;border-radius:10px;pa
 #wfl{font-size:28px;font-weight:700;text-align:center;margin:4px 0 10px}
 #sendTrade{width:100%}
 #tradeChat{margin-top:10px;min-height:24px;text-align:center;font-weight:600}
+
+/* Accounts, rooms, toasts */
+.screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:16px;background:radial-gradient(ellipse at top,#3a2160,var(--bg) 60%);z-index:5}
+#roomScreen{background:rgba(10,8,16,.75)}
+.authpanel{text-align:left;width:min(420px,100%)}
+.authpanel .logo{text-align:center;margin-bottom:16px}
+.authpanel h2{margin:0 0 6px}
+.seg{display:flex;background:var(--panel2);border-radius:12px;padding:4px;margin-bottom:14px}
+.seg button{flex:1;background:none;border:0;color:var(--muted);padding:8px;border-radius:9px;font-size:16px;font-weight:600;cursor:pointer}
+.seg button.active{background:var(--accent);color:#fff}
+input{background:var(--panel2);color:var(--text);border:2px solid transparent;border-radius:10px;padding:10px;font-size:16px;font-family:inherit;min-width:0}
+input:focus{outline:none;border-color:var(--accent)}
+.btn:focus-visible,.tab:focus-visible,.linkbtn:focus-visible{outline:3px solid #fff;outline-offset:2px}
+.linkbtn{background:none;border:0;color:var(--muted);text-decoration:underline;cursor:pointer;margin-top:10px;font-size:14px;padding:0}
+.err{color:var(--red);min-height:22px;margin-top:10px;font-weight:600}
+.warn{background:#4a3a10;color:var(--gold);padding:8px 12px;border-radius:10px;font-size:14px}
+.btn.small{font-size:14px;padding:6px 12px;box-shadow:0 3px 0 #15121f}
+.btn.ghost2{background:var(--panel2)}
+.row{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.row input,.row select{flex:1}
+#joinForm input{text-transform:uppercase;letter-spacing:3px}
+.small{font-size:14px}
+#tab-play h3{margin-top:18px}
+#roomCode{font-size:44px;font-weight:700;letter-spacing:8px;color:var(--gold);margin:6px 0}
+#roomTimer{font-size:20px;margin-bottom:12px}
+#roomPlayers{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-bottom:12px}
+#roomPlayers span{background:var(--panel2);padding:4px 10px;border-radius:8px;font-weight:600}
+#endNext{margin-bottom:12px}
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#3a1620;color:#fff;border:2px solid var(--red);padding:10px 18px;border-radius:12px;font-weight:600;z-index:20;max-width:90vw;text-align:center}
+#toast.ok{background:#15361c;border-color:var(--green)}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}

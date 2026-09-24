@@ -34,18 +34,63 @@
     <div id="endTitle"></div>
     <div id="endRoles"></div>
     <div id="endRewards"></div>
+    <div id="endNext" class="muted"></div>
     <button id="endBtn" class="btn big">Back to lobby</button>
   </div>
 </div>
 
+<!-- Sign in -->
+<div id="authScreen" class="screen hide">
+  <div class="panel authpanel">
+    <div class="logo">MURDER <span>MYSTERY</span></div>
+    <div id="authFirebase">
+      <div class="seg">
+        <button id="segLogin" class="active" type="button">Log in</button>
+        <button id="segSignup" type="button">Sign up</button>
+      </div>
+      <form id="authForm" novalidate>
+        <label>Email <input id="authEmail" type="email" autocomplete="email" required></label>
+        <label>Password <input id="authPass" type="password" autocomplete="current-password" minlength="8" required></label>
+        <label id="pass2Row" class="hide">Confirm password <input id="authPass2" type="password" autocomplete="new-password"></label>
+        <button id="authSubmit" class="btn big" type="submit">Log in</button>
+      </form>
+      <button id="forgotBtn" class="linkbtn" type="button">Forgot password?</button>
+    </div>
+    <div id="authDev" class="hide">
+      <p class="warn">Dev server: no passwords and nothing is saved.</p>
+      <form id="devForm" novalidate>
+        <label>Username <input id="devName" maxlength="16" autocomplete="username"></label>
+        <button class="btn big" type="submit">Play</button>
+      </form>
+    </div>
+    <div id="authErr" class="err"></div>
+  </div>
+</div>
+
+<div id="nameScreen" class="screen hide">
+  <div class="panel authpanel">
+    <h2>Pick a username</h2>
+    <p class="muted">3–16 letters, numbers or _. Everyone in the game sees this.</p>
+    <form id="nameForm" novalidate>
+      <label>Username <input id="nameInput" maxlength="16" autocomplete="username"></label>
+      <button class="btn big" type="submit">Save</button>
+    </form>
+    <div id="nameErr" class="err"></div>
+  </div>
+</div>
+
+<div id="connecting" class="screen hide"><div class="panel authpanel"><h2 id="connText">Connecting…</h2></div></div>
+
 <!-- Lobby -->
-<div id="lobby">
+<div id="lobby" class="hide">
   <header>
     <div class="logo">MURDER <span>MYSTERY</span></div>
     <div class="stats">
+      <div class="pill" id="namePill"></div>
       <div class="pill" id="coinPill">💰 0</div>
       <div class="pill" id="lvlPill">Lv 1</div>
       <div class="xpbar"><div id="xpFill"></div></div>
+      <button id="logoutBtn" class="btn small ghost2">Log out</button>
     </div>
   </header>
   <nav>
@@ -58,23 +103,33 @@
   <section id="tab-play" class="tabpage">
     <div class="playgrid">
       <div class="card">
-        <h2>Start a round</h2>
-        <label>Map
-          <select id="mapSel"></select>
-        </label>
+        <h2>Play online</h2>
+        <button id="quickBtn" class="btn big">QUICK PLAY</button>
+        <div class="row">
+          <button id="privBtn" class="btn ghost">Create private room</button>
+        </div>
+        <form id="joinForm" class="row" novalidate>
+          <input id="codeInput" placeholder="Room code" maxlength="5" autocomplete="off">
+          <button class="btn" type="submit">Join</button>
+        </form>
         <div class="chances">
           <div class="chance murd">🔪 Murderer <b id="mChance">0%</b></div>
           <div class="chance sher">🔫 Sheriff <b id="sChance">0%</b></div>
         </div>
-        <button id="playBtn" class="btn big">PLAY</button>
-        <div id="lastRes"></div>
+        <p class="muted small">Chance in a full 12-player lobby. It goes up every round you don't get the role.</p>
+        <h3>Practice</h3>
+        <p class="muted small">Solo vs bots on this device. No coins or XP.</p>
+        <div class="row">
+          <select id="mapSel"></select>
+          <button id="practiceBtn" class="btn ghost">Practice</button>
+        </div>
       </div>
       <div class="card">
         <h2>How to play</h2>
         <ul class="howto">
-          <li><b class="g">Innocent</b> — hide, survive, grab coins. If the Sheriff dies, pick up the gun and become the <b>Hero</b>.</li>
-          <li><b class="b">Sheriff</b> — find and shoot the Murderer. Shoot an innocent and you die too.</li>
-          <li><b class="r">Murderer</b> — kill everyone. Knife out = people can see you, so be sneaky.</li>
+          <li><b class="g">Innocent</b>: hide, survive, grab coins. If the Sheriff dies, pick up the gun and become the <b>Hero</b>.</li>
+          <li><b class="b">Sheriff</b>: find and shoot the Murderer. Shoot an innocent and you die too.</li>
+          <li><b class="r">Murderer</b>: kill everyone. Knife out means people can see you, so be sneaky.</li>
         </ul>
         <h3>Controls</h3>
         <ul class="howto small">
@@ -95,7 +150,7 @@
       <div class="card"><h3>Equipped gun</h3><div id="eqGun"></div></div>
     </div>
     <div class="card">
-      <h3>Your items <span class="muted" id="invCount"></span> <span class="muted">— click to equip</span></h3>
+      <h3>Your items <span class="muted" id="invCount"></span> <span class="muted">(click to equip)</span></h3>
       <div id="invGrid" class="grid"></div>
     </div>
   </section>
@@ -130,6 +185,18 @@
   </section>
 </div>
 
+<!-- Waiting room -->
+<div id="roomScreen" class="screen hide">
+  <div class="panel">
+    <h2 id="roomTitle">Public match</h2>
+    <div id="roomCode" class="hide"></div>
+    <div id="roomTimer"></div>
+    <div id="roomPlayers"></div>
+    <p class="muted small">Bots fill the empty spots up to 12 players.</p>
+    <button id="leaveRoomBtn" class="btn ghost">Leave</button>
+  </div>
+</div>
+
 <div id="unbox" class="hide">
   <div class="panel">
     <div class="reelwrap"><div id="reel"></div><div class="marker"></div></div>
@@ -138,6 +205,9 @@
   </div>
 </div>
 
-<script src="game.js"></script>
+<div id="toast" class="hide"></div>
+
+<script src="/shared/sim.js"></script>
+<script src="client.js"></script>
 </body>
 </html>

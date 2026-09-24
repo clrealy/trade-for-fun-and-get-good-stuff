@@ -1,0 +1,19 @@
+{
+  "name": "murder-mystery",
+  "version": "1.0.0",
+  "private": true,
+  "description": "MM2-style multiplayer murder mystery game",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "ALLOW_DEV_AUTH=1 node server/index.js",
+    "test": "node --test test/*.test.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "firebase-admin": "^14.5.0",
+    "ws": "^8.21.3"
+  }
+}
