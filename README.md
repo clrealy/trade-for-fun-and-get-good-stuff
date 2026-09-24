@@ -63,7 +63,7 @@ The last argument is a rarity (Common … Chroma) or an item id like `g13`. It o
 
 ## Redeem codes
 
-Players type codes in **Inventory → Add code**. Each account can use each code once. Add or remove codes in `server/codes.js` and redeploy. `GODLY26` gives a random Godly.
+Players type codes in **Inventory → Add code**. Codes ignore caps and spaces, and each account can use each code once. Add or remove codes in `server/codes.js` and redeploy. `GODLY26` gives a random Godly.
 
 ## Chat and cheats
 

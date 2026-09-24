@@ -36,7 +36,7 @@ function openCrate(p, crateId) {
   return inst;
 }
 function redeem(p, rawCode) {
-  const code = String(rawCode || '').trim().toUpperCase();
+  const code = String(rawCode || '').replace(/\s+/g, '').toUpperCase(); // spaces don't matter: "c memeset" = CMEMESET
   const c = Object.hasOwn(CODES, code) ? CODES[code] : null;
   if (!c) throw new Error('That code doesn\'t exist');
   if (c.expires && Date.now() > Date.parse(c.expires + 'T23:59:59Z')) throw new Error('That code expired');
