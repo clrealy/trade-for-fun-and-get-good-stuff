@@ -53,6 +53,14 @@ Firebase Hosting can't run a WebSocket game server, so deploy the server somewhe
 
 **Google Cloud Run:** `gcloud run deploy --source . --set-env-vars ...`. It supports WebSockets. On Cloud Run you can set `FIREBASE_USE_ADC=1` instead of a key file, and give the service account the *Firebase Authentication Admin* and *Cloud Datastore User* roles.
 
+## Give items (owner only)
+
+```bash
+FIREBASE_SERVICE_ACCOUNT="$(cat key.json)" node scripts/grant.js <username> 25 Godly
+```
+
+The last argument is a rarity (Common … Chroma) or an item id like `g13`. It only works with the service account key, so players can't run it.
+
 ## Controls
 
 WASD to move, mouse to aim, left click to stab or shoot, right click or Q to throw the knife, E to pull out or put away your weapon.
