@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Murder Mystery</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<!-- In-round HUD -->
+<div id="hud" class="hide">
+  <div id="timer">3:00</div>
+  <div id="alive"></div>
+  <div id="msgs"></div>
+  <div id="roleBadge"></div>
+  <div id="bag">💰 0/40</div>
+  <div id="cools"></div>
+  <div id="hint"></div>
+  <div id="spec" class="hide"></div>
+</div>
+
+<div id="intro" class="hide">
+  <div id="introSmall">You are</div>
+  <div id="introRole">INNOCENT</div>
+  <div id="introSub"></div>
+</div>
+
+<div id="endScreen" class="hide">
+  <div class="panel">
+    <div id="endTitle"></div>
+    <div id="endRoles"></div>
+    <div id="endRewards"></div>
+    <button id="endBtn" class="btn big">Back to lobby</button>
+  </div>
+</div>
+
+<!-- Lobby -->
+<div id="lobby">
+  <header>
+    <div class="logo">MURDER <span>MYSTERY</span></div>
+    <div class="stats">
+      <div class="pill" id="coinPill">💰 0</div>
+      <div class="pill" id="lvlPill">Lv 1</div>
+      <div class="xpbar"><div id="xpFill"></div></div>
+    </div>
+  </header>
+  <nav>
+    <button class="tab active" data-tab="play">🎮 Play</button>
+    <button class="tab" data-tab="inv">🎒 Inventory</button>
+    <button class="tab" data-tab="shop">📦 Shop</button>
+    <button class="tab" data-tab="trade">🤝 Trade</button>
+  </nav>
+
+  <section id="tab-play" class="tabpage">
+    <div class="playgrid">
+      <div class="card">
+        <h2>Start a round</h2>
+        <label>Map
+          <select id="mapSel"></select>
+        </label>
+        <div class="chances">
+          <div class="chance murd">🔪 Murderer <b id="mChance">0%</b></div>
+          <div class="chance sher">🔫 Sheriff <b id="sChance">0%</b></div>
+        </div>
+        <button id="playBtn" class="btn big">PLAY</button>
+        <div id="lastRes"></div>
+      </div>
+      <div class="card">
+        <h2>How to play</h2>
+        <ul class="howto">
+          <li><b class="g">Innocent</b> — hide, survive, grab coins. If the Sheriff dies, pick up the gun and become the <b>Hero</b>.</li>
+          <li><b class="b">Sheriff</b> — find and shoot the Murderer. Shoot an innocent and you die too.</li>
+          <li><b class="r">Murderer</b> — kill everyone. Knife out = people can see you, so be sneaky.</li>
+        </ul>
+        <h3>Controls</h3>
+        <ul class="howto small">
+          <li><kbd>WASD</kbd> move · <kbd>Mouse</kbd> aim</li>
+          <li><kbd>Left click</kbd> stab / shoot</li>
+          <li><kbd>Right click</kbd> or <kbd>Q</kbd> throw knife</li>
+          <li><kbd>E</kbd> or <kbd>1</kbd> pull out / put away weapon</li>
+          <li>Dead? <kbd>Click</kbd> to switch who you spectate</li>
+        </ul>
+        <div id="statsBox"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="tab-inv" class="tabpage hide">
+    <div class="equipped">
+      <div class="card"><h3>Equipped knife</h3><div id="eqKnife"></div></div>
+      <div class="card"><h3>Equipped gun</h3><div id="eqGun"></div></div>
+    </div>
+    <div class="card">
+      <h3>Your items <span class="muted" id="invCount"></span> <span class="muted">— click to equip</span></h3>
+      <div id="invGrid" class="grid"></div>
+    </div>
+  </section>
+
+  <section id="tab-shop" class="tabpage hide">
+    <div id="crates" class="crates"></div>
+    <div class="card"><h3>Drop rates</h3><div id="rates"></div></div>
+  </section>
+
+  <section id="tab-trade" class="tabpage hide">
+    <div id="traderTabs"></div>
+    <div class="tradegrid">
+      <div class="card">
+        <h3>Your items</h3>
+        <div id="trMine" class="grid small"></div>
+      </div>
+      <div class="card offers">
+        <h3>Your offer <span class="muted" id="myVal"></span></h3>
+        <div id="offMine" class="grid small offerbox"></div>
+        <div id="wfl"></div>
+        <h3>Their offer <span class="muted" id="theirVal"></span></h3>
+        <div id="offTheirs" class="grid small offerbox"></div>
+        <button id="sendTrade" class="btn">Send trade</button>
+        <div id="tradeChat"></div>
+      </div>
+      <div class="card">
+        <h3 id="traderName">Trader</h3>
+        <div id="trTheirs" class="grid small"></div>
+        <button id="refreshTraders" class="btn ghost">🔄 New traders</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div id="unbox" class="hide">
+  <div class="panel">
+    <div class="reelwrap"><div id="reel"></div><div class="marker"></div></div>
+    <div id="unboxRes"></div>
+    <button id="unboxBtn" class="btn hide">Nice</button>
+  </div>
+</div>
+
+<script src="game.js"></script>
+</body>
+</html>
