@@ -89,15 +89,32 @@ const R3D = (() => {
 
   // ---------------- weapons + characters ----------------
   function colorOf(item, T) { return item.col === 'chroma' ? new THREE.Color().setHSL(((T * 140) % 360) / 360, .95, .62) : new THREE.Color(item.col); }
+  // knife: flat pointed blade (lying face-up so the top-down camera sees its shape), crossguard, wooden grip, pommel
+  function bladeGeo(L) {
+    const sh = new THREE.Shape();
+    sh.moveTo(0, -.045); sh.lineTo(L * .72, -.05);
+    sh.quadraticCurveTo(L * .93, -.035, L, .012);          // curved cutting edge up to the tip
+    sh.lineTo(L * .7, .04); sh.lineTo(0, .04);               // straight spine back to the guard
+    const g = new THREE.ExtrudeGeometry(sh, { depth: .018, bevelEnabled: true, bevelThickness: .006, bevelSize: .006, bevelSegments: 1 });
+    g.translate(0, 0, -.009); g.rotateX(-Math.PI / 2);      // shape faces up (+Y), length along +X
+    return g;
+  }
+  const BLADE = { short: bladeGeo(.34), long: bladeGeo(.58) };
+  const guardGeo = box(.035, .035, .17), gripGeo = new THREE.CylinderGeometry(.028, .032, .15, 8), pommelGeo = new THREE.SphereGeometry(.036, 8, 6);
+  gripGeo.rotateZ(Math.PI / 2);
   function makeKnife() {
     const g = new THREE.Group();
-    const handle = new THREE.Mesh(box(.14, .05, .05), mat('#3b2616')); handle.position.x = -.07; g.add(handle);
-    const blade = new THREE.Mesh(box(.3, .03, .07), new THREE.MeshLambertMaterial({ color: '#ccc' })); blade.position.x = .15; g.add(blade);
+    const blade = new THREE.Mesh(BLADE.short, new THREE.MeshStandardMaterial({ color: '#ccc', metalness: .55, roughness: .3 }));
+    blade.position.x = .02; g.add(blade);
+    const guard = new THREE.Mesh(guardGeo, mat('#3a3a44')); guard.position.x = .01; g.add(guard);
+    const grip = new THREE.Mesh(gripGeo, mat('#5a3620')); grip.position.x = -.075; g.add(grip);
+    const pommel = new THREE.Mesh(pommelGeo, mat('#3a3a44')); pommel.position.x = -.155; g.add(pommel);
     g.userData.blade = blade; return g;
   }
   function styleKnife(k, item, T) {
-    const b = k.userData.blade; const L = item.long ? .52 : .3;
-    b.scale.x = L / .3; b.position.x = L / 2; b.material.color.copy(colorOf(item, T));
+    const b = k.userData.blade, geo = item.long ? BLADE.long : BLADE.short;
+    if (b.geometry !== geo) b.geometry = geo;
+    const c = colorOf(item, T); b.material.color.copy(c); b.material.emissive.copy(c).multiplyScalar(.18);
   }
   function makeGun() {
     const g = new THREE.Group();
@@ -124,7 +141,7 @@ const R3D = (() => {
     part(.26, .26, .26, skin, 0, .88, 0);
     part(.28, .08, .28, shirt, -.01, 1.03, 0); // hair/cap
     part(.02, .05, .04, mat('#222'), .13, .9, -.06); part(.02, .05, .04, mat('#222'), .13, .9, .06);
-    const knife = makeKnife(); knife.position.set(.06, -.3, 0); knife.visible = false; armR.add(knife);
+    const knife = makeKnife(); knife.position.set(0, -.36, 0); knife.visible = false; armR.add(knife);
     const gun = makeGun(); gun.position.set(.08, -.3, 0); gun.visible = false; armR.add(gun);
     const ring = new THREE.Mesh(new THREE.RingGeometry(.36, .42, 24), new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: .7, side: THREE.DoubleSide }));
     ring.rotation.x = -Math.PI / 2; ring.position.y = .02; ring.visible = false; root.add(ring);
