@@ -746,7 +746,8 @@ function shortNum(n) {
 function trophyPopup(list) {
   SFX.win();
   const t = list[0], more = list.length > 1 ? ` (+${list.length - 1} more)` : '';
-  const text = `🏆 Trophy unlocked: ${t.icon} ${t.name}! +${t.reward.toLocaleString()} coins${more}`;
+  const it = ITEM[t.item];
+  const text = `🏆 Trophy unlocked: ${t.icon} ${t.name}! You got ${it ? it.name + ' + ' : ''}${t.reward.toLocaleString()} coins${more}`;
   if (V) msg(text, '#ffc233', 5); else toast(text, true);
 }
 function sortedInv() { return P.inv.slice().sort((a, b) => ITEM[b.id].val - ITEM[a.id].val); }
@@ -792,7 +793,8 @@ function renderLobby() {
     $('#trophyCount').textContent = `${T.filter(t => t.done).length} / ${T.length}`;
     $('#trophyGrid').innerHTML = T.map(t => `<div class="trophy ${t.done ? 'done' : ''}"><div class="ti">${t.icon}</div><b>${esc(t.name)}</b>
       <div class="td">${esc(t.desc)}</div><div class="tbar"><i style="width:${t.value / t.goal * 100}%"></i></div>
-      <div class="tr">${t.done ? '✅ Unlocked' : `${shortNum(t.value)} / ${shortNum(t.goal)}`} · 💰 ${t.reward.toLocaleString()}</div></div>`).join('');
+      <div class="tr">${t.done ? '✅ Unlocked' : `${shortNum(t.value)} / ${shortNum(t.goal)}`} · 💰 ${t.reward.toLocaleString()}</div>
+      ${ITEM[t.item] ? `<div class="treward" style="border-color:${rarColor(ITEM[t.item].r)}">${ITEM[t.item].type === 'knife' ? '🔪' : '🔫'} <i class="tdot ${ITEM[t.item].col === 'chroma' ? 'chroma' : ''}" style="background:${ITEM[t.item].col === 'chroma' ? '' : ITEM[t.item].col}"></i><b>${esc(ITEM[t.item].name)}</b> <span style="color:${rarColor(ITEM[t.item].r)}">${ITEM[t.item].r}</span></div>` : ''}</div>`).join('');
   }
 }
 

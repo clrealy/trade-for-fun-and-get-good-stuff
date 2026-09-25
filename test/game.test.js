@@ -274,3 +274,17 @@ test('trophies unlock once and pay coins', () => {
   assert.ok(pub.find(t => t.id === 'duel1').done);
   assert.strictEqual(pub.find(t => t.id === 'duel2').value, 10);
 });
+
+test('every trophy gives its own exclusive weapon, once', () => {
+  const ids = Eco.TROPHIES.map(t => t.item);
+  assert.strictEqual(new Set(ids).size, Eco.TROPHIES.length);
+  for (const id of ids) { assert.ok(Sim.ITEM[id] && Sim.ITEM[id].exclusive, id); }
+  for (let i = 0; i < 20000; i++) for (const c of Sim.CRATES) assert.ok(!Sim.ITEM[Sim.rollCrate(c).id].trophy);
+  const p = defaultProfile('t');
+  Eco.applyRoundResult(p, { role: 'murderer', won: true, alive: true, bag: 0, kills: 1 });
+  Eco.checkTrophies(p); Eco.checkTrophies(p);
+  assert.deepStrictEqual(p.inv.map(i => i.id), ['t_blood1']);
+  // trophies unlocked before weapons existed get their weapon on the next check
+  const old = defaultProfile('o'); old.trophies = ['play1']; Eco.checkTrophies(old);
+  assert.ok(old.inv.some(i => i.id === 't_play1'));
+});

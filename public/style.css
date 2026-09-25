@@ -252,3 +252,7 @@ body.touch #introSub{font-size:17px}
 .trophy.done{border-color:var(--gold);background:linear-gradient(135deg,#ffc23322,var(--panel2))}
 .trophy.done .ti{filter:none;opacity:1}
 .trophy.done .tbar i{background:var(--gold)}
+.trophy .treward{grid-column:1 / -1;margin-top:6px;font-size:12px;background:var(--bg);border:2px solid #888;border-radius:10px;padding:5px 8px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.trophy .treward span{font-size:10px;font-weight:700;text-transform:uppercase}
+.trophy .tdot{width:12px;height:12px;border-radius:50%;border:1px solid #fff8;display:inline-block}
+.trophy .tdot.chroma{background:linear-gradient(90deg,#f55,#fd5,#5f7,#5cf,#b6f)}

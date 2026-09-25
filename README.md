@@ -82,7 +82,7 @@ The Play tab tracks kills. At 50 kills a player can claim the summer set (Sunbur
 
 ## Trophies
 
-The **🏆 Trophies** tab has 25 trophies for grinding: kills, rounds, wins, Murderer/Sheriff/Hero/1v1 wins, surviving, coins earned, boxes opened, trades, levels and owning Chromas. The server unlocks each one once, pays its coin reward right away and shows a popup. Edit the list in `TROPHIES` in `server/economy.js`.
+The **🏆 Trophies** tab has 25 trophies for grinding: kills, rounds, wins, Murderer/Sheriff/Hero/1v1 wins, surviving, coins earned, boxes opened, trades, levels and owning Chromas. The server unlocks each one once and hands over its reward right away: an exclusive knife or gun (25 trophy-only weapons, never in boxes or trades from bots) plus coins. A popup shows what you got. Edit the list in `TROPHIES` in `server/economy.js`.
 
 ## Chat and cheats
 

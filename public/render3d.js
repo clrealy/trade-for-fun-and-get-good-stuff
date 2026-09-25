@@ -126,8 +126,8 @@ const R3D = (() => {
   function knifeStyle(item) {
     const n = item.name.toLowerCase();
     if (/scythe|harvester|batwing/.test(n)) return 'scythe';
-    if (/ray blade|galaxy|nebula|neon|sussy|chroma fang|icewing/.test(n)) return 'energy';
-    if (/butter|kitchen|rusty|sunburn/.test(n)) return 'cleaver';
+    if (/ray blade|galaxy|nebula|neon|sussy|chroma fang|icewing|star blade|saber|no life|death itself/.test(n)) return 'energy';
+    if (/butter|kitchen|rusty|sunburn|machete|box cutter/.test(n)) return 'cleaver';
     if (/frost|toxic|thunder|blood|death|heat|inferno/.test(n)) return 'serrated';
     return 'dagger';
   }

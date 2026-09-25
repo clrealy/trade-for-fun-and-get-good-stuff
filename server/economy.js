@@ -36,7 +36,7 @@ const MAX_INV = 500;
 
 function publicProfile(p) {
   return { name: p.name, coins: p.coins, xp: p.xp, level: p.level, xpNeed: xpNeed(p.level), inv: p.inv, equip: p.equip, mT: p.mT, sT: p.sT, stats: p.stats, luck: !!p.luck,
-    trophies: TROPHIES.map(t => ({ id: t.id, icon: t.icon, name: t.name, desc: t.desc, goal: t.goal, reward: t.reward, value: Math.min(t.get(p), t.goal), done: (p.trophies || []).includes(t.id) })),
+    trophies: TROPHIES.map(t => ({ id: t.id, icon: t.icon, name: t.name, desc: t.desc, goal: t.goal, reward: t.reward, item: t.item, value: Math.min(t.get(p), t.goal), done: (p.trophies || []).includes(t.id) })),
     events: EVENTS.map(E => { const ev = (p.events && p.events[E.id]) || { kills: 0, claimed: false }; return { ...E, kills: Math.min(ev.kills, E.goal), claimed: ev.claimed }; }),
     bundles: BUNDLES.map(b => ({ ...b, owned: b.items.every(i => p.inv.some(x => x.id === i)) })) };
 }
@@ -118,37 +118,40 @@ function applyRoundResult(p, res) {
 // Unlocked once, forever, and each pays coins. Progress comes from stats the server tracks.
 const stat = k => p => (p.stats && p.stats[k]) || 0;
 const TROPHIES = [
-  ['blood1', '🩸', 'First Blood', 'Get your first kill', stat('kills'), 1, 50],
-  ['blood2', '🔪', 'Serial Killer', 'Get 50 kills', stat('kills'), 50, 500],
-  ['blood3', '💀', 'Grim Reaper', 'Get 250 kills', stat('kills'), 250, 2500],
-  ['blood4', '☠️', 'Death Itself', 'Get 1,000 kills', stat('kills'), 1000, 10000],
-  ['play1', '🎮', 'Rookie', 'Play 10 rounds', stat('rounds'), 10, 100],
-  ['play2', '🕹️', 'Regular', 'Play 100 rounds', stat('rounds'), 100, 1000],
-  ['play3', '🧟', 'No Life', 'Play 500 rounds', stat('rounds'), 500, 5000],
-  ['win1', '🥉', 'Winner', 'Win 10 rounds', stat('wins'), 10, 200],
-  ['win2', '🥇', 'Champion', 'Win 100 rounds', stat('wins'), 100, 2000],
-  ['murd', '😈', 'Murderer Main', 'Win 25 rounds as Murderer', stat('murdWins'), 25, 1500],
-  ['sher', '🤠', 'Law & Order', 'Win 25 rounds as Sheriff', stat('sheriffWins'), 25, 1500],
-  ['hero1', '🦸', 'Hero Moment', 'Pick up the dropped gun', stat('heroes'), 1, 150],
-  ['hero2', '🛡️', 'Real Hero', 'Become the Hero 10 times', stat('heroes'), 10, 1000],
-  ['duel1', '⚔️', 'Duelist', 'Win 10 1v1s', stat('duelWins'), 10, 750],
-  ['duel2', '👑', 'Duel King', 'Win 50 1v1s', stat('duelWins'), 50, 3000],
-  ['surv', '🏃', 'Survivor', 'Survive 25 rounds as Innocent or Sheriff', stat('survived'), 25, 750],
-  ['coin1', '💰', 'Coin Collector', 'Earn 1,000 coins from rounds', stat('coins'), 1000, 250],
-  ['coin2', '🤑', 'Money Bags', 'Earn 25,000 coins from rounds', stat('coins'), 25000, 2500],
-  ['box1', '📦', 'Unboxer', 'Open 25 boxes', stat('unboxed'), 25, 300],
-  ['box2', '🎰', 'Box Addict', 'Open 250 boxes', stat('unboxed'), 250, 3000],
-  ['trade', '🤝', 'Trader', 'Finish 10 trades', stat('trades'), 10, 400],
-  ['lvl1', '⭐', 'Level 10', 'Reach level 10', p => p.level, 10, 500],
-  ['lvl2', '🌟', 'Level 25', 'Reach level 25', p => p.level, 25, 2000],
-  ['lvl3', '💫', 'Level 50', 'Reach level 50', p => p.level, 50, 7500],
-  ['chroma', '🌈', 'Chroma Hunter', 'Own 5 Chroma items', p => p.inv.filter(i => Sim.ITEM[i.id] && Sim.ITEM[i.id].r === 'Chroma').length, 5, 5000],
-].map(([id, icon, name, desc, get, goal, reward]) => ({ id, icon, name, desc, get, goal, reward }));
+  ['blood1', '🩸', 'First Blood', 'Get your first kill', stat('kills'), 1, 50, 't_blood1'],
+  ['blood2', '🔪', 'Serial Killer', 'Get 50 kills', stat('kills'), 50, 500, 't_blood2'],
+  ['blood3', '💀', 'Grim Reaper', 'Get 250 kills', stat('kills'), 250, 2500, 't_blood3'],
+  ['blood4', '☠️', 'Death Itself', 'Get 1,000 kills', stat('kills'), 1000, 10000, 't_blood4'],
+  ['play1', '🎮', 'Rookie', 'Play 10 rounds', stat('rounds'), 10, 100, 't_play1'],
+  ['play2', '🕹️', 'Regular', 'Play 100 rounds', stat('rounds'), 100, 1000, 't_play2'],
+  ['play3', '🧟', 'No Life', 'Play 500 rounds', stat('rounds'), 500, 5000, 't_play3'],
+  ['win1', '🥉', 'Winner', 'Win 10 rounds', stat('wins'), 10, 200, 't_win1'],
+  ['win2', '🥇', 'Champion', 'Win 100 rounds', stat('wins'), 100, 2000, 't_win2'],
+  ['murd', '😈', 'Murderer Main', 'Win 25 rounds as Murderer', stat('murdWins'), 25, 1500, 't_murd'],
+  ['sher', '🤠', 'Law & Order', 'Win 25 rounds as Sheriff', stat('sheriffWins'), 25, 1500, 't_sher'],
+  ['hero1', '🦸', 'Hero Moment', 'Pick up the dropped gun', stat('heroes'), 1, 150, 't_hero1'],
+  ['hero2', '🛡️', 'Real Hero', 'Become the Hero 10 times', stat('heroes'), 10, 1000, 't_hero2'],
+  ['duel1', '⚔️', 'Duelist', 'Win 10 1v1s', stat('duelWins'), 10, 750, 't_duel1'],
+  ['duel2', '👑', 'Duel King', 'Win 50 1v1s', stat('duelWins'), 50, 3000, 't_duel2'],
+  ['surv', '🏃', 'Survivor', 'Survive 25 rounds as Innocent or Sheriff', stat('survived'), 25, 750, 't_surv'],
+  ['coin1', '💰', 'Coin Collector', 'Earn 1,000 coins from rounds', stat('coins'), 1000, 250, 't_coin1'],
+  ['coin2', '🤑', 'Money Bags', 'Earn 25,000 coins from rounds', stat('coins'), 25000, 2500, 't_coin2'],
+  ['box1', '📦', 'Unboxer', 'Open 25 boxes', stat('unboxed'), 25, 300, 't_box1'],
+  ['box2', '🎰', 'Box Addict', 'Open 250 boxes', stat('unboxed'), 250, 3000, 't_box2'],
+  ['trade', '🤝', 'Trader', 'Finish 10 trades', stat('trades'), 10, 400, 't_trade'],
+  ['lvl1', '⭐', 'Level 10', 'Reach level 10', p => p.level, 10, 500, 't_lvl1'],
+  ['lvl2', '🌟', 'Level 25', 'Reach level 25', p => p.level, 25, 2000, 't_lvl2'],
+  ['lvl3', '💫', 'Level 50', 'Reach level 50', p => p.level, 50, 7500, 't_lvl3'],
+  ['chroma', '🌈', 'Chroma Hunter', 'Own 5 Chroma items', p => p.inv.filter(i => Sim.ITEM[i.id] && Sim.ITEM[i.id].r === 'Chroma').length, 5, 5000, 't_chroma'],
+].map(([id, icon, name, desc, get, goal, reward, item]) => ({ id, icon, name, desc, get, goal, reward, item }));
 // call after any change to a profile: unlocks what's newly earned and pays the reward
 function checkTrophies(p) {
   p.trophies = p.trophies || [];
   const got = [];
+  p.trophyGifts = p.trophyGifts || [];
   for (const t of TROPHIES) if (!p.trophies.includes(t.id) && t.get(p) >= t.goal) { p.trophies.push(t.id); p.coins += t.reward; got.push(t.id); }
+  // each unlocked trophy hands over its weapon once (this also catches trophies unlocked before weapons existed)
+  for (const t of TROPHIES) if (p.trophies.includes(t.id) && !p.trophyGifts.includes(t.id) && p.inv.length < MAX_INV) { addItem(p, t.item); p.trophyGifts.push(t.id); }
   return got;
 }
 
