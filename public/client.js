@@ -147,7 +147,7 @@ function onMsg(m) {
     case 's': if (V && !V.offline) { if (m.s) applySnap(m.s); if (m.ev) m.ev.forEach(handleEvent); } break;
     case 'reward': showReward(m.r); break;
     case 'unboxed': playUnbox(m.crate, m.item); break;
-    case 'codeAll': unboxPending = false; SFX.win(); toast(`Code redeemed: you got all ${m.count} knives and guns 🔪🔫`, true); break;
+    case 'codeAll': unboxPending = false; SFX.win(); toast(`Code redeemed: +${m.count} knives and guns you were missing 🔪🔫 You have every one now`, true); if (screen === 'lobby') renderLobby(); break;
     case 'codeItems': unboxPending = false; SFX.win(); toast(`${m.from === 'event' ? 'Unlocked' : m.from === 'bundle' ? 'Bought' : 'Code redeemed'}: ${m.items.map(id => ITEM[id].name).join(' + ')} 🔥`, true); if (screen === 'lobby') renderLobby(); break;
     case 'chat': addChat(m.name, m.text, m.sys); break;
     case 'codeLuck': unboxPending = false; SFX.win(); toast('🍀 Owner luck on: 95% Death items from the Halloween Box 💀', true); if (screen === 'lobby') renderLobby(); break;

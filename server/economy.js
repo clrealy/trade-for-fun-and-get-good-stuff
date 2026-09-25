@@ -72,15 +72,18 @@ function redeem(p, rawCode) {
   if (!c) throw new Error('That code doesn\'t exist');
   if (c.expires && Date.now() > Date.parse(c.expires + 'T23:59:59Z')) throw new Error('That code expired');
   p.redeemed = p.redeemed || [];
-  if (p.redeemed.includes(code)) throw new Error('You already used that code');
+  if (p.redeemed.includes(code) && !c.repeat) throw new Error('You already used that code');
   let out;
   if (c.reward.luck) {
     if (p.luck) throw new Error('Your luck is already on 🍀');
     p.luck = true; out = { luck: true };
   } else if (c.reward.all) {
-    const all = Sim.ITEMS.filter(i => !i.nodrop);
-    if (p.inv.length + all.length > MAX_INV) throw new Error('Inventory full (500 items)');
-    out = { all: all.map(i => addItem(p, i.id).id) };
+    // only what you don't own yet, so it can be used again whenever new items come out
+    const owned = new Set(p.inv.map(i => i.id));
+    const missing = Sim.ITEMS.filter(i => !i.nodrop && !owned.has(i.id));
+    if (!missing.length) throw new Error('You already have every knife and gun 😎');
+    if (p.inv.length + missing.length > MAX_INV) throw new Error('Inventory full (500 items)');
+    out = { all: missing.map(i => addItem(p, i.id).id) };
   } else if (c.reward.items) {
     if (p.inv.length + c.reward.items.length > MAX_INV) throw new Error('Inventory full (500 items)');
     out = { items: c.reward.items.map(id => addItem(p, id).id) };

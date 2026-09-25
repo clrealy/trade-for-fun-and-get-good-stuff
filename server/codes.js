@@ -1,9 +1,10 @@
 'use strict';
 // Redeem codes. Codes are not case sensitive and each account can use each code once.
 // reward: { all: true } every knife and gun, { items: ['k20', 'g15'] } a set, { rarity: 'Godly' } random item of that rarity, { item: 'g13' } a specific item, or { coins: 500 }.
+// repeat: true lets the same account use a code again.
 // expires: null, or a date like '2026-12-31' (the code stops working at the end of that day, UTC).
 module.exports = {
-  GIMMEALL: { reward: { all: true }, expires: null },          // every knife + gun. Delete before going public if you want a real economy
+  GIMMEALL: { reward: { all: true }, repeat: true, expires: null }, // every knife + gun you're missing, reusable. Delete before going public if you want a real economy
   GINGERSCOPE: { reward: { item: 'g14' }, expires: null },      // Ginger Scope, value 10 trillion
   MEMESET: { reward: { items: ['k20', 'g15'] }, expires: null }, // Sussy Slasher + Bruh Blaster, 69,420 each
   CGINGERSCOPE: { reward: { item: 'g16' }, expires: null },     // Chroma Ginger Scope, value 1e48

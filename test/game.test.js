@@ -59,7 +59,11 @@ test('codes give their reward once per account', () => {
   assert.strictEqual(Eco.redeem(p, 'CHROMA4LIFE').inst.id, 'g13');
   const c1 = p.coins; assert.deepStrictEqual(Eco.redeem(p, 'millionaire'), { coins: 1000000 }); assert.strictEqual(p.coins, c1 + 1000000);
   assert.throws(() => Eco.redeem(p, 'GODLY26'), /already used/);
-  assert.strictEqual(Eco.redeem(p, 'gimmeall').all.length, Sim.ITEMS.filter(i => !i.nodrop).length);
+  const n0 = Sim.ITEMS.filter(i => !i.nodrop && !p.inv.some(x => x.id === i.id)).length;
+  assert.strictEqual(Eco.redeem(p, 'gimmeall').all.length, n0);
+  assert.throws(() => Eco.redeem(p, 'gimmeall'), /already have every/);
+  p.inv = p.inv.filter(i => i.id !== 'g13');
+  assert.deepStrictEqual(Eco.redeem(p, 'GIMMEALL').all, ['g13'], 'reusable: gives back just what is missing');
   assert.deepStrictEqual(Eco.redeem(p, 'memeset').items, ['k20', 'g15']);
   assert.strictEqual(Sim.ITEM.k20.val, 69420);
   assert.deepStrictEqual(Eco.redeem(p, 'c memeset').items, ['k21', 'g17']);
