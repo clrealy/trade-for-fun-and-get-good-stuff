@@ -230,4 +230,5 @@ test('the Raygun makes its own sound', () => {
   Sim.step(R, 1 / 30);
   const sounds = Sim.drain(R).filter(ev => ev.t === 'sfx').map(ev => ev.s).sort();
   assert.deepStrictEqual(sounds, ['ray', 'shoot']);
+  assert.ok(R.ents[0].atkCd < 0.2, 'raygun has no reload');
 });

@@ -75,7 +75,7 @@
     I('k27', 'knife', 'Chroma Death Knife', 'Chroma', 'chroma', 1, { val: 12000, exclusive: true }),
     I('g22', 'gun', 'Chroma Death Gun', 'Chroma', 'chroma', 1, { val: 24000, exclusive: true }),
     // Raygun Set: 3,999 coins in the Shop, or the secret code
-    I('g21', 'gun', 'Raygun', 'Ancient', '#39ff14', 1, { val: 4000, exclusive: true, sound: 'ray' }),
+    I('g21', 'gun', 'Raygun', 'Ancient', '#39ff14', 1, { val: 4000, exclusive: true, sound: 'ray', noCooldown: true }),
     I('k28', 'knife', 'Ray Blade', 'Ancient', '#00e5ff', 1, { val: 4000, exclusive: true }),
     I('g16', 'gun', 'Chroma Ginger Scope', 'Chroma', 'chroma', 1, { val: 1e48, exclusive: true, noCooldown: true, long: true }),
     I('g14', 'gun', 'Ginger Scope', 'Ancient', '#c9743a', 1, { val: 10000000000000, exclusive: true, noCooldown: true, long: true }),
