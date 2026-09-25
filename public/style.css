@@ -4,7 +4,7 @@
 }
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:Fredoka,system-ui,sans-serif}
-canvas{display:block;position:fixed;inset:0}
+canvas{display:block;position:fixed;inset:0;touch-action:none;-webkit-user-select:none;user-select:none}
 .hide{display:none!important}
 button{font-family:inherit}
 .btn{background:var(--accent);color:#fff;border:0;border-radius:12px;padding:10px 18px;font-size:16px;font-weight:600;cursor:pointer;box-shadow:0 4px 0 #6b33a8;transition:transform .08s}
@@ -170,3 +170,31 @@ input:focus{outline:none;border-color:var(--accent)}
 .lobbyfoot{max-width:1100px;margin:8px auto 0;text-align:center;padding-block:12px}
 .lobbyfoot a{color:var(--gold);font-weight:600;font-size:16px;text-decoration:none;border-bottom:2px solid transparent}
 .lobbyfoot a:hover,.lobbyfoot a:focus-visible{border-bottom-color:var(--gold);outline:none}
+
+/* Phones and tablets */
+#mobileBtns{display:none}
+body.touch #mobileBtns{display:flex;position:absolute;right:16px;bottom:calc(76px + env(safe-area-inset-bottom, 0px));flex-direction:column;align-items:flex-end;gap:10px;pointer-events:auto}
+.mbtn{background:rgba(20,16,30,.7);color:#fff;border:2px solid rgba(255,255,255,.35);border-radius:999px;font-family:inherit;font-weight:700;font-size:16px;min-width:56px;height:56px;padding:0 16px;touch-action:manipulation}
+.mbtn.big{height:72px;min-width:72px;font-size:17px;border-color:var(--red)}
+.mbtn:active{background:rgba(179,107,255,.6)}
+body.touch #hint,body.touch #chatHint{display:none}
+body.touch #roleBadge{top:calc(56px + env(safe-area-inset-top, 0px));bottom:auto;left:auto;right:16px;font-size:15px;padding:5px 12px}
+body.touch #alive{font-size:13px;padding:4px 10px}
+body.touch #bag{font-size:16px;padding:6px 12px;bottom:calc(16px + env(safe-area-inset-bottom, 0px))}
+body.touch #cools{left:auto;right:16px;bottom:calc(300px + env(safe-area-inset-bottom, 0px));align-items:flex-end}
+body.touch .cool{width:130px}
+body.touch #chat{width:min(260px,55vw)}
+body.touch #chatLog{max-height:110px}
+body.touch #chatLog div{font-size:12px}
+body.touch #timer{font-size:24px}
+body.touch #msgs{top:24vh;width:min(80vw,420px)}
+body.touch #msgs div{font-size:14px}
+body.touch #introSub{font-size:17px}
+@media (max-width:600px){
+  .logo{font-size:26px}
+  header{padding-block:12px}
+  .pill{font-size:15px;padding:5px 11px}
+  .tab{font-size:15px;padding:8px 12px}
+  .card{padding:14px}
+  .evrewards .item{width:96px}
+}

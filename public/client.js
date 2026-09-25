@@ -4,8 +4,10 @@
 const $ = s => document.querySelector(s);
 const cv = $('#game'), ctx = cv.getContext('2d');
 let W = 0, H = 0, DPR = 1;
+let Z = 1; // world zoom: phones zoom out a bit so you can see more of the map
 function resize() {
   DPR = Math.min(2, devicePixelRatio || 1); W = innerWidth; H = innerHeight;
+  Z = Math.max(.55, Math.min(1, Math.min(W, H) / 720));
   cv.width = W * DPR; cv.height = H * DPR; cv.style.width = W + 'px'; cv.style.height = H + 'px';
 }
 addEventListener('resize', resize); resize();
@@ -356,7 +358,8 @@ function update(dt) {
     let dx = 0, dy = 0;
     if (keys.KeyW || keys.ArrowUp) dy--; if (keys.KeyS || keys.ArrowDown) dy++;
     if (keys.KeyA || keys.ArrowLeft) dx--; if (keys.KeyD || keys.ArrowRight) dx++;
-    const l = Math.hypot(dx, dy) || 1;
+    if (joy.id !== null && (joy.dx || joy.dy)) { dx = joy.dx; dy = joy.dy; if (aimTouch === null) touchAim = Math.atan2(dy, dx); }
+    const l = Math.max(1, Math.hypot(dx, dy));
     Sim.moveEnt(V.M, V.lp, dx / l, dy / l, dt, me.spd || Sim.PLAYER_SPEED);
     const d = V.disp.get(V.you); if (d && (dx || dy)) d.walk += dt * 12;
   }
@@ -374,10 +377,10 @@ function update(dt) {
   if (V.endInfo && !V.endShown && performance.now() - V.endAt > 1400) { V.endShown = true; showEnd(); }
   const f = focusEnt();
   if (f) { V.cam.x += (f.x - V.cam.x) * Math.min(1, dt * 8); V.cam.y += (f.y - V.cam.y) * Math.min(1, dt * 8); }
-  mouse.wx = mouse.x - W / 2 + V.cam.x; mouse.wy = mouse.y - H / 2 + V.cam.y;
+  mouse.wx = (mouse.x - W / 2) / Z + V.cam.x; mouse.wy = (mouse.y - H / 2) / Z + V.cam.y;
   updateHUD();
 }
-function myAngle() { return V.lp ? Math.atan2(mouse.wy - V.lp.y, mouse.wx - V.lp.x) : 0; }
+function myAngle() { if (touchAim !== null) return touchAim; return V.lp ? Math.atan2(mouse.wy - V.lp.y, mouse.wx - V.lp.x) : 0; }
 function currentInput() {
   const lp = V.lp || { x: 0, y: 0 };
   return { x: Math.round(lp.x * 10) / 10, y: Math.round(lp.y * 10) / 10, a: +myAngle().toFixed(3), atk: mouse.down, thr: thrSeq, tog: togSeq };
@@ -399,11 +402,16 @@ function updateHUD() {
     const rb = $('#roleBadge'); if (hudCache.role !== role[0] + me.alive) { hudCache.role = role[0] + me.alive; rb.textContent = (me.alive ? '' : '💀 ') + role[0]; rb.style.background = role[1] + '55'; rb.style.color = role[1]; }
   }
   let cools = '';
-  if (me && me.alive && me.role === 'murderer') cools = coolBar('Stab', 1 - me.atk / .5) + coolBar('Throw (Q)', 1 - me.thr / 3);
+  if (me && me.alive && me.role === 'murderer') cools = coolBar('Stab', 1 - me.atk / .5) + coolBar(isTouch ? 'Throw' : 'Throw (Q)', 1 - me.thr / 3);
   else if (me && me.alive && me.gun) cools = coolBar('Gun', 1 - me.atk / 2.2);
   setHTML('cools', cools);
   const hint = !me ? 'Spectating · click to switch' : !me.alive ? 'Click to switch spectate' : me.role === 'murderer' ? 'Click stab · Q/Right-click throw · E hide knife' : me.gun ? 'Click shoot · E put away gun' : 'Collect coins · Stay alive · Grab the gun if it drops';
   setText('hint', hint);
+  if (isTouch) {
+    const armed = me && me.alive && (me.role === 'murderer' || me.gun);
+    show('#mbThrow', !!(me && me.alive && me.role === 'murderer')); show('#mbWeapon', !!armed);
+    setText('mbWeapon', me && me.wo ? '✋ Hide' : me && me.role === 'murderer' ? '🔪 Knife' : '🔫 Gun');
+  }
   const spectating = (!me || !me.alive) && V.spec;
   show('#spec', !!spectating); if (spectating) setText('spec', `👁️ Spectating ${nameOf(V.spec)}`);
 }
@@ -415,10 +423,11 @@ function render() {
   ctx.fillStyle = '#0d0b12'; ctx.fillRect(0, 0, W, H);
   if (!V || !V.snap) return;
   const M = V.M, s = V.snap;
-  const cx = Math.round(V.cam.x - W / 2), cy = Math.round(V.cam.y - H / 2), T = performance.now() / 1000;
-  ctx.save(); ctx.translate(-cx, -cy);
+  const VW = W / Z, VH = H / Z; // how much of the world fits on screen
+  const cx = V.cam.x - VW / 2, cy = V.cam.y - VH / 2, T = performance.now() / 1000;
+  ctx.save(); ctx.scale(Z, Z); ctx.translate(-cx, -cy);
   const tx0 = Math.max(0, Math.floor(cx / TILE)), ty0 = Math.max(0, Math.floor(cy / TILE));
-  const tx1 = Math.min(M.W - 1, Math.floor((cx + W) / TILE)), ty1 = Math.min(M.H - 1, Math.floor((cy + H) / TILE));
+  const tx1 = Math.min(M.W - 1, Math.floor((cx + VW) / TILE)), ty1 = Math.min(M.H - 1, Math.floor((cy + VH) / TILE));
   for (let y = ty0; y <= ty1; y++) for (let x = tx0; x <= tx1; x++) {
     if (M.grid[y][x] === '#') continue;
     ctx.fillStyle = M.floor[(x + y) & 1]; ctx.fillRect(x * TILE, y * TILE, TILE, TILE);
@@ -486,7 +495,7 @@ function render() {
 
   const me = V.me;
   if (s.g && me && me.alive && me.role === 'innocent') {
-    const gx = s.g.x - cx, gy = s.g.y - cy;
+    const gx = (s.g.x - cx) * Z, gy = (s.g.y - cy) * Z;
     if (gx < 0 || gy < 0 || gx > W || gy > H) {
       const a = Math.atan2(gy - H / 2, gx - W / 2), R = Math.min(W, H) / 2 - 40;
       const ax = W / 2 + Math.cos(a) * R, ay = H / 2 + Math.sin(a) * R;
@@ -497,7 +506,11 @@ function render() {
   }
   const v = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * .35, W / 2, H / 2, Math.max(W, H) * .75);
   v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,.55)'); ctx.fillStyle = v; ctx.fillRect(0, 0, W, H);
-  if (me && me.alive && (me.role === 'murderer' || me.gun) && V.phase === 'play') {
+  if (joy.id !== null) {
+    ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.beginPath(); ctx.arc(joy.ox, joy.oy, JOY_R, 0, 7); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.45)'; ctx.beginPath(); ctx.arc(joy.ox + joy.dx * JOY_R, joy.oy + joy.dy * JOY_R, 26, 0, 7); ctx.fill();
+  }
+  if (!isTouch && me && me.alive && (me.role === 'murderer' || me.gun) && V.phase === 'play') {
     ctx.strokeStyle = 'rgba(255,255,255,.8)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(mouse.x, mouse.y, 8, 0, 7);
     ctx.moveTo(mouse.x - 13, mouse.y); ctx.lineTo(mouse.x - 5, mouse.y); ctx.moveTo(mouse.x + 5, mouse.y); ctx.lineTo(mouse.x + 13, mouse.y); ctx.stroke();
   }
@@ -603,6 +616,56 @@ cv.addEventListener('mousedown', e => {
 });
 addEventListener('mouseup', e => { if (e.button === 0) mouse.down = false; });
 cv.addEventListener('contextmenu', e => e.preventDefault());
+
+// ---------- touch controls ----------
+// left side of the screen: joystick. Anywhere else: aim there (and attack while held).
+const isTouch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
+document.body.classList.toggle('touch', isTouch);
+const JOY_R = 60;
+let joy = { id: null, ox: 0, oy: 0, dx: 0, dy: 0 }, aimTouch = null, touchAim = null;
+function aimAt(x, y) {
+  if (!V || !V.lp) return;
+  const wx = (x - W / 2) / Z + V.cam.x, wy = (y - H / 2) / Z + V.cam.y;
+  touchAim = Math.atan2(wy - V.lp.y, wx - V.lp.x);
+}
+cv.addEventListener('touchstart', e => {
+  e.preventDefault();
+  if (!V) return;
+  for (const t of e.changedTouches) {
+    if (!V.me || !V.me.alive) { // spectating: tap to switch
+      const alive = [...V.disp.entries()].filter(([, d]) => d.alive).map(([id]) => id);
+      if (alive.length) V.spec = alive[(alive.indexOf(V.spec) + 1) % alive.length];
+      continue;
+    }
+    if (joy.id === null && t.clientX < W * .45 && t.clientY > H * .35) joy = { id: t.identifier, ox: t.clientX, oy: t.clientY, dx: 0, dy: 0 };
+    else if (aimTouch === null) {
+      aimTouch = t.identifier; aimAt(t.clientX, t.clientY);
+      if (V.me.role === 'murderer' || V.me.gun) mouse.down = true;
+    }
+  }
+}, { passive: false });
+cv.addEventListener('touchmove', e => {
+  e.preventDefault();
+  for (const t of e.changedTouches) {
+    if (t.identifier === joy.id) {
+      let dx = (t.clientX - joy.ox) / JOY_R, dy = (t.clientY - joy.oy) / JOY_R; const l = Math.hypot(dx, dy);
+      if (l > 1) { dx /= l; dy /= l; }
+      joy.dx = l < .15 ? 0 : dx; joy.dy = l < .15 ? 0 : dy;
+    } else if (t.identifier === aimTouch) aimAt(t.clientX, t.clientY);
+  }
+}, { passive: false });
+function touchEnd(e) {
+  for (const t of e.changedTouches) {
+    if (t.identifier === joy.id) joy = { id: null, ox: 0, oy: 0, dx: 0, dy: 0 };
+    if (t.identifier === aimTouch) { aimTouch = null; mouse.down = false; }
+  }
+}
+cv.addEventListener('touchend', touchEnd);
+cv.addEventListener('touchcancel', touchEnd);
+const tapBtn = (sel, fn) => $(sel).addEventListener('click', e => { e.preventDefault(); fn(); });
+tapBtn('#mbThrow', () => { if (V && V.phase === 'play' && V.me && V.me.alive && V.me.role === 'murderer') thrSeq++; });
+tapBtn('#mbWeapon', () => { if (V && V.phase === 'play' && V.me && V.me.alive && (V.me.role === 'murderer' || V.me.gun)) togSeq++; });
+tapBtn('#mbChat', () => { if (V) openChat(''); });
 
 // ===================== Lobby UI =====================
 function itemCard(it, opts = {}) {
