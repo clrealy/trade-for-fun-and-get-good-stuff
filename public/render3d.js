@@ -242,13 +242,15 @@ const R3D = (() => {
     part(.26, .26, .26, skin, 0, .88, 0);
     part(.28, .08, .28, shirt, -.01, 1.03, 0); // hair/cap
     part(.02, .05, .04, mat('#222'), .13, .9, -.06); part(.02, .05, .04, mat('#222'), .13, .9, .06);
-    const knife = makeKnife(); knife.position.set(0, -.36, 0); knife.scale.setScalar(1.15); knife.visible = false; armR.add(knife);
+    // knife sits in a grip at the hand; rolled so the blade's flat side faces sideways when it's held up
+    const knifeGrip = new THREE.Group(); knifeGrip.position.set(0, -.34, 0); armR.add(knifeGrip);
+    const knife = makeKnife(); knife.rotation.x = Math.PI / 2; knife.position.x = .06; knife.scale.setScalar(1.4); knife.visible = false; knifeGrip.add(knife);
     const gun = makeGun(); gun.position.set(0, -.36, 0); gun.scale.setScalar(1.6); gun.visible = false; armR.add(gun);
     const ring = new THREE.Mesh(new THREE.RingGeometry(.36, .42, 24), new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: .7, side: THREE.DoubleSide }));
     ring.rotation.x = -Math.PI / 2; ring.position.y = .02; ring.visible = false; root.add(ring);
     root.scale.setScalar(1.1);
     scene.add(root);
-    return { root, body, legL, legR, armL, armR, knife, gun, ring, color };
+    return { root, body, legL, legR, armL, armR, knife, knifeGrip, gun, ring, color };
   }
   function rigFor(id, color) {
     let r = people.get(id);
@@ -269,11 +271,16 @@ const R3D = (() => {
     const swing = Math.sin(d.walk) * .6;
     r.legL.rotation.z = swing; r.legR.rotation.z = -swing; r.armL.rotation.z = -swing * .8;
     r.knife.visible = w === 'k'; r.gun.visible = w === 'g';
-    if (w) {
-      const slash = d.sw > 0 ? Math.sin((1 - d.sw / .2) * Math.PI) * 1.3 : 0;
-      r.armR.rotation.set(-slash * .6, 0, Math.PI / 2 - .15); // arm held forward
-      if (w === 'k') styleKnife(r.knife, item, T); else styleGun(r.gun, item, T);
-      r.knife.rotation.set(0, 0, -Math.PI / 2); r.gun.rotation.set(0, 0, -Math.PI / 2);
+    if (w === 'k') {
+      // knife held up in front of the chest, blade pointing at the sky; a stab swings it forward and down
+      const stab = d.sw > 0 ? Math.sin((1 - d.sw / .15) * Math.PI) : 0;
+      r.armR.rotation.set(0, 0, .6 + stab * .9);
+      r.knifeGrip.rotation.set(0, 0, Math.PI / 2 - .45 - .6 - stab * 1.9); // up, leaning a little forward so the camera can see it
+      styleKnife(r.knife, item, T);
+    } else if (w === 'g') {
+      r.armR.rotation.set(0, 0, Math.PI / 2 - .15); // gun aimed straight ahead
+      r.gun.rotation.set(0, 0, -Math.PI / 2);
+      styleGun(r.gun, item, T);
     } else r.armR.rotation.set(0, 0, swing * .8);
   }
 
@@ -307,6 +314,8 @@ const R3D = (() => {
   // V: the client's view of the round. ITEM: item table. myW: our own weapon state.
   api.draw = (V, ITEM, T, myW) => {
     const M = V.M, s = V.snap;
+    // the page can change size without us hearing about it (app frames, rotation): always match the window
+    if (innerWidth !== W || innerHeight !== H || renderer.domElement.width === 0) api.resize(innerWidth, innerHeight);
     if (M.idx !== mapIdx) { buildMap(M); for (const r of people.values()) scene.remove(r.root); people.clear(); }
     placeCamera(V.cam.x, V.cam.y);
     tickChroma(T);

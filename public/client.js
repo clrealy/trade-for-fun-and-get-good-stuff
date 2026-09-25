@@ -8,15 +8,14 @@ let Z = 1; // world zoom: phones zoom out a bit so you can see more of the map
 function resize() {
   DPR = Math.min(2, devicePixelRatio || 1); W = innerWidth; H = innerHeight;
   Z = Math.max(.55, Math.min(1, Math.min(W, H) / 720));
+  if (typeof R3 !== 'undefined' && R3.ok) R3.resize(W, H); // after W/H are updated, so the 3D view never keeps a stale (or 0x0) size
   cv.width = W * DPR; cv.height = H * DPR; cv.style.width = W + 'px'; cv.style.height = H + 'px';
 }
 // 3D view (render3d.js). Falls back to the 2D canvas if WebGL or three.js isn't available.
 const R3 = typeof R3D !== 'undefined' ? R3D : { ok: false };
 let viewPref = (() => { try { return localStorage.getItem('mm_view') || '3d'; } catch (e) { return '3d'; } })();
 const use3D = () => R3.ok && viewPref !== '2d';
-addEventListener('resize', () => { if (R3.ok) R3.resize(W, H); });
 addEventListener('resize', resize); resize();
-if (R3.ok) R3.resize(W, H);
 
 const { ITEM, RAR, RORDER, CRATES, TILE, BAG_MAX } = Sim;
 const rand = (a, b) => a + Math.random() * (b - a);
