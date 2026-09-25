@@ -347,3 +347,12 @@ nav.invcats{margin:0;max-width:none;flex-wrap:nowrap}
   .wcard .eqtag{font-size:0;gap:0}         /* just the ✓ on small cards so it doesn't hit the star */
   .wcard .eqtag i{font-size:11px}
 }
+
+.mbtn.on{background:rgba(179,107,255,.7);border-color:#fff}
+body.touch #mobileBtns{display:grid;grid-template-columns:repeat(2,auto);justify-items:end;align-items:end}
+body.touch #mbThrow{grid-column:2}
+@media (orientation: landscape) and (max-height: 520px){ body.touch #mobileBtns{display:flex} }
+@media (orientation: landscape) and (max-height: 520px){
+  body.touch #bag{left:auto;right:calc(16px + env(safe-area-inset-right, 0px));transform:none;bottom:auto;top:calc(80px + env(safe-area-inset-top, 0px))}
+  body.touch #cools{bottom:calc(76px + env(safe-area-inset-bottom, 0px))}
+}

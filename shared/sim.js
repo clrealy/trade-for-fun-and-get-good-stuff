@@ -433,8 +433,10 @@
   }
   function collide(M, e) {
     const r = e.r, x0 = Math.floor((e.x - r) / TILE), x1 = Math.floor((e.x + r) / TILE), y0 = Math.floor((e.y - r) / TILE), y1 = Math.floor((e.y + r) / TILE);
+    const high = (e.z || 0) > .35; // mid-jump you clear tables and plants (walls and shelves still block)
     for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) {
       if (!moveSolid(M, tx, ty)) continue;
+      if (high) { const t = tileAt(M, tx, ty); if (t === 'T' || t === 'P') continue; }
       const cx = clamp(e.x, tx * TILE, tx * TILE + TILE), cy = clamp(e.y, ty * TILE, ty * TILE + TILE);
       const dx = e.x - cx, dy = e.y - cy, d2 = dx * dx + dy * dy;
       if (d2 < r * r) {
@@ -468,7 +470,8 @@
       speed: o.human ? PLAYER_SPEED : BOT_SPEED, walk: 0, budget: 0,
       knife: ITEM[o.knife] && ITEM[o.knife].type === 'knife' ? o.knife : 'k0', gun: ITEM[o.gun] && ITEM[o.gun].type === 'gun' ? o.gun : 'g0',
       mT: Math.max(1, num(o.mT, 1)), sT: Math.max(1, num(o.sT, 1)),
-      inp: null, lastThr: 0, lastTog: 0,
+      inp: null, lastThr: 0, lastTog: 0, lastBj: 0,
+      z: 0, vz: 0, crouch: false, bombCd: 0, lastJp: 0,
       ai: { path: [], pathT: 0, goal: null, know: null, lastSeen: null, react: 0, grace: rand(12, 24), stuckT: 0, lx: 0, ly: 0, brave: Math.random() < .25, fleeT: 0, target: null, retarget: 0, noticeT: 0, wanderT: 0, coin: null },
     };
   }
@@ -514,10 +517,11 @@
     // 1v1 is a coin flip; classic uses the tickets
     const m = duel ? pick(R.ents) : weightedPick(R.ents, e => e.mT); m.role = 'murderer';
     const rest = R.ents.filter(e => e !== m);
-    const s = duel ? rest[0] : weightedPick(rest, e => e.sT); s.role = 'sheriff'; s.hasGun = true;
-    if (duel) { m.ai.grace = rand(4, 8); s.ai.know = m; s.ai.react = rand(.4, .7); } // no hiding in a duel: both know who's who
+    const s = !rest.length ? null : duel ? rest[0] : weightedPick(rest, e => e.sT); // a 1-player round has no sheriff
+    if (s) { s.role = 'sheriff'; s.hasGun = true; }
+    if (duel && s) { m.ai.grace = rand(4, 8); s.ai.know = m; s.ai.react = rand(.4, .7); } // no hiding in a duel: both know who's who
     for (const e of R.ents) e.startRole = e.role;
-    R.murderer = m; R.sheriffName = s.name;
+    R.murderer = m; R.sheriffName = s ? s.name : '—';
     for (let i = 0; i < 14; i++) spawnCoin(R);
     return R;
   }
@@ -541,7 +545,7 @@
     emit(R, { t: 'sfx', s: 'stab', x: e.x, y: e.y });
     for (const o of R.ents) {
       if (o === e || !o.alive) continue;
-      if (dist(e, o) < e.r + o.r + 26 && angDiff(Math.atan2(o.y - e.y, o.x - e.x), e.ang) < 1.4) { kill(R, o, e); break; }
+      if (o.z < .6 && dist(e, o) < e.r + o.r + 26 && angDiff(Math.atan2(o.y - e.y, o.x - e.x), e.ang) < 1.4) { kill(R, o, e); break; }
     }
   }
   function tryThrow(R, e) {
@@ -704,6 +708,7 @@
       const k = ai.know;
       ai.fleeT -= dt;
       if (k && k.alive && dist(b, k) < 400 && (dist(b, k) < 180 || los(M, b.x, b.y, k.x, k.y))) {
+        if (dist(b, k) < 150 && !b.z && b.bombCd <= 0 && Math.random() < dt * 1.5) bombJump(R, b); // blast up out of reach
         if (ai.fleeT <= 0 || !ai.path.length) {
           let best = null, bs = -1e9;
           for (let i = 0; i < 14; i++) {
@@ -726,21 +731,46 @@
     moveEnt(M, b, dx, dy, dt, spd);
   }
 
+  // ===================== Crouch + bomb jump =====================
+  // z is height in tiles. Jump: a hop that clears tables and plants. Bomb jump: a blast straight up, very high.
+  const CROUCH = .55, JUMP_UP = 5.2, BOMB_CD = 5, BOMB_UP = 11.5, GRAV = 16;
+  function jump(R, e) {
+    if (!e.alive || e.z > 0) return;
+    e.crouch = false; e.vz = JUMP_UP; e.z = .01;
+    emit(R, { t: 'sfx', s: 'jump', x: e.x, y: e.y });
+  }
+  function bombJump(R, e) {
+    if (!e.alive || e.bombCd > 0) return; // works mid-jump too: jump then bomb to go even higher
+    e.bombCd = BOMB_CD; e.crouch = false;
+    e.vz = BOMB_UP; e.z = Math.max(e.z, .01);
+    emit(R, { t: 'fx', k: 'boom', x: e.x, y: e.y });
+    emit(R, { t: 'sfx', s: 'boom', x: e.x, y: e.y });
+  }
+  function stepJump(R, e, dt) {
+    if (!e.z && !e.vz) return;
+    e.vz -= GRAV * dt; e.z += e.vz * dt;
+    if (e.z <= 0) { e.z = 0; e.vz = 0; collide(R.M, e); collide(R.M, e); } // land (pushed off any table you came down on)
+  }
+
   // ===================== Humans =====================
   // inp: {x, y, a, atk:bool, thr:int, tog:int}. x/y is where the client predicts it is;
   // the server only moves the player toward it at legal speed, through collision.
   function setInput(R, id, inp) {
     const e = entById(R, id);
     if (!e || !e.human || !inp || typeof inp !== 'object') return;
-    e.inp = { x: num(inp.x, e.x), y: num(inp.y, e.y), a: num(inp.a, e.ang), atk: !!inp.atk, thr: num(inp.thr, e.lastThr) | 0, tog: num(inp.tog, e.lastTog) | 0 };
+    e.inp = { x: num(inp.x, e.x), y: num(inp.y, e.y), a: num(inp.a, e.ang), atk: !!inp.atk, thr: num(inp.thr, e.lastThr) | 0, tog: num(inp.tog, e.lastTog) | 0, cr: !!inp.cr, bj: num(inp.bj, e.lastBj) | 0, jp: num(inp.jp, e.lastJp) | 0 };
   }
   function applyHuman(R, e, dt) {
     const inp = e.inp; if (!inp) return;
-    if (R.phase !== 'play') { e.lastThr = inp.thr; e.lastTog = inp.tog; return; }
-    e.budget = Math.min(e.budget + e.speed * dt * 1.15, e.speed * .3);
+    if (R.phase !== 'play') { e.lastThr = inp.thr; e.lastTog = inp.tog; e.lastBj = inp.bj; e.lastJp = inp.jp; return; }
+    e.crouch = inp.cr && !e.z;
+    if (inp.jp !== e.lastJp) { e.lastJp = inp.jp; jump(R, e); }
+    if (inp.bj !== e.lastBj) { e.lastBj = inp.bj; bombJump(R, e); }
+    const spd = e.crouch ? e.speed * CROUCH : e.speed;
+    e.budget = Math.min(e.budget + spd * dt * 1.15, spd * .3);
     const dx = inp.x - e.x, dy = inp.y - e.y, d = Math.hypot(dx, dy);
     const ox = e.x, oy = e.y;
-    if (d > .5) {
+    if (d > .5) { // you can steer in the air too
       const mv = Math.min(d, e.budget);
       moveEnt(R.M, e, dx / d, dy / d, 1, mv);
       e.budget -= Math.hypot(e.x - ox, e.y - oy);
@@ -847,7 +877,8 @@
     R.coinT -= dt;
     if (R.coinT <= 0) { R.coinT = .55; if (R.coins.length < 30) spawnCoin(R); }
     for (const e of R.ents) if (e.alive) { if (e.human) applyHuman(R, e, dt); else botThink(R, e, dt); }
-    for (const e of R.ents) { e.atkCd = Math.max(0, e.atkCd - dt); e.throwCd = Math.max(0, e.throwCd - dt); e.swing = Math.max(0, e.swing - dt); }
+    for (const e of R.ents) if (e.alive) stepJump(R, e, dt);
+    for (const e of R.ents) { e.bombCd = Math.max(0, e.bombCd - dt); e.atkCd = Math.max(0, e.atkCd - dt); e.throwCd = Math.max(0, e.throwCd - dt); e.swing = Math.max(0, e.swing - dt); }
     for (const e of R.ents) {
       if (!e.alive) continue;
       if (e.bag < BAG_MAX) for (let i = R.coins.length - 1; i >= 0; i--) {
@@ -876,7 +907,7 @@
           if (pr.type === 'knife') emit(R, { t: 'fx', k: 'stuck', x: pr.x - pr.vx * .012, y: pr.y - pr.vy * .012, a: Math.atan2(pr.vy, pr.vx), skin: pr.skin });
           break;
         }
-        if (R.phase === 'play') for (const e of R.ents) if (e.alive && e !== pr.owner && Math.hypot(e.x - pr.x, e.y - pr.y) < e.r + 4) { kill(R, e, pr.owner); dead = true; break; }
+        if (R.phase === 'play') for (const e of R.ents) if (e.alive && e !== pr.owner && e.z < .7 && Math.hypot(e.x - pr.x, e.y - pr.y) < e.r + (e.crouch ? -3 : 4)) { kill(R, e, pr.owner); dead = true; break; }
       }
       if (dead) R.proj.splice(i, 1);
     }
@@ -904,12 +935,12 @@
     const me = entById(R, viewerId);
     const s = {
       ph: R.phase, tm: Math.max(0, +R.time.toFixed(1)), it: +R.introT.toFixed(1),
-      e: R.ents.map(e => [e.id, Math.round(e.x), Math.round(e.y), +e.ang.toFixed(2), e.alive ? 1 : 0, e.weaponOut ? (e.role === 'murderer' ? 'k' : 'g') : 0, +e.swing.toFixed(2)]),
+      e: R.ents.map(e => [e.id, Math.round(e.x), Math.round(e.y), +e.ang.toFixed(2), e.alive ? 1 : 0, e.weaponOut ? (e.role === 'murderer' ? 'k' : 'g') : 0, +e.swing.toFixed(2), +e.z.toFixed(2), e.crouch ? 1 : 0]),
       c: R.coins.map(c => [c.x, c.y]),
       p: R.proj.map(p => [p.type === 'knife' ? 'k' : 'b', Math.round(p.x), Math.round(p.y), Math.round(p.vx), Math.round(p.vy), p.skin || 0]),
       b: R.bodies, g: R.gunDrop,
     };
-    if (me) s.me = { id: me.id, spd: me.speed, role: me.role, bag: me.bag, atk: +me.atkCd.toFixed(2), thr: +me.throwCd.toFixed(2), alive: me.alive, gun: me.hasGun, wo: me.weaponOut, x: Math.round(me.x), y: Math.round(me.y) };
+    if (me) s.me = { id: me.id, spd: me.crouch ? me.speed * CROUCH : me.speed, air: me.z > 0, bomb: +me.bombCd.toFixed(1), cr: me.crouch, role: me.role, bag: me.bag, atk: +me.atkCd.toFixed(2), thr: +me.throwCd.toFixed(2), alive: me.alive, gun: me.hasGun, wo: me.weaponOut, x: Math.round(me.x), y: Math.round(me.y) };
     if (R.phase === 'end') s.end = R.endInfo;
     return s;
   }

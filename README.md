@@ -103,6 +103,6 @@ Rounds render in 3D with three.js (`public/render3d.js`): blocky characters, rea
 
 ## Controls
 
-WASD to move, mouse to aim, left click to stab or shoot, right click or Q to throw the knife, E to pull out or put away your weapon.
+WASD to move, mouse to aim, left click to stab or shoot, right click or Q to throw the knife, E to pull out or put away your weapon. **Space** jumps (clears tables and plants), **B** bomb jumps way up (5 s cooldown, works mid-jump for extra height), hold **C** to crouch (slower, smaller target). Stabs miss players in the air and bullets fly under them.
 
 On phones and tablets: drag on the left side to move, tap or hold anywhere else to aim and attack, and use the buttons on the right to throw, pull out your weapon, or chat. It works upright or sideways.

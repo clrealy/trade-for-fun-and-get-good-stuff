@@ -49,6 +49,8 @@ function noise(d = .15, vol = .15) {
 const SFX = {
   coin: () => tone(1200, .08, 'square', .03, 600),
   stab: () => { noise(.08, .12); tone(300, .1, 'sawtooth', .04, -200); },
+  jump: () => tone(420, .12, 'square', .03, 380),
+  boom: () => { noise(.35, .35); tone(110, .45, 'sawtooth', .07, -70); setTimeout(() => tone(620, .25, 'triangle', .04, 500), 60); },
   shoot: () => { noise(.2, .25); tone(160, .15, 'square', .05, -100); },
   // Raygun: sci-fi pew (fast downward sweep + a sparkly overtone)
   ray: () => { tone(1800, .22, 'sawtooth', .045, -1500); tone(2600, .12, 'sine', .03, -2000); setTimeout(() => tone(900, .08, 'square', .02, 400), 60); },
@@ -227,7 +229,7 @@ $('#leaveRoomBtn').onclick = () => net({ t: 'leave' });
 // V holds what this client knows about the current round (never other players' roles).
 let V = null;
 let keys = {}, mouse = { x: 0, y: 0, wx: 0, wy: 0, down: false };
-let thrSeq = 0, togSeq = 0, sendT = 0;
+let thrSeq = 0, togSeq = 0, jpSeq = 0, bjSeq = 0, crouchTouch = false, sendT = 0;
 
 function newView(mapIdx, roster, you, offline) {
   V = {
@@ -262,10 +264,11 @@ function equippedId(type) {
 function applySnap(s) {
   const first = !V.snap;
   V.snap = s; V.snapT = performance.now(); V.phase = s.ph;
-  for (const [id, x, y, a, al, w, sw] of s.e) {
+  for (const [id, x, y, a, al, w, sw, z, cr] of s.e) {
     let d = V.disp.get(id);
     if (!d) { d = { x, y, a, walk: 0 }; V.disp.set(id, d); }
-    d.tx = x; d.ty = y; d.ta = a; d.alive = !!al; d.w = w; d.sw = sw;
+    d.tx = x; d.ty = y; d.ta = a; d.alive = !!al; d.w = w; d.sw = sw; d.z = z || 0; d.cr = !!cr;
+    if (id === V.you && V.lp) V.lp.z = d.z; // so our own prediction hops over tables like the server does
     if (!d.alive) { d.x = x; d.y = y; }
   }
   V.me = s.me || null;
@@ -303,6 +306,7 @@ function handleEvent(ev) {
       if (ev.k === 'blood') for (let i = 0; i < 14; i++) V.fx.push({ type: 'blood', x: ev.x, y: ev.y, vx: rand(-120, 120), vy: rand(-120, 120), t: rand(.3, .6) });
       else if (ev.k === 'stuck') V.fx.push({ type: 'stuck', x: ev.x, y: ev.y, ang: ev.a, skin: ev.skin, t: 1.2 });
       else if (ev.k === 'flash') V.fx.push({ type: 'flash', x: ev.x, y: ev.y, t: .08 });
+      else if (ev.k === 'boom') V.fx.push({ type: 'boom', x: ev.x, y: ev.y, t: .45 });
       break;
     case 'killConfirm': SFX.killConfirm(); msg(`You killed ${ev.name} 🔪`, '#ff4d5e', 2.5); break;
     case 'coin': SFX.coin(); if (ev.full) msg('Coin bag full! 💰', '#ffc233'); break;
@@ -404,7 +408,7 @@ function update(dt) {
 function myAngle() { if (touchAim !== null) return touchAim; return V.lp ? Math.atan2(mouse.wy - V.lp.y, mouse.wx - V.lp.x) : 0; }
 function currentInput() {
   const lp = V.lp || { x: 0, y: 0 };
-  return { x: Math.round(lp.x * 10) / 10, y: Math.round(lp.y * 10) / 10, a: +myAngle().toFixed(3), atk: mouse.down, thr: thrSeq, tog: togSeq };
+  return { x: Math.round(lp.x * 10) / 10, y: Math.round(lp.y * 10) / 10, a: +myAngle().toFixed(3), atk: mouse.down, thr: thrSeq, tog: togSeq, jp: jpSeq, bj: bjSeq, cr: !!(keys.KeyC || keys.ControlLeft || crouchTouch) };
 }
 
 // ===================== HUD =====================
@@ -425,6 +429,7 @@ function updateHUD() {
   let cools = '';
   if (me && me.alive && me.role === 'murderer') cools = coolBar('Stab', 1 - me.atk / .5) + coolBar(isTouch ? 'Throw' : 'Throw (Q)', 1 - me.thr / 3);
   else if (me && me.alive && me.gun) cools = coolBar('Gun', 1 - me.atk / 2.2);
+  if (me && me.alive) cools += coolBar(isTouch ? '💣 Bomb' : '💣 Bomb (B)', 1 - (me.bomb || 0) / 5);
   setHTML('cools', cools);
   const hint = !me ? 'Spectating · click to switch' : !me.alive ? 'Click to switch spectate' : me.role === 'murderer' ? 'Click stab · Q/Right-click throw · E hide knife' : me.gun ? 'Click shoot · E put away gun' : 'Collect coins · Stay alive · Grab the gun if it drops';
   setText('hint', hint);
@@ -498,11 +503,11 @@ function render() {
   const endRoles = V.endInfo ? new Map(V.endInfo.roles) : null;
   for (const [id, d] of al) {
     const r = V.roster.get(id) || {}, lbl = id === V.you ? 'You' : r.name;
-    ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillText(lbl, d.x + 1, d.y - 25);
+    const ly = d.y - (d.z || 0) * 16; ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillText(lbl, d.x + 1, ly - 25);
     let nc = '#fff';
     if (endRoles && endRoles.get(id) === 'murderer') nc = '#ff4d5e';
     if (id === V.you && V.me) nc = roleColor(V.me.role);
-    ctx.fillStyle = nc; ctx.fillText(lbl, d.x, d.y - 26);
+    ctx.fillStyle = nc; ctx.fillText(lbl, d.x, ly - 26);
   }
   // projectiles, extrapolated from the last snapshot
   const age = Math.min(.1, (performance.now() - V.snapT) / 1000);
@@ -514,6 +519,7 @@ function render() {
   }
   for (const f of V.fx) {
     if (f.type === 'blood') { ctx.fillStyle = `rgba(200,0,20,${Math.min(1, f.t * 2)})`; ctx.fillRect(f.x - 2, f.y - 2, 4, 4); }
+    if (f.type === 'boom') { const k = 1 - f.t / .45; ctx.strokeStyle = `rgba(255,140,30,${1 - k})`; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(f.x, f.y, 10 + k * 60, 0, 7); ctx.stroke(); ctx.fillStyle = `rgba(255,220,120,${.6 - k * .6})`; ctx.beginPath(); ctx.arc(f.x, f.y, 8 + k * 30, 0, 7); ctx.fill(); }
     if (f.type === 'flash') { ctx.fillStyle = 'rgba(255,240,150,.9)'; ctx.beginPath(); ctx.arc(f.x, f.y, 9, 0, 7); ctx.fill(); }
   }
   ctx.restore();
@@ -527,7 +533,7 @@ function render3D() {
   const endRoles = V.endInfo ? new Map(V.endInfo.roles) : null;
   for (const [id, d] of V.disp) {
     if (!d.alive) continue;
-    const p = R3.worldToScreen(d.x, d.y, 1.3); if (p.behind) continue;
+    const p = R3.worldToScreen(d.x, d.y, 1.3 + (d.z || 0)); if (p.behind) continue;
     const r = V.roster.get(id) || {}, lbl = id === V.you ? 'You' : r.name;
     ctx.fillStyle = 'rgba(0,0,0,.65)'; ctx.fillText(lbl, p.x + 1, p.y + 1);
     let nc = '#fff';
@@ -571,9 +577,9 @@ function drawEnt(id, d, T) {
   const isMe = id === V.you;
   // our own weapon state comes from our snapshot so toggling feels instant enough
   const w = isMe && V.me ? (V.me.wo ? (V.me.role === 'murderer' ? 'k' : 'g') : 0) : d.w;
-  const bob = Math.sin(d.walk) * 1.5;
-  ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.beginPath(); ctx.ellipse(d.x, d.y + 13, 14, 5, 0, 0, 7); ctx.fill();
-  ctx.save(); ctx.translate(d.x, d.y + bob); ctx.rotate(d.a);
+  const bob = Math.sin(d.walk) * 1.5, z = d.z || 0, sc = (1 + z * .16) * (d.cr ? .82 : 1);
+  ctx.fillStyle = `rgba(0,0,0,${.25 / (1 + z)})`; ctx.beginPath(); ctx.ellipse(d.x, d.y + 13, 14 / (1 + z * .3), 5 / (1 + z * .3), 0, 0, 7); ctx.fill();
+  ctx.save(); ctx.translate(d.x, d.y + bob - z * 16); ctx.scale(sc, sc); ctx.rotate(d.a);
   if (w === 'k') {
     const sw = d.sw > 0 ? Math.sin((1 - d.sw / .2) * Math.PI) * 1.2 : 0;
     ctx.save(); ctx.rotate(.6 - sw); drawKnifeLocal(18, 0, 0, ITEM[r.knife] || ITEM.k0, T); ctx.restore();
@@ -645,6 +651,8 @@ addEventListener('keydown', e => {
   if (!V || V.phase !== 'play' || !V.me || !V.me.alive) return;
   if (e.code === 'KeyQ' && V.me.role === 'murderer') thrSeq++;
   if ((e.code === 'KeyE' || e.code === 'Digit1') && (V.me.role === 'murderer' || V.me.gun)) togSeq++;
+  if (e.code === 'Space') { e.preventDefault(); jpSeq++; }
+  if (e.code === 'KeyB') bjSeq++;
 });
 addEventListener('keyup', e => { keys[e.code] = false; });
 addEventListener('blur', () => { keys = {}; mouse.down = false; });
@@ -712,6 +720,9 @@ const tapBtn = (sel, fn) => $(sel).addEventListener('click', e => { e.preventDef
 tapBtn('#mbThrow', () => { if (V && V.phase === 'play' && V.me && V.me.alive && V.me.role === 'murderer') thrSeq++; });
 tapBtn('#mbWeapon', () => { if (V && V.phase === 'play' && V.me && V.me.alive && (V.me.role === 'murderer' || V.me.gun)) togSeq++; });
 tapBtn('#mbChat', () => { if (V) openChat(''); });
+tapBtn('#mbJump', () => { if (V && V.me && V.me.alive) jpSeq++; });
+tapBtn('#mbBomb', () => { if (V && V.me && V.me.alive) bjSeq++; });
+tapBtn('#mbCrouch', () => { crouchTouch = !crouchTouch; $('#mbCrouch').classList.toggle('on', crouchTouch); });
 
 // ===================== Lobby UI =====================
 // weapon pictures come from the 3D models (render3d.js); emoji until they're ready or if 3D isn't available

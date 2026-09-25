@@ -302,3 +302,34 @@ test('Chroma Raygun Set costs 93,000 coins', () => {
   assert.ok(Sim.ITEM.g23.noCooldown && Sim.ITEM.g23.sound === 'ray' && Sim.ITEM.k29.r === 'Chroma');
   for (let i = 0; i < 20000; i++) for (const c of Sim.CRATES) assert.ok(!['g23', 'k29'].includes(Sim.rollCrate(c).id));
 });
+
+test('jump clears tables, bomb jump goes way up and dodges stabs, crouch slows you', () => {
+  const R = Sim.createRound({ mapIdx: 0, players: [{ pid: 'a', name: 'a' }, { pid: 'b', name: 'b' }], fillBots: false });
+  R.phase = 'play';
+  const [me, m] = R.ents; me.role = 'innocent'; me.hasGun = false; m.role = 'murderer'; m.hasGun = false; R.murderer = m;
+  m.x = 30 * 48; m.y = 20 * 48;
+  // Mansion has tables at tiles 6..9 x 11..12: walk into them while jumping and you get over
+  me.x = 5 * 48 + 20; me.y = 11.5 * 48;
+  let top = 0, jp = 1;
+  for (let i = 0; i < 45; i++) { Sim.setInput(R, me.id, { x: me.x + 8, y: me.y, a: 0, jp }); Sim.step(R, 1 / 30); top = Math.max(top, me.z); if (!me.z) jp++; }
+  assert.ok(top > .6 && top < 1.2, `normal jump height ${top.toFixed(2)}`);
+  assert.ok(Math.floor(me.x / 48) >= 10, `hopped over the tables, now at tile ${Math.floor(me.x / 48)}`);
+  // bomb jump: much higher, stabs miss while you're up there
+  me.x = 15 * 48; me.y = 9.5 * 48; top = 0;
+  Sim.setInput(R, me.id, { x: me.x, y: me.y, a: 0, jp, bj: 1 }); Sim.step(R, 1 / 30);
+  for (let i = 0; i < 8; i++) { Sim.setInput(R, me.id, { x: me.x, y: me.y, a: 0, jp, bj: 1 }); Sim.step(R, 1 / 30); }
+  assert.ok(me.z > 1, 'high up');
+  m.x = me.x + 25; m.y = me.y; m.atkCd = 0;
+  Sim.setInput(R, m.id, { x: m.x, y: m.y, a: Math.PI, atk: true }); Sim.step(R, 1 / 30);
+  assert.ok(me.alive, 'stab misses someone in the air');
+  Sim.setInput(R, m.id, { x: m.x, y: m.y, a: Math.PI, atk: false }); m.x = 30 * 48;
+  for (let i = 0; i < 60; i++) { Sim.setInput(R, me.id, { x: me.x, y: me.y, a: 0, jp, bj: 1 }); Sim.step(R, 1 / 30); top = Math.max(top, me.z); }
+  assert.ok(top > 3.5, `bomb jump height ${top.toFixed(2)}`);
+  assert.strictEqual(me.z, 0, 'landed');
+  assert.ok(me.bombCd > 0, 'bomb on cooldown');
+  // crouch
+  const R2 = Sim.createRound({ mapIdx: 1, players: [{ pid: 'a', name: 'a' }], fillBots: false }); R2.phase = 'play';
+  const e = R2.ents[0]; e.x = 6 * 48 + 24; e.y = 7 * 48; const sx = e.x;
+  for (let i = 0; i < 30; i++) { Sim.setInput(R2, e.id, { x: e.x + 1000, y: e.y, a: 0, cr: true }); Sim.step(R2, 1 / 30); }
+  assert.ok(e.crouch && e.x - sx < Sim.PLAYER_SPEED * .7, `crouch moved ${Math.round(e.x - sx)}`);
+});

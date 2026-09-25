@@ -85,9 +85,10 @@ const R3D = (() => {
   const blood = pool(() => new THREE.Mesh(bloodGeo, bloodMat));
   const bulletGeo = box(.45, .05, .05);
   const bullets = pool(() => new THREE.Mesh(bulletGeo, new THREE.MeshBasicMaterial({ color: '#fff6a0' })));
+  const booms = pool(() => new THREE.Mesh(new THREE.SphereGeometry(.5, 16, 12), new THREE.MeshBasicMaterial({ color: '#ff8c1a', transparent: true, opacity: .7, depthWrite: false })));
   const flashes = pool(() => new THREE.Mesh(new THREE.SphereGeometry(.14, 8, 8), new THREE.MeshBasicMaterial({ color: '#fff3a0' })));
   const knifeMeshes = pool(() => makeKnife());
-  const pools = [coins, shadows, blood, bullets, flashes, knifeMeshes];
+  const pools = [coins, shadows, blood, bullets, flashes, booms, knifeMeshes];
 
   // ---------------- weapons + characters ----------------
   // ---------------- weapon models ----------------
@@ -300,15 +301,17 @@ const R3D = (() => {
   }
   function poseRig(r, d, w, item, T, isMe, dead) {
     r.root.visible = true;
-    r.root.position.set(d.x * S, 0, d.y * S);
+    r.root.position.set(d.x * S, dead ? 0 : (d.z || 0), d.y * S);
     r.root.rotation.set(0, -d.a, 0);
     r.ring.visible = isMe && !dead;
     if (dead) { // lying on the floor
+      r.body.scale.set(1, 1, 1);
       r.body.rotation.set(Math.PI / 2, 0, 0); r.body.position.set(0, .14, 0);
       r.legL.rotation.z = r.legR.rotation.z = r.armL.rotation.z = r.armR.rotation.z = 0;
       r.knife.visible = r.gun.visible = false; return;
     }
     r.body.rotation.set(0, 0, 0); r.body.position.set(0, Math.abs(Math.sin(d.walk)) * .04, 0);
+    r.body.scale.set(1, d.cr ? .72 : 1, 1); // crouching
     const swing = Math.sin(d.walk) * .6;
     r.legL.rotation.z = swing; r.legR.rotation.z = -swing; r.armL.rotation.z = -swing * .8;
     r.knife.visible = w === 'k'; r.gun.visible = w === 'g';
@@ -330,14 +333,14 @@ const R3D = (() => {
   dropRing.rotation.x = Math.PI / 2; scene.add(dropRing); dropRing.visible = false;
 
   // ---------------- camera ----------------
-  let W = 1, H = 1;
+  let W = 1, H = 1, camH = 0;
   api.resize = (w, h) => { W = w; H = h; renderer.setSize(w, h, false); renderer.domElement.style.width = w + 'px'; renderer.domElement.style.height = h + 'px'; camera.aspect = w / h; camera.updateProjectionMatrix(); };
-  function placeCamera(cx, cy) {
+  function placeCamera(cx, cy, h = 0) {
     // tilted top-down camera that follows the player; phones sit a bit farther back
     const k = Math.max(1, Math.min(1.7, 760 / Math.min(W, H))) * (W < H ? 1.25 : 1);
     const tx = cx * S, tz = cy * S;
-    camera.position.set(tx, 8.5 * k, tz + 6 * k);
-    camera.lookAt(tx, 0, tz);
+    camera.position.set(tx, 8.5 * k + h, tz + 6 * k);
+    camera.lookAt(tx, h, tz); // h: follow the player up during a jump
     camera.updateMatrixWorld();
   }
   const ray = new THREE.Raycaster(), aimPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -.55), hit = new THREE.Vector3(), tmp = new THREE.Vector3();
@@ -358,7 +361,8 @@ const R3D = (() => {
     // the page can change size without us hearing about it (app frames, rotation): always match the window
     if (innerWidth !== W || innerHeight !== H || renderer.domElement.width === 0) api.resize(innerWidth, innerHeight);
     if (M.idx !== mapIdx) { buildMap(M); for (const r of people.values()) scene.remove(r.root); people.clear(); }
-    placeCamera(V.cam.x, V.cam.y);
+    const fz = V.me && V.me.alive && V.disp.get(V.you) ? V.disp.get(V.you).z || 0 : 0;
+    camH += (fz * .85 - camH) * .25; placeCamera(V.cam.x, V.cam.y, camH);
     tickChroma(T);
     pools.forEach(p => p.reset());
     // coins
@@ -373,7 +377,7 @@ const R3D = (() => {
       const isMe = id === V.you, w = isMe && myW !== undefined ? myW : d.w;
       const item = w === 'k' ? (ITEM[r.knife] || ITEM.k0) : (ITEM[r.gun] || ITEM.g0);
       if (body) poseRig(rig, { x: body.x, y: body.y, a: body.a, walk: 0, sw: 0 }, 0, item, T, isMe, true);
-      else { poseRig(rig, d, w, item, T, isMe, false); const sh = shadows.get(); sh.position.set(d.x * S, .01, d.y * S); }
+      else { poseRig(rig, d, w, item, T, isMe, false); const sh = shadows.get(); sh.position.set(d.x * S, .01, d.y * S); sh.scale.setScalar(1 / (1 + (d.z || 0) * .35)); }
     }
     for (const [id, r] of people) if (!seen.has(id)) r.root.visible = false;
     // dropped gun
@@ -396,6 +400,7 @@ const R3D = (() => {
     // effects
     for (const f of V.fx) {
       if (f.type === 'blood') { const m = blood.get(); m.position.set(f.x * S, .1 + f.t * .8, f.y * S); }
+      else if (f.type === 'boom') { const m = booms.get(), k = 1 - f.t / .45; m.position.set(f.x * S, .2, f.y * S); m.scale.setScalar(.4 + k * 2.2); m.material.opacity = .75 * (1 - k); }
       else if (f.type === 'flash') { const m = flashes.get(); m.position.set(f.x * S, .6, f.y * S); }
       else if (f.type === 'stuck') { const m = knifeMeshes.get(); styleKnife(m, ITEM[f.skin] || ITEM.k0, T); m.position.set(f.x * S, .6, f.y * S); m.rotation.set(0, -f.ang, 0); }
     }
