@@ -471,7 +471,7 @@
       knife: ITEM[o.knife] && ITEM[o.knife].type === 'knife' ? o.knife : 'k0', gun: ITEM[o.gun] && ITEM[o.gun].type === 'gun' ? o.gun : 'g0',
       mT: Math.max(1, num(o.mT, 1)), sT: Math.max(1, num(o.sT, 1)),
       inp: null, lastThr: 0, lastTog: 0, lastBj: 0,
-      z: 0, vz: 0, crouch: false, bombCd: 0, lastJp: 0,
+      z: 0, vz: 0, crouch: false, bombCd: 0, lastJp: 0, dashT: 0, dashCd: 0, lastDj: 0,
       ai: { path: [], pathT: 0, goal: null, know: null, lastSeen: null, react: 0, grace: rand(12, 24), stuckT: 0, lx: 0, ly: 0, brave: Math.random() < .25, fleeT: 0, target: null, retarget: 0, noticeT: 0, wanderT: 0, coin: null },
     };
   }
@@ -682,6 +682,7 @@
           if (!moveSolidAt(M, tx, ty)) { ai.path = [{ x: tx, y: ty }]; ai.goal = null; }
           else ai.dodgeS *= -1;
           spd = 196;
+          if (b.dashCd <= 0 && Math.random() < dt * 1.2) juke(R, b); // side-step the shot
         }
       }
     } else if (b.hasGun) {
@@ -709,6 +710,7 @@
       ai.fleeT -= dt;
       if (k && k.alive && dist(b, k) < 400 && (dist(b, k) < 180 || los(M, b.x, b.y, k.x, k.y))) {
         if (dist(b, k) < 150 && !b.z && b.bombCd <= 0 && Math.random() < dt * 1.5) bombJump(R, b); // blast up out of reach
+        else if (dist(b, k) < 130 && b.dashCd <= 0 && Math.random() < dt * 2) juke(R, b); // or juke past them
         if (ai.fleeT <= 0 || !ai.path.length) {
           let best = null, bs = -1e9;
           for (let i = 0; i < 14; i++) {
@@ -728,7 +730,17 @@
       if (ai.stuckT > .8) { if (Math.hypot(b.x - ai.lx, b.y - ai.ly) < 10) { ai.pathT = 0; ai.path = []; const t = randReach(M); setGoal(R, b, t.x, t.y, true); } ai.stuckT = 0; ai.lx = b.x; ai.ly = b.y; }
       if (!(b.weaponOut && (b.role === 'murderer' || b.hasGun))) b.ang = Math.atan2(dy, dx);
     }
-    moveEnt(M, b, dx, dy, dt, spd);
+    moveEnt(M, b, dx, dy, dt, b.dashT > 0 ? DASH_SPEED * .85 : spd);
+  }
+
+  // ===================== Juke (quick dash) =====================
+  const DASH_SPEED = 720, DASH_TIME = .16, DASH_CD = 1.5;
+  function juke(R, e) {
+    if (!e.alive || e.dashCd > 0) return;
+    e.dashCd = DASH_CD; e.dashT = DASH_TIME + (e.human ? .08 : 0); // a little slack for humans' lag
+    e.crouch = false;
+    emit(R, { t: 'fx', k: 'dash', x: Math.round(e.x), y: Math.round(e.y) });
+    emit(R, { t: 'sfx', s: 'whoosh', x: e.x, y: e.y });
   }
 
   // ===================== Crouch + bomb jump =====================
@@ -758,15 +770,16 @@
   function setInput(R, id, inp) {
     const e = entById(R, id);
     if (!e || !e.human || !inp || typeof inp !== 'object') return;
-    e.inp = { x: num(inp.x, e.x), y: num(inp.y, e.y), a: num(inp.a, e.ang), atk: !!inp.atk, thr: num(inp.thr, e.lastThr) | 0, tog: num(inp.tog, e.lastTog) | 0, cr: !!inp.cr, bj: num(inp.bj, e.lastBj) | 0, jp: num(inp.jp, e.lastJp) | 0 };
+    e.inp = { x: num(inp.x, e.x), y: num(inp.y, e.y), a: num(inp.a, e.ang), atk: !!inp.atk, thr: num(inp.thr, e.lastThr) | 0, tog: num(inp.tog, e.lastTog) | 0, cr: !!inp.cr, bj: num(inp.bj, e.lastBj) | 0, jp: num(inp.jp, e.lastJp) | 0, dj: num(inp.dj, e.lastDj) | 0 };
   }
   function applyHuman(R, e, dt) {
     const inp = e.inp; if (!inp) return;
-    if (R.phase !== 'play') { e.lastThr = inp.thr; e.lastTog = inp.tog; e.lastBj = inp.bj; e.lastJp = inp.jp; return; }
+    if (R.phase !== 'play') { e.lastThr = inp.thr; e.lastTog = inp.tog; e.lastBj = inp.bj; e.lastJp = inp.jp; e.lastDj = inp.dj; return; }
     e.crouch = inp.cr && !e.z;
     if (inp.jp !== e.lastJp) { e.lastJp = inp.jp; jump(R, e); }
     if (inp.bj !== e.lastBj) { e.lastBj = inp.bj; bombJump(R, e); }
-    const spd = e.crouch ? e.speed * CROUCH : e.speed;
+    if (inp.dj !== e.lastDj) { e.lastDj = inp.dj; juke(R, e); }
+    const spd = e.dashT > 0 ? DASH_SPEED : e.crouch ? e.speed * CROUCH : e.speed;
     e.budget = Math.min(e.budget + spd * dt * 1.15, spd * .3);
     const dx = inp.x - e.x, dy = inp.y - e.y, d = Math.hypot(dx, dy);
     const ox = e.x, oy = e.y;
@@ -857,6 +870,8 @@
   function restoreRound(o) {
     const R = { ...o, M: buildMap(o.mapIdx), events: [] };
     const by = id => R.ents.find(e => e.id === id) || null;
+    const base = mkEnt(0, { name: '' }); // rounds saved by an older version are missing newer fields
+    R.ents = R.ents.map(e => { const n = { ...base, ...e, ai: { ...base.ai, ...e.ai } }; for (const k in base) if (typeof base[k] === 'number' && !Number.isFinite(n[k])) n[k] = base[k]; return n; });
     for (const e of R.ents) { e.ai.know = by(e.ai.know); e.ai.target = by(e.ai.target); }
     R.murderer = by(o.murderer);
     R.proj = R.proj.map(p => ({ ...p, owner: by(p.owner) }));
@@ -878,7 +893,7 @@
     if (R.coinT <= 0) { R.coinT = .55; if (R.coins.length < 30) spawnCoin(R); }
     for (const e of R.ents) if (e.alive) { if (e.human) applyHuman(R, e, dt); else botThink(R, e, dt); }
     for (const e of R.ents) if (e.alive) stepJump(R, e, dt);
-    for (const e of R.ents) { e.bombCd = Math.max(0, e.bombCd - dt); e.atkCd = Math.max(0, e.atkCd - dt); e.throwCd = Math.max(0, e.throwCd - dt); e.swing = Math.max(0, e.swing - dt); }
+    for (const e of R.ents) { e.bombCd = Math.max(0, e.bombCd - dt); e.dashCd = Math.max(0, e.dashCd - dt); e.dashT = Math.max(0, e.dashT - dt); e.atkCd = Math.max(0, e.atkCd - dt); e.throwCd = Math.max(0, e.throwCd - dt); e.swing = Math.max(0, e.swing - dt); }
     for (const e of R.ents) {
       if (!e.alive) continue;
       if (e.bag < BAG_MAX) for (let i = R.coins.length - 1; i >= 0; i--) {
@@ -935,12 +950,12 @@
     const me = entById(R, viewerId);
     const s = {
       ph: R.phase, tm: Math.max(0, +R.time.toFixed(1)), it: +R.introT.toFixed(1),
-      e: R.ents.map(e => [e.id, Math.round(e.x), Math.round(e.y), +e.ang.toFixed(2), e.alive ? 1 : 0, e.weaponOut ? (e.role === 'murderer' ? 'k' : 'g') : 0, +e.swing.toFixed(2), +e.z.toFixed(2), e.crouch ? 1 : 0]),
+      e: R.ents.map(e => [e.id, Math.round(e.x), Math.round(e.y), +e.ang.toFixed(2), e.alive ? 1 : 0, e.weaponOut ? (e.role === 'murderer' ? 'k' : 'g') : 0, +e.swing.toFixed(2), +(e.z || 0).toFixed(2), e.crouch ? 1 : 0, e.dashT > 0 ? 1 : 0]),
       c: R.coins.map(c => [c.x, c.y]),
       p: R.proj.map(p => [p.type === 'knife' ? 'k' : 'b', Math.round(p.x), Math.round(p.y), Math.round(p.vx), Math.round(p.vy), p.skin || 0]),
       b: R.bodies, g: R.gunDrop,
     };
-    if (me) s.me = { id: me.id, spd: me.crouch ? me.speed * CROUCH : me.speed, air: me.z > 0, bomb: +me.bombCd.toFixed(1), cr: me.crouch, role: me.role, bag: me.bag, atk: +me.atkCd.toFixed(2), thr: +me.throwCd.toFixed(2), alive: me.alive, gun: me.hasGun, wo: me.weaponOut, x: Math.round(me.x), y: Math.round(me.y) };
+    if (me) s.me = { id: me.id, spd: me.crouch ? me.speed * CROUCH : me.speed, air: me.z > 0, bomb: +(me.bombCd || 0).toFixed(1), dash: +(me.dashCd || 0).toFixed(2), cr: me.crouch, role: me.role, bag: me.bag, atk: +me.atkCd.toFixed(2), thr: +me.throwCd.toFixed(2), alive: me.alive, gun: me.hasGun, wo: me.weaponOut, x: Math.round(me.x), y: Math.round(me.y) };
     if (R.phase === 'end') s.end = R.endInfo;
     return s;
   }
@@ -949,7 +964,7 @@
   function drain(R) { const e = R.events; R.events = []; return e; }
 
   return {
-    RAR, RORDER, ITEMS, ITEM, CRATES, rollItem, rollCrate, MAPS, TILE, BAG_MAX, MAX_PLAYERS, PLAYER_SPEED,
+    RAR, RORDER, ITEMS, ITEM, CRATES, rollItem, rollCrate, MAPS, TILE, BAG_MAX, MAX_PLAYERS, PLAYER_SPEED, DASH_SPEED, DASH_TIME, DASH_CD,
     buildMap, tileAt, moveSolidAt, moveEnt, los,
     createRound, setInput, step, releaseHuman, cheat, serializeRound, restoreRound, snapshotFor, roster, eventsFor, drain, rewardFor, entById,
   };

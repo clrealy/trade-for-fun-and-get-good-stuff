@@ -333,3 +333,26 @@ test('jump clears tables, bomb jump goes way up and dodges stabs, crouch slows y
   for (let i = 0; i < 30; i++) { Sim.setInput(R2, e.id, { x: e.x + 1000, y: e.y, a: 0, cr: true }); Sim.step(R2, 1 / 30); }
   assert.ok(e.crouch && e.x - sx < Sim.PLAYER_SPEED * .7, `crouch moved ${Math.round(e.x - sx)}`);
 });
+
+test('juke dashes you forward, then has a cooldown', () => {
+  const run = (dj2) => {
+    const R = Sim.createRound({ mapIdx: 1, players: [{ pid: 'a', name: 'a' }, { pid: 'b', name: 'b' }], fillBots: false }); R.phase = 'play'; R.introT = 0;
+    const e = R.ents[0]; e.x = 6 * 48 + 24; e.y = 7 * 48; const sx = e.x;
+    for (let i = 0; i < 9; i++) { Sim.setInput(R, e.id, { x: e.x + 1000, y: e.y, a: 0, dj: dj2 ? 1 : 0 }); Sim.step(R, 1 / 30); }
+    return { d: e.x - sx, e, R };
+  };
+  const walk = run(false).d, j = run(true);
+  assert.ok(j.d > walk * 1.4, `juke ${Math.round(j.d)} vs walk ${Math.round(walk)}`);
+  assert.ok(j.e.dashCd > 0 && Sim.snapshotFor(j.R, j.e.id).me.dash > 0);
+  const cd = j.e.dashCd; Sim.setInput(j.R, j.e.id, { x: j.e.x, y: j.e.y, a: 0, dj: 2 }); Sim.step(j.R, 1 / 30);
+  assert.ok(j.e.dashCd < cd, 'a second juke during the cooldown does nothing');
+});
+
+test('a round saved by an older version still restores and runs', () => {
+  const R = Sim.createRound({ mapIdx: 0, players: [{ pid: 'a', name: 'a' }] });
+  const o = Sim.serializeRound(R);
+  for (const e of o.ents) for (const k of ['z', 'vz', 'crouch', 'bombCd', 'lastJp', 'lastBj', 'dashT', 'dashCd', 'lastDj']) delete e[k];
+  const R2 = Sim.restoreRound(JSON.parse(JSON.stringify(o)));
+  for (let i = 0; i < 200; i++) { Sim.step(R2, 1 / 30); Sim.snapshotFor(R2, R2.ents[0].id); }
+  assert.equal(R2.ents[0].z, 0);
+});

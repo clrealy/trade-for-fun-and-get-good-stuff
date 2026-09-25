@@ -87,8 +87,9 @@ const R3D = (() => {
   const bullets = pool(() => new THREE.Mesh(bulletGeo, new THREE.MeshBasicMaterial({ color: '#fff6a0' })));
   const booms = pool(() => new THREE.Mesh(new THREE.SphereGeometry(.5, 16, 12), new THREE.MeshBasicMaterial({ color: '#ff8c1a', transparent: true, opacity: .7, depthWrite: false })));
   const flashes = pool(() => new THREE.Mesh(new THREE.SphereGeometry(.14, 8, 8), new THREE.MeshBasicMaterial({ color: '#fff3a0' })));
+  const puffs = pool(() => new THREE.Mesh(new THREE.SphereGeometry(.18, 10, 8), new THREE.MeshBasicMaterial({ color: '#e6ecff', transparent: true, opacity: .6, depthWrite: false })));
   const knifeMeshes = pool(() => makeKnife());
-  const pools = [coins, shadows, blood, bullets, flashes, booms, knifeMeshes];
+  const pools = [coins, shadows, blood, bullets, flashes, booms, puffs, knifeMeshes];
 
   // ---------------- weapons + characters ----------------
   // ---------------- weapon models ----------------
@@ -401,6 +402,7 @@ const R3D = (() => {
     for (const f of V.fx) {
       if (f.type === 'blood') { const m = blood.get(); m.position.set(f.x * S, .1 + f.t * .8, f.y * S); }
       else if (f.type === 'boom') { const m = booms.get(), k = 1 - f.t / .45; m.position.set(f.x * S, .2, f.y * S); m.scale.setScalar(.4 + k * 2.2); m.material.opacity = .75 * (1 - k); }
+      else if (f.type === 'dash') { const k = 1 - f.t / .35; for (let i = 0; i < 5; i++) { const m = puffs.get(); m.position.set((f.x + Math.cos(i * 1.3) * k * 26) * S, .2 + k * .2, (f.y + Math.sin(i * 1.3) * k * 26) * S); m.scale.setScalar(1 - k * .6); m.material.opacity = .6 * (1 - k); } }
       else if (f.type === 'flash') { const m = flashes.get(); m.position.set(f.x * S, .6, f.y * S); }
       else if (f.type === 'stuck') { const m = knifeMeshes.get(); styleKnife(m, ITEM[f.skin] || ITEM.k0, T); m.position.set(f.x * S, .6, f.y * S); m.rotation.set(0, -f.ang, 0); }
     }

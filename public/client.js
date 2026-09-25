@@ -50,6 +50,7 @@ const SFX = {
   coin: () => tone(1200, .08, 'square', .03, 600),
   stab: () => { noise(.08, .12); tone(300, .1, 'sawtooth', .04, -200); },
   jump: () => tone(420, .12, 'square', .03, 380),
+  whoosh: () => { noise(.18, .18); tone(900, .16, 'sine', .03, -700); },
   boom: () => { noise(.35, .35); tone(110, .45, 'sawtooth', .07, -70); setTimeout(() => tone(620, .25, 'triangle', .04, 500), 60); },
   shoot: () => { noise(.2, .25); tone(160, .15, 'square', .05, -100); },
   // Raygun: sci-fi pew (fast downward sweep + a sparkly overtone)
@@ -229,7 +230,7 @@ $('#leaveRoomBtn').onclick = () => net({ t: 'leave' });
 // V holds what this client knows about the current round (never other players' roles).
 let V = null;
 let keys = {}, mouse = { x: 0, y: 0, wx: 0, wy: 0, down: false };
-let thrSeq = 0, togSeq = 0, jpSeq = 0, bjSeq = 0, crouchTouch = false, sendT = 0;
+let thrSeq = 0, togSeq = 0, jpSeq = 0, bjSeq = 0, djSeq = 0, dashT = 0, dashCd = 0, dashA = 0, crouchTouch = false, sendT = 0;
 
 function newView(mapIdx, roster, you, offline) {
   V = {
@@ -252,7 +253,7 @@ function startPractice(mode) {
   applySnap(Sim.snapshotFor(R, V.you));
 }
 function endGameView() {
-  V = null; mouse.down = false;
+  V = null; mouse.down = false; dashT = dashCd = 0;
   show('#hud', false); show('#intro', false); show('#endScreen', false);
 }
 function equippedId(type) {
@@ -306,6 +307,7 @@ function handleEvent(ev) {
       if (ev.k === 'blood') for (let i = 0; i < 14; i++) V.fx.push({ type: 'blood', x: ev.x, y: ev.y, vx: rand(-120, 120), vy: rand(-120, 120), t: rand(.3, .6) });
       else if (ev.k === 'stuck') V.fx.push({ type: 'stuck', x: ev.x, y: ev.y, ang: ev.a, skin: ev.skin, t: 1.2 });
       else if (ev.k === 'flash') V.fx.push({ type: 'flash', x: ev.x, y: ev.y, t: .08 });
+      else if (ev.k === 'dash') V.fx.push({ type: 'dash', x: ev.x, y: ev.y, t: .35 });
       else if (ev.k === 'boom') V.fx.push({ type: 'boom', x: ev.x, y: ev.y, t: .45 });
       break;
     case 'killConfirm': SFX.killConfirm(); msg(`You killed ${ev.name} 🔪`, '#ff4d5e', 2.5); break;
@@ -377,6 +379,7 @@ function update(dt) {
     Sim.eventsFor(Sim.drain(V.R), V.you).forEach(handleEvent);
     applySnap(Sim.snapshotFor(V.R, V.you));
   }
+  dashCd = Math.max(0, dashCd - dt);
   // own movement prediction
   if (me && me.alive && V.lp && V.phase === 'play') {
     let dx = 0, dy = 0;
@@ -384,7 +387,8 @@ function update(dt) {
     if (keys.KeyA || keys.ArrowLeft) dx--; if (keys.KeyD || keys.ArrowRight) dx++;
     if (joy.id !== null && (joy.dx || joy.dy)) { dx = joy.dx; dy = joy.dy; if (aimTouch === null) touchAim = Math.atan2(dy, dx); }
     const l = Math.max(1, Math.hypot(dx, dy));
-    Sim.moveEnt(V.M, V.lp, dx / l, dy / l, dt, me.spd || Sim.PLAYER_SPEED);
+    if (dashT > 0) { dashT -= dt; Sim.moveEnt(V.M, V.lp, Math.cos(dashA), Math.sin(dashA), dt, Sim.DASH_SPEED); }
+    else Sim.moveEnt(V.M, V.lp, dx / l, dy / l, dt, me.spd || Sim.PLAYER_SPEED);
     const d = V.disp.get(V.you); if (d && (dx || dy)) d.walk += dt * 12;
   }
   if (!V.offline) { sendT -= dt; if (sendT <= 0 && me) { sendT = 1 / 30; net({ t: 'in', ...currentInput() }); } }
@@ -408,7 +412,7 @@ function update(dt) {
 function myAngle() { if (touchAim !== null) return touchAim; return V.lp ? Math.atan2(mouse.wy - V.lp.y, mouse.wx - V.lp.x) : 0; }
 function currentInput() {
   const lp = V.lp || { x: 0, y: 0 };
-  return { x: Math.round(lp.x * 10) / 10, y: Math.round(lp.y * 10) / 10, a: +myAngle().toFixed(3), atk: mouse.down, thr: thrSeq, tog: togSeq, jp: jpSeq, bj: bjSeq, cr: !!(keys.KeyC || keys.ControlLeft || crouchTouch) };
+  return { x: Math.round(lp.x * 10) / 10, y: Math.round(lp.y * 10) / 10, a: +myAngle().toFixed(3), atk: mouse.down, thr: thrSeq, tog: togSeq, jp: jpSeq, bj: bjSeq, dj: djSeq, cr: !!(keys.KeyC || keys.ControlLeft || crouchTouch) };
 }
 
 // ===================== HUD =====================
@@ -429,7 +433,7 @@ function updateHUD() {
   let cools = '';
   if (me && me.alive && me.role === 'murderer') cools = coolBar('Stab', 1 - me.atk / .5) + coolBar(isTouch ? 'Throw' : 'Throw (Q)', 1 - me.thr / 3);
   else if (me && me.alive && me.gun) cools = coolBar('Gun', 1 - me.atk / 2.2);
-  if (me && me.alive) cools += coolBar(isTouch ? '💣 Bomb' : '💣 Bomb (B)', 1 - (me.bomb || 0) / 5);
+  if (me && me.alive) cools += coolBar(isTouch ? '💨 Juke' : '💨 Juke (Shift)', 1 - Math.max(me.dash || 0, dashCd) / Sim.DASH_CD) + coolBar(isTouch ? '💣 Bomb' : '💣 Bomb (B)', 1 - (me.bomb || 0) / 5);
   setHTML('cools', cools);
   const hint = !me ? 'Spectating · click to switch' : !me.alive ? 'Click to switch spectate' : me.role === 'murderer' ? 'Click stab · Q/Right-click throw · E hide knife' : me.gun ? 'Click shoot · E put away gun' : 'Collect coins · Stay alive · Grab the gun if it drops';
   setText('hint', hint);
@@ -519,6 +523,7 @@ function render() {
   }
   for (const f of V.fx) {
     if (f.type === 'blood') { ctx.fillStyle = `rgba(200,0,20,${Math.min(1, f.t * 2)})`; ctx.fillRect(f.x - 2, f.y - 2, 4, 4); }
+    if (f.type === 'dash') { const k = 1 - f.t / .35; ctx.fillStyle = `rgba(220,230,255,${.5 - k * .5})`; for (let i = 0; i < 5; i++) { ctx.beginPath(); ctx.arc(f.x + Math.cos(i * 1.3) * k * 26, f.y + Math.sin(i * 1.3) * k * 26, 9 - k * 6, 0, 7); ctx.fill(); } }
     if (f.type === 'boom') { const k = 1 - f.t / .45; ctx.strokeStyle = `rgba(255,140,30,${1 - k})`; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(f.x, f.y, 10 + k * 60, 0, 7); ctx.stroke(); ctx.fillStyle = `rgba(255,220,120,${.6 - k * .6})`; ctx.beginPath(); ctx.arc(f.x, f.y, 8 + k * 30, 0, 7); ctx.fill(); }
     if (f.type === 'flash') { ctx.fillStyle = 'rgba(255,240,150,.9)'; ctx.beginPath(); ctx.arc(f.x, f.y, 9, 0, 7); ctx.fill(); }
   }
@@ -653,6 +658,7 @@ addEventListener('keydown', e => {
   if ((e.code === 'KeyE' || e.code === 'Digit1') && (V.me.role === 'murderer' || V.me.gun)) togSeq++;
   if (e.code === 'Space') { e.preventDefault(); jpSeq++; }
   if (e.code === 'KeyB') bjSeq++;
+  if ((e.code === 'ShiftLeft' || e.code === 'ShiftRight') && !e.repeat) doJuke();
 });
 addEventListener('keyup', e => { keys[e.code] = false; });
 addEventListener('blur', () => { keys = {}; mouse.down = false; });
@@ -721,6 +727,7 @@ tapBtn('#mbThrow', () => { if (V && V.phase === 'play' && V.me && V.me.alive && 
 tapBtn('#mbWeapon', () => { if (V && V.phase === 'play' && V.me && V.me.alive && (V.me.role === 'murderer' || V.me.gun)) togSeq++; });
 tapBtn('#mbChat', () => { if (V) openChat(''); });
 tapBtn('#mbJump', () => { if (V && V.me && V.me.alive) jpSeq++; });
+tapBtn('#mbDash', () => { if (V && V.me && V.me.alive) doJuke(); });
 tapBtn('#mbBomb', () => { if (V && V.me && V.me.alive) bjSeq++; });
 tapBtn('#mbCrouch', () => { crouchTouch = !crouchTouch; $('#mbCrouch').classList.toggle('on', crouchTouch); });
 
@@ -958,11 +965,29 @@ $('#lobby .logo').addEventListener('click', () => {
 
 // ===================== Loop =====================
 let last = performance.now();
-let renderFails = 0;
+let renderFails = 0, updateFails = 0;
+// 💨 juke: a quick dash where you're moving (or where you're aiming if you're standing still)
+function doJuke() {
+  const me = V && V.me;
+  if (!me || !me.alive || V.phase !== 'play' || dashCd > 0 || (me.dash || 0) > 0) return;
+  let dx = 0, dy = 0;
+  if (keys.KeyW || keys.ArrowUp) dy--; if (keys.KeyS || keys.ArrowDown) dy++;
+  if (keys.KeyA || keys.ArrowLeft) dx--; if (keys.KeyD || keys.ArrowRight) dx++;
+  if (joy.id !== null && (joy.dx || joy.dy)) { dx = joy.dx; dy = joy.dy; }
+  dashA = dx || dy ? Math.atan2(dy, dx) : myAngle();
+  dashT = Sim.DASH_TIME; dashCd = Sim.DASH_CD; djSeq++;
+}
 function frame(t) {
   requestAnimationFrame(frame); // queue first so one bad frame can never freeze the game
   const dt = Math.min(.05, (t - last) / 1000); last = t;
-  if (V) update(dt);
+  if (V) {
+    try { update(dt); updateFails = 0; }
+    catch (e) {
+      console.error('update failed', e);
+      // a broken round (e.g. one saved by an older version) should never leave a black screen
+      if (++updateFails >= 3) { updateFails = 0; const off = V.offline; try { endGameView(); } catch (e2) { V = null; } if (!off) net({ t: 'leave' }); setScreen('lobby'); toast('That round broke, sent you back to the lobby'); }
+    }
+  }
   try { render(); renderFails = 0; }
   catch (e) {
     console.error('render failed', e);
