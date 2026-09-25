@@ -509,7 +509,7 @@ function render() {
   for (const [k, x, y, vx, vy, skin] of s.p) {
     const px = x + vx * age, py = y + vy * age;
     if (k === 'k') drawKnife(px, py, T * 25, ITEM[skin] || ITEM.k0, T);
-    else if (ITEM[skin] && ITEM[skin].sound === 'ray') { ctx.strokeStyle = '#39ff14'; ctx.shadowColor = '#39ff14'; ctx.shadowBlur = 12; ctx.lineWidth = 5; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(px - vx * .035, py - vy * .035); ctx.lineTo(px, py); ctx.stroke(); ctx.shadowBlur = 0; }
+    else if (ITEM[skin] && ITEM[skin].sound === 'ray') { const lc = itemColor(ITEM[skin], T); ctx.strokeStyle = lc; ctx.shadowColor = lc; ctx.shadowBlur = 12; ctx.lineWidth = 5; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(px - vx * .035, py - vy * .035); ctx.lineTo(px, py); ctx.stroke(); ctx.shadowBlur = 0; }
     else { ctx.strokeStyle = '#fff6a0'; ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(px - vx * .02, py - vy * .02); ctx.lineTo(px, py); ctx.stroke(); }
   }
   for (const f of V.fx) {
@@ -780,7 +780,7 @@ function renderLobby() {
   } else if (curTab === 'shop') {
     $('#bundles').innerHTML = (P.bundles || []).map(b => `<div class="card bundle">
       <div class="evrewards">${b.items.map(id => itemCard(ITEM[id], { noval: true })).join('')}</div>
-      <div class="binfo"><h3>${b.icon} ${esc(b.name)}</h3><p class="muted small">Get the whole set at once. Rumor says there's a secret code somewhere too 👀</p>
+      <div class="binfo"><h3>${b.icon} ${esc(b.name)}</h3><p class="muted small">${esc(b.desc || '')}</p>
       <button class="btn" data-b="${esc(b.id)}" ${b.owned || P.coins < b.price ? 'disabled' : ''}>${b.owned ? 'Owned ✅' : `💰 ${b.price.toLocaleString()}`}</button></div></div>`).join('');
     $('#bundles').querySelectorAll('button[data-b]').forEach(btn => btn.onclick = () => net({ t: 'buyBundle', id: btn.dataset.b }));
     $('#crates').innerHTML = CRATES.map(c => `<div class="crate"><div class="box">${c.icon}</div><h3>${c.name}</h3><p>${P.luck && c.luckySpecials ? '🍀 Your luck: 95% Death Set or Chroma Death Set!' : c.desc}</p><button class="btn" data-c="${c.id}" ${P.coins < c.price ? 'disabled' : ''}>💰 ${c.price}</button></div>`).join('');

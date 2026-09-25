@@ -292,3 +292,13 @@ test('every trophy gives its own exclusive weapon, once', () => {
   const old = defaultProfile('o'); old.trophies = ['play1']; Eco.checkTrophies(old);
   assert.ok(old.inv.some(i => i.id === 't_play1'));
 });
+
+test('Chroma Raygun Set costs 93,000 coins', () => {
+  const p = defaultProfile('t'); p.coins = 92999;
+  assert.throws(() => Eco.buyBundle(p, 'craygun'), /Not enough coins/);
+  p.coins = 100000;
+  assert.deepStrictEqual(Eco.buyBundle(p, 'craygun'), ['g23', 'k29']);
+  assert.strictEqual(p.coins, 7000);
+  assert.ok(Sim.ITEM.g23.noCooldown && Sim.ITEM.g23.sound === 'ray' && Sim.ITEM.k29.r === 'Chroma');
+  for (let i = 0; i < 20000; i++) for (const c of Sim.CRATES) assert.ok(!['g23', 'k29'].includes(Sim.rollCrate(c).id));
+});

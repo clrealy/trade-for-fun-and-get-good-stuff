@@ -77,6 +77,9 @@
     // Raygun Set: 3,999 coins in the Shop, or the secret code
     I('g21', 'gun', 'Raygun', 'Ancient', '#39ff14', 1, { val: 4000, exclusive: true, sound: 'ray', noCooldown: true }),
     I('k28', 'knife', 'Ray Blade', 'Ancient', '#00e5ff', 1, { val: 4000, exclusive: true }),
+    // Chroma Raygun Set: 93,000 coins in the Shop
+    I('g23', 'gun', 'Chroma Raygun', 'Chroma', 'chroma', 1, { val: 93000, exclusive: true, sound: 'ray', noCooldown: true }),
+    I('k29', 'knife', 'Chroma Ray Blade', 'Chroma', 'chroma', 1, { val: 93000, exclusive: true }),
     // Trophy rewards: only from the 🏆 Trophies tab
     I('t_blood1', 'knife', 'First Blood', 'Rare', '#b3001b', 1, { exclusive: true, trophy: true }),
     I('t_blood2', 'knife', 'Serial Slasher', 'Legendary', '#8b0000', 1, { exclusive: true, trophy: true }),

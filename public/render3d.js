@@ -348,7 +348,7 @@ const R3D = (() => {
       if (k === 'k') { const m = knifeMeshes.get(); styleKnife(m, ITEM[skin] || ITEM.k0, T); m.position.set(px, .6, pz); m.rotation.set(0, T * 25, 0); }
       else {
         const m = bullets.get(), ray = ITEM[skin] && ITEM[skin].sound === 'ray';
-        m.material.color.set(ray ? '#39ff14' : '#fff6a0'); m.scale.set(ray ? 1.4 : 1, ray ? 2 : 1, ray ? 2 : 1);
+        m.material.color.copy(ray ? colorOf(ITEM[skin], T) : new THREE.Color('#fff6a0')); m.scale.set(ray ? 1.4 : 1, ray ? 2 : 1, ray ? 2 : 1);
         m.position.set(px, .6, pz); m.rotation.set(0, -Math.atan2(vy, vx), 0);
       }
     }
