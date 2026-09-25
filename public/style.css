@@ -198,3 +198,34 @@ body.touch #introSub{font-size:17px}
   .card{padding:14px}
   .evrewards .item{width:96px}
 }
+/* Phones sideways: buttons go in a row along the bottom, everything else squeezes up */
+@media (orientation: landscape) and (max-height: 520px){
+  body.touch #mobileBtns{flex-direction:row;align-items:flex-end;bottom:calc(12px + env(safe-area-inset-bottom, 0px));right:calc(16px + env(safe-area-inset-right, 0px))}
+  body.touch .mbtn{height:48px;min-width:48px;font-size:14px;padding:0 12px}
+  body.touch .mbtn.big{height:64px;min-width:64px;font-size:15px}
+  body.touch #cools{bottom:calc(88px + env(safe-area-inset-bottom, 0px));top:auto}
+  body.touch .cool{width:110px;height:20px;font-size:12px}
+  body.touch .cool span{line-height:20px}
+  body.touch #bag{left:50%;right:auto;transform:translateX(-50%);bottom:calc(12px + env(safe-area-inset-bottom, 0px));font-size:14px}
+  body.touch #roleBadge{top:calc(48px + env(safe-area-inset-top, 0px));font-size:13px;padding:4px 10px}
+  body.touch #timer{font-size:20px;top:8px;padding:0 12px}
+  body.touch #alive{top:10px}
+  body.touch #chat{left:calc(16px + env(safe-area-inset-left, 0px));top:10px;width:min(240px,34vw)}
+  body.touch #chatLog{max-height:64px}
+  body.touch #msgs{top:18vh}
+  body.touch #msgs div{font-size:13px;padding:4px 10px}
+  body.touch #spec{bottom:56px;font-size:14px}
+  body.touch #introSmall{font-size:18px}
+  body.touch #introRole{font-size:min(10vw,60px)}
+  body.touch #introSub{font-size:14px}
+  .panel{max-height:calc(100% - 16px);overflow-y:auto;padding:16px}
+  #endTitle{font-size:28px}
+  #endRoles,#endRewards{font-size:15px}
+  #roomCode{font-size:32px}
+  .reelwrap{height:118px}
+  .logo{font-size:24px}
+  header{padding-block:8px}
+  nav{margin-bottom:10px}
+  .tab{font-size:14px;padding:7px 12px}
+  .pill{font-size:14px;padding:4px 10px}
+}
