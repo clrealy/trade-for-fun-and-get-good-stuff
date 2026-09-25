@@ -16,5 +16,8 @@
     "firebase-admin": "^14.5.0",
     "three": "0.128.0",
     "ws": "^8.21.3"
+  },
+  "devDependencies": {
+    "javascript-obfuscator": "^5.8.0"
   }
 }

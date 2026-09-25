@@ -166,20 +166,33 @@
   </section>
 
   <section id="tab-inv" class="tabpage hide">
-    <div class="equipped">
-      <div class="card"><h3>Equipped knife</h3><div id="eqKnife"></div></div>
-      <div class="card"><h3>Equipped gun</h3><div id="eqGun"></div></div>
-    </div>
-    <div class="card">
-      <h3>🎟️ Add code</h3>
-      <form id="codeForm" class="row" novalidate>
-        <input id="redeemInput" placeholder="Type a code" maxlength="24" autocomplete="off">
-        <button class="btn" type="submit">Redeem</button>
-      </form>
-    </div>
-    <div class="card">
-      <h3>Your items <span class="muted" id="invCount"></span> <span class="muted">(click to equip)</span></h3>
-      <div id="invGrid" class="grid"></div>
+    <div class="invwin">
+      <aside class="invside">
+        <div class="invtitle"><div class="invlogo">🎒</div><b>Inventory</b></div>
+        <label class="invsearch"><span aria-hidden="true">🔍</span><input id="invSearch" placeholder="Search" autocomplete="off" aria-label="Search your items"></label>
+        <nav class="invcats" id="invCats" aria-label="Item categories">
+          <button data-cat="all" class="on"><span>🗡️</span>Weapons</button>
+          <button data-cat="knife"><span>🔪</span>Knives</button>
+          <button data-cat="gun"><span>🔫</span>Guns</button>
+          <button data-cat="fav"><span>⭐</span>Favorites</button>
+          <button data-cat="chroma"><span>🌈</span>Chromas</button>
+          <button data-cat="trophy"><span>🏆</span>Trophy</button>
+        </nav>
+        <div class="invme">
+          <div class="invavatar" id="invAvatar"></div>
+          <div class="invmeinfo"><div><b id="invName"></b> <span class="lvlbadge" id="invLvl"></span></div><div class="invcoins" id="invCoins"></div></div>
+        </div>
+        <button class="rbx-btn purple" id="invShopBtn" type="button">Shop</button>
+      </aside>
+      <div class="invmain"><div class="invgrid" id="invGrid"></div></div>
+      <aside class="invright">
+        <div class="featured" id="featured"></div>
+        <form id="codeForm" class="invcode" novalidate>
+          <input id="redeemInput" placeholder="Enter Code" maxlength="24" autocomplete="off" aria-label="Enter code">
+          <button class="rbx-btn blue" type="submit">Redeem</button>
+        </form>
+      </aside>
+      <button class="invclose" id="invClose" type="button" aria-label="Close inventory">X</button>
     </div>
   </section>
 

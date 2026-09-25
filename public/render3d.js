@@ -361,5 +361,40 @@ const R3D = (() => {
     pools.forEach(p => p.hideRest());
     renderer.render(scene, camera);
   };
+  // ---------------- item pictures for the menus ----------------
+  // Renders a skin's 3D model once into a small transparent image (cached), like Roblox inventory icons.
+  let thumbR = null, thumbScene, thumbCam;
+  const thumbCache = new Map();
+  api.thumbCached = id => thumbCache.get(id);
+  api.thumb = item => {
+    if (thumbCache.has(item.id)) return thumbCache.get(item.id);
+    let url = null;
+    try {
+      if (!thumbR) {
+        thumbR = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
+        thumbR.setPixelRatio(1); thumbR.setSize(192, 192, false); thumbR.setClearColor(0x000000, 0);
+        thumbScene = new THREE.Scene();
+        thumbScene.add(new THREE.HemisphereLight(0xffffff, 0x3a3550, 1.05));
+        const key = new THREE.DirectionalLight(0xffffff, .9); key.position.set(-2, 3, 4); thumbScene.add(key);
+        const rim = new THREE.DirectionalLight(0x9fd8ff, .5); rim.position.set(3, -1, -2); thumbScene.add(rim);
+        thumbCam = new THREE.PerspectiveCamera(28, 1, .01, 50);
+      }
+      tickChroma(1.1); // chroma skins get a fixed pink for the picture (the menu animates the hue)
+      const g = new THREE.Group(), m = modelFor(item, item.type);
+      if (item.type === 'knife') { m.rotation.x = Math.PI / 2; g.rotation.set(0, -.25, Math.PI / 4); } // blade face to camera, tip up-right
+      else { g.rotation.set(0, -.45, .12); }                                                              // gun side-on, slight turn
+      g.add(m); thumbScene.add(g); g.updateMatrixWorld(true);
+      const box = new THREE.Box3().setFromObject(g), size = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3());
+      g.position.sub(c);
+      const r = Math.max(size.x, size.y) * .6 + size.z * .2;
+      thumbCam.position.set(0, 0, r / Math.tan(THREE.MathUtils.degToRad(14)) + size.z);
+      thumbCam.lookAt(0, 0, 0);
+      thumbR.render(thumbScene, thumbCam);
+      url = thumbR.domElement.toDataURL('image/png');
+      thumbScene.remove(g);
+    } catch (e) { url = null; }
+    thumbCache.set(item.id, url);
+    return url;
+  };
   return api;
 })();

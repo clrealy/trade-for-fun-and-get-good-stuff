@@ -95,6 +95,8 @@ Cheats always work in Practice and on a dev server. Online, only accounts listed
 
 `node scripts/build-standalone.js` writes `dist/standalone.html`, a single file you can open with no server. You play vs bots, and the shop, codes and trading save in your browser. It is not cheat-proof, so the online game never uses it.
 
+The solo build is obfuscated with `javascript-obfuscator`: strings (including the redeem codes) are encoded and names are scrambled, so view-source shows gibberish. That slows down curious players but doesn't stop a determined one. The real protection is the online server, which never sends codes to players. Use `--plain` for a readable build.
+
 ## 3D
 
 Rounds render in 3D with three.js (`public/render3d.js`): blocky characters, real walls and a tilted camera that follows you. The menus, HUD and controls are the same as in 2D. The online server hosts three.js itself (`/vendor/three.min.js`, from the `three` npm package), and the solo build loads it from cdnjs. Players can switch to 2D under **Play → Graphics**, and the game uses 2D automatically if WebGL isn't available.

@@ -714,10 +714,32 @@ tapBtn('#mbWeapon', () => { if (V && V.phase === 'play' && V.me && V.me.alive &&
 tapBtn('#mbChat', () => { if (V) openChat(''); });
 
 // ===================== Lobby UI =====================
+// weapon pictures come from the 3D models (render3d.js); emoji until they're ready or if 3D isn't available
+function itemIcon(it) {
+  const url = R3.ok && R3.thumbCached ? R3.thumbCached(it.id) : null;
+  if (url) return `<img class="thumb${it.col === 'chroma' ? ' chroma' : ''}" src="${url}" alt="">`;
+  return `<span class="ic-emoji" ${R3.ok && R3.thumb && url === undefined ? `data-thumb="${esc(it.id)}"` : ''}>${it.type === 'knife' ? '🔪' : '🔫'}</span>`;
+}
+let thumbJob = 0;
+function hydrateThumbs() {
+  if (!R3.ok || !R3.thumb || thumbJob) return;
+  const step = () => {
+    const els = [...document.querySelectorAll('[data-thumb]')].slice(0, 6);
+    if (!els.length) { thumbJob = 0; return; }
+    for (const el of els) {
+      const it = ITEM[el.dataset.thumb], url = it && R3.thumb(it);
+      document.querySelectorAll(`[data-thumb="${CSS.escape(el.dataset.thumb)}"]`).forEach(e => {
+        if (url) e.outerHTML = `<img class="thumb${it.col === 'chroma' ? ' chroma' : ''}" src="${url}" alt="">`; else e.removeAttribute('data-thumb');
+      });
+    }
+    thumbJob = requestAnimationFrame(step);
+  };
+  thumbJob = requestAnimationFrame(step);
+}
 function itemCard(it, opts = {}) {
   const rc = rarColor(it.r);
   return `<div class="item ${it.r === 'Chroma' ? 'chroma' : ''} ${opts.eq ? 'eq' : ''} ${opts.sel ? 'sel' : ''}" style="border-color:${rc}" ${opts.attr || ''}>
-    <div class="ic" style="${it.col === 'chroma' ? '' : `text-shadow:0 0 12px ${it.col}`}">${it.type === 'knife' ? '🔪' : '🔫'}</div>
+    <div class="ic" style="${it.col === 'chroma' ? '' : `text-shadow:0 0 12px ${it.col}`}">${itemIcon(it)}</div>
     <div class="nm">${esc(it.name)}</div><div class="rr" style="color:${rc}">${it.r}</div>${it.noCooldown ? '<div class="fastTag">⚡ No cooldown</div>' : ''}${opts.noval ? '' : `<div class="vv">value ${it.val.toLocaleString()}</div>`}</div>`;
 }
 let curTab = 'play';
@@ -750,6 +772,65 @@ function trophyPopup(list) {
   const text = `🏆 Trophy unlocked: ${t.icon} ${t.name}! You got ${it ? it.name + ' + ' : ''}${t.reward.toLocaleString()} coins${more}`;
   if (V) msg(text, '#ffc233', 5); else toast(text, true);
 }
+// ---------- inventory window ----------
+let invCat = 'all';
+const favs = new Set((() => { try { return JSON.parse(localStorage.getItem('mm_favs') || '[]'); } catch (e) { return []; } })());
+function renderInventory() {
+  // one card per skin (duplicates stack), defaults always there, equipped first
+  const groups = new Map();
+  for (const d of ['k0', 'g0']) groups.set(d, { id: d, uids: [] });
+  for (const i of P.inv) { if (!groups.has(i.id)) groups.set(i.id, { id: i.id, uids: [] }); groups.get(i.id).uids.push(i.u); }
+  const eqId = { knife: equippedId('knife'), gun: equippedId('gun') };
+  const q = $('#invSearch').value.trim().toLowerCase();
+  const list = [...groups.values()].map(g => ({ ...g, it: ITEM[g.id] })).filter(g => g.it && (
+    invCat === 'all' || (invCat === 'fav' ? favs.has(g.id) : invCat === 'chroma' ? g.it.r === 'Chroma' : invCat === 'trophy' ? g.it.trophy : g.it.type === invCat)
+  ) && (!q || g.it.name.toLowerCase().includes(q)));
+  list.sort((a, b) => (eqId[b.it.type] === b.id) - (eqId[a.it.type] === a.id) || favs.has(b.id) - favs.has(a.id) || b.it.val - a.it.val);
+  $('#invGrid').innerHTML = list.length ? list.map(g => {
+    const it = g.it, eq = eqId[it.type] === g.id, rc = rarColor(it.r);
+    return `<div class="wcard r-${it.r.toLowerCase()} ${eq ? 'eq' : ''}" data-id="${esc(g.id)}" role="button" tabindex="0" aria-label="${esc(it.name)}, ${it.r}${eq ? ', equipped' : ''}">
+      <button class="star ${favs.has(g.id) ? 'on' : ''}" data-fav="${esc(g.id)}" aria-label="Favorite" type="button">★</button>
+      ${eq ? '<span class="eqtag">Equipped <i>✓</i></span>' : g.uids.length > 1 ? `<span class="cnt">x${g.uids.length}</span>` : ''}
+      <div class="wimg">${itemIcon(it)}</div>
+      <div class="wname">${esc(it.name)}</div><div class="wrar" style="color:${rc}">${it.r}${it.noCooldown ? ' · ⚡' : ''}</div></div>`;
+  }).join('') : `<div class="invempty">${q ? 'Nothing matches that search.' : invCat === 'fav' ? 'Tap the ☆ on an item to favorite it.' : 'Nothing here yet. Open some boxes in the Shop 📦'}</div>`;
+  $('#invGrid').querySelectorAll('.wcard').forEach(el => {
+    const equip = () => {
+      const id = el.dataset.id, it = ITEM[id]; tone(800, .06);
+      if (id === 'k0' || id === 'g0') { if (P.equip[it.type] != null) net({ t: 'equip', u: P.equip[it.type] }); return; } // equipping the default = unequip the skin
+      const g = groups.get(id); if (eqId[it.type] !== id) net({ t: 'equip', u: g.uids[0] });
+    };
+    el.onclick = e => { if (!e.target.closest('.star')) equip(); };
+    el.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); equip(); } };
+  });
+  $('#invGrid').querySelectorAll('.star').forEach(b => b.onclick = () => {
+    const id = b.dataset.fav; favs.has(id) ? favs.delete(id) : favs.add(id);
+    try { localStorage.setItem('mm_favs', JSON.stringify([...favs])); } catch (e) { }
+    renderInventory();
+  });
+  // profile card
+  $('#invAvatar').textContent = (P.name || '?')[0].toUpperCase();
+  $('#invName').textContent = P.name; $('#invLvl').textContent = P.level;
+  $('#invCoins').textContent = `💰 ${shortNum(P.coins)}`; $('#invCoins').title = `${P.coins.toLocaleString()} coins`;
+  renderFeatured();
+  hydrateThumbs();
+}
+// featured bundle on the right: rotates daily, with a countdown to the next rotation (UTC midnight)
+function renderFeatured() {
+  const bs = P.bundles || []; if (!bs.length) { $('#featured').innerHTML = ''; return; }
+  const day = Math.floor(Date.now() / 864e5), b = bs.filter(x => !x.owned)[day % Math.max(1, bs.filter(x => !x.owned).length)] || bs[day % bs.length];
+  const it = ITEM[b.items[0]], left = 864e5 - (Date.now() % 864e5), h = Math.floor(left / 36e5), m = Math.floor(left % 36e5 / 6e4);
+  $('#featured').innerHTML = `<div class="ftimer">${h}h ${m}m</div><div class="fimg">${itemIcon(it)}</div>
+    <div class="fname">${esc(b.name)}</div><div class="fexcl">Exclusive</div>
+    <button class="rbx-btn green" id="featBuy" type="button" ${b.owned || P.coins < b.price ? 'disabled' : ''}>${b.owned ? 'Owned ✓' : `💰 ${shortNum(b.price)}`}</button>`;
+  $('#featBuy').onclick = () => net({ t: 'buyBundle', id: b.id });
+}
+$('#invCats').querySelectorAll('button').forEach(b => b.onclick = () => {
+  invCat = b.dataset.cat; $('#invCats').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); renderInventory();
+});
+$('#invSearch').addEventListener('input', () => renderInventory());
+$('#invClose').onclick = () => document.querySelector('.tab[data-tab="play"]').click();
+$('#invShopBtn').onclick = () => document.querySelector('.tab[data-tab="shop"]').click();
 function sortedInv() { return P.inv.slice().sort((a, b) => ITEM[b.id].val - ITEM[a.id].val); }
 function renderLobby() {
   if (!P) return;
@@ -771,12 +852,7 @@ function renderLobby() {
     const st = P.stats;
     $('#statsBox').innerHTML = [['Rounds', st.rounds], ['Wins', st.wins], ['Kills', st.kills], ['Deaths', st.deaths], ['Coins earned', st.coins], ['Unboxed', st.unboxed], ['Trades', st.trades]].map(([a, b]) => `<div><b>${b}</b>${a}</div>`).join('');
   } else if (curTab === 'inv') {
-    $('#eqKnife').innerHTML = itemCard(ITEM[equippedId('knife')], { noval: true });
-    $('#eqGun').innerHTML = itemCard(ITEM[equippedId('gun')], { noval: true });
-    $('#invCount').textContent = `(${P.inv.length})`;
-    const inv = sortedInv();
-    $('#invGrid').innerHTML = inv.length ? inv.map(i => itemCard(ITEM[i.id], { eq: P.equip[ITEM[i.id].type] === i.u, attr: `data-u="${i.u}"` })).join('') : '<div class="muted">No items yet. Go unbox some in the Shop 📦</div>';
-    $('#invGrid').querySelectorAll('.item').forEach(el => el.onclick = () => { tone(800, .06); net({ t: 'equip', u: +el.dataset.u }); });
+    renderInventory();
   } else if (curTab === 'shop') {
     $('#bundles').innerHTML = (P.bundles || []).map(b => `<div class="card bundle">
       <div class="evrewards">${b.items.map(id => itemCard(ITEM[id], { noval: true })).join('')}</div>
@@ -784,10 +860,11 @@ function renderLobby() {
       <button class="btn" data-b="${esc(b.id)}" ${b.owned || P.coins < b.price ? 'disabled' : ''}>${b.owned ? 'Owned ✅' : `💰 ${b.price.toLocaleString()}`}</button></div></div>`).join('');
     $('#bundles').querySelectorAll('button[data-b]').forEach(btn => btn.onclick = () => net({ t: 'buyBundle', id: btn.dataset.b }));
     $('#crates').innerHTML = CRATES.map(c => `<div class="crate"><div class="box">${c.icon}</div><h3>${c.name}</h3><p>${P.luck && c.luckySpecials ? '🍀 Your luck: 95% Death Set or Chroma Death Set!' : c.desc}</p><button class="btn" data-c="${c.id}" ${P.coins < c.price ? 'disabled' : ''}>💰 ${c.price}</button></div>`).join('');
+    hydrateThumbs();
     $('#crates').querySelectorAll('button').forEach(b => b.onclick = () => { if (unboxPending) return; unboxPending = true; net({ t: 'crate', id: b.dataset.c }); });
     const w = CRATES[0].w, tot = Object.values(w).reduce((a, b) => a + b, 0);
     $('#rates').innerHTML = RORDER.map(r => `<span style="color:${rarColor(r)}">${r} ${(w[r] / tot * 100).toFixed(1)}%</span>`).join('') + '<span class="muted">(Knife/Gun Box)</span>';
-  } else if (curTab === 'trade') renderTrade();
+  } else if (curTab === 'trade') { renderTrade(); hydrateThumbs(); }
   else if (curTab === 'trophies') {
     const T = P.trophies || [];
     $('#trophyCount').textContent = `${T.filter(t => t.done).length} / ${T.length}`;

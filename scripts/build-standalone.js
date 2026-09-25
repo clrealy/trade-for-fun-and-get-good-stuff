@@ -16,6 +16,28 @@ let html = R('public/index.html')
   .replace('<script src="/vendor/three.min.js"></script>', '<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>')
   .replace('<script src="render3d.js"></script>', () => `<script>\n${R('public/render3d.js')}\n</script>`)
   .replace('<script src="client.js"></script>', () => `<script>\n${R('public/client.js')}\n</script>`);
+// Scramble every inline script so "view source" shows gibberish instead of the game code and codes.
+// It's a speed bump, not a lock: the online game keeps codes on the server, which is the real protection.
+// Pass --plain for a readable build.
+if (!process.argv.includes('--plain')) {
+  const JO = require('javascript-obfuscator');
+  const base = {
+    compact: true, identifierNamesGenerator: 'hexadecimal', renameGlobals: false,
+    stringArray: true, stringArrayEncoding: ['rc4'], stringArrayThreshold: 1, stringArrayRotate: true, stringArrayShuffle: true,
+    splitStrings: true, splitStringsChunkLength: 5,
+    // the game loop runs these 60 times a second, so skip the heavy (slow) transforms
+    controlFlowFlattening: false, deadCodeInjection: false, selfDefending: false, numbersToExpressions: false,
+  };
+  let n = 0;
+  html = html.replace(/<script>([\s\S]*?)<\/script>/g, (all, code) => {
+    if (code.trim().length < 40) return all;
+    // object keys hold the redeem codes, so encode them too in that module
+    const opts = code.includes('reward: {') ? { ...base, transformObjectKeys: true } : base;
+    n++;
+    return `<script>${JO.obfuscate(code, opts).getObfuscatedCode()}</script>`;
+  });
+  console.log(`Obfuscated ${n} scripts`);
+}
 fs.mkdirSync(path.join(__dirname, '..', 'dist'), { recursive: true });
 fs.writeFileSync(path.join(__dirname, '..', 'dist', 'standalone.html'), html);
 console.log('Wrote dist/standalone.html', (html.length / 1024).toFixed(0) + ' KB');

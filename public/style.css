@@ -256,3 +256,94 @@ body.touch #introSub{font-size:17px}
 .trophy .treward span{font-size:10px;font-weight:700;text-transform:uppercase}
 .trophy .tdot{width:12px;height:12px;border-radius:50%;border:1px solid #fff8;display:inline-block}
 .trophy .tdot.chroma{background:linear-gradient(90deg,#f55,#fd5,#5f7,#5cf,#b6f)}
+
+/* ---------- Inventory window (Roblox-style) ---------- */
+.invwin{position:relative;display:grid;grid-template-columns:230px 1fr 190px;height:min(640px,calc(100vh - 170px));min-height:460px;background:#1a1d23 radial-gradient(#ffffff0a 1px,transparent 1px) 0 0/14px 14px;border:2px solid #2d3139;border-radius:26px;box-shadow:0 20px 60px #000a;overflow:hidden}
+.invside{display:flex;flex-direction:column;gap:14px;padding:22px 18px;background:linear-gradient(180deg,#1e2027 0%,#1e2027 55%,#2c2046 100%);border-right:2px solid #2d3139}
+.invtitle{display:flex;align-items:center;gap:12px;font-size:18px}
+.invlogo{width:42px;height:42px;border-radius:10px;background:#4a1d1d;border:2px solid #ff5a3c55;display:grid;place-items:center;font-size:22px}
+.invsearch{display:flex;align-items:center;gap:8px;margin:0;background:#121418;border-radius:10px;padding:0 10px;font-weight:400}
+.invsearch input{background:none;border:0;padding:10px 0;width:100%;font-size:14px}
+.invsearch input:focus{outline:none}
+.invsearch:focus-within{box-shadow:0 0 0 2px var(--accent)}
+.invcats{display:flex;flex-direction:column;gap:4px}
+.invcats button{display:flex;align-items:center;gap:12px;background:none;border:2px solid transparent;color:#c9cbd3;font-family:inherit;font-size:14px;font-weight:600;padding:8px 12px;border-radius:12px;cursor:pointer;text-align:left}
+.invcats button span{width:22px;text-align:center;font-size:17px}
+.invcats button:hover{background:#ffffff0d}
+.invcats button.on{color:#fff;border-color:#a974ff;background:linear-gradient(90deg,#3b2a66,#6a3fc4 70%,#8f63ff);box-shadow:0 0 14px #8f63ff55}
+.invme{margin-top:auto;display:flex;gap:12px;align-items:center}
+.invavatar{width:58px;height:58px;border-radius:10px;background:linear-gradient(135deg,#2b2b33,#101014);display:grid;place-items:center;font-size:26px;font-weight:700;color:#fff;border:2px solid #ffffff14;flex:0 0 auto}
+.invmeinfo{min-width:0}
+.invmeinfo b{font-size:17px}
+.lvlbadge{display:inline-grid;place-items:center;min-width:22px;height:22px;padding:0 5px;border-radius:99px;background:#3a3d46;font-size:11px;font-weight:700;vertical-align:2px}
+.invcoins{color:#5dff6a;font-weight:700;font-size:17px;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rbx-btn{border:3px solid #0008;border-radius:12px;color:#fff;font-family:inherit;font-weight:700;font-size:18px;padding:9px 12px;cursor:pointer;text-shadow:0 2px 0 #0007;box-shadow:inset 0 -4px 0 #0003,inset 0 3px 0 #ffffff33;background-size:200% 100%;transition:transform .08s,filter .1s}
+.rbx-btn:hover{filter:brightness(1.08)}.rbx-btn:active{transform:translateY(2px)}
+.rbx-btn:disabled{filter:grayscale(.6) brightness(.7);cursor:not-allowed}
+.rbx-btn.purple{background:linear-gradient(135deg,#7b2cff,#a55cff 50%,#7b2cff)}
+.rbx-btn.blue{background:linear-gradient(135deg,#0fa4ff,#4fd0ff 50%,#0f8dff)}
+.rbx-btn.green{background:linear-gradient(135deg,#2fc23a,#5de062 50%,#28a832)}
+.invmain{overflow-y:auto;padding:22px 16px 22px 22px;scrollbar-width:thin;scrollbar-color:#3a3d46 transparent}
+.invgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:12px}
+.invempty{grid-column:1/-1;color:var(--muted);text-align:center;padding:40px 10px}
+.wcard{position:relative;aspect-ratio:1/1.12;border-radius:14px;border:2px solid #ffffff10;background:linear-gradient(180deg,#16181c,#0d0e11);padding:10px 12px;display:flex;flex-direction:column;justify-content:flex-end;cursor:pointer;overflow:hidden;transition:transform .1s,border-color .1s}
+.wcard:hover{transform:translateY(-2px);border-color:#ffffff30}
+.wcard:focus-visible{outline:3px solid #fff;outline-offset:2px}
+.wcard.r-uncommon{background:radial-gradient(circle at 50% 38%,#1f4a24,#0d1410 75%)}
+.wcard.r-rare{background:radial-gradient(circle at 50% 38%,#0f4a52,#0a1518 75%)}
+.wcard.r-legendary{background:radial-gradient(circle at 50% 38%,#5a3312,#160e08 75%)}
+.wcard.r-godly{background:radial-gradient(circle at 50% 38%,#4a1a66,#140a1c 75%)}
+.wcard.r-ancient{background:radial-gradient(circle at 50% 38%,#5a4a0c,#171306 75%)}
+.wcard.r-chroma{background:radial-gradient(circle at 50% 38%,#6a1f55,#101528 75%)}
+.wcard.eq{border-color:#7cff5a;box-shadow:0 0 0 1px #7cff5a,0 0 18px #7cff5a44}
+.wcard .star{position:absolute;top:6px;left:8px;background:none;border:0;color:#ffffff90;font-size:16px;cursor:pointer;padding:2px;line-height:1;-webkit-text-stroke:1px #fff;color:transparent}
+.wcard .star.on{color:#ffd23f;-webkit-text-stroke:0}
+.wcard .eqtag{position:absolute;top:8px;right:10px;color:#7cff5a;font-weight:700;font-size:13px;display:flex;align-items:center;gap:4px}
+.wcard .eqtag i{font-style:normal;display:grid;place-items:center;width:16px;height:16px;border-radius:50%;background:#7cff5a;color:#0d0e11;font-size:11px}
+.wcard .cnt{position:absolute;top:8px;right:10px;font-size:12px;font-weight:700;color:#fff;background:#ffffff1a;padding:1px 7px;border-radius:99px}
+.wcard .wimg{position:absolute;inset:14% 10% 32%;display:grid;place-items:center}
+.wcard .wimg img,.featured .fimg img{max-width:100%;max-height:100%;filter:drop-shadow(0 6px 8px #000a)}
+.wcard .ic-emoji{font-size:44px}
+img.thumb.chroma,.thumb.chroma{animation:huespin 3s linear infinite}
+@keyframes huespin{to{filter:hue-rotate(360deg) drop-shadow(0 6px 8px #000a)}}
+.wname{position:relative;font-weight:700;font-size:15px;line-height:1.15;text-shadow:0 2px 3px #000}
+.wrar{position:relative;font-weight:700;font-size:12px}
+.invright{display:flex;flex-direction:column;gap:12px;padding:22px 16px;border-left:2px solid #2d3139;background:linear-gradient(180deg,#1b1e24,#1b2229)}
+.featured{border:3px solid #ff5f8f;border-radius:16px;background:linear-gradient(180deg,#5a1e33,#2a1520);padding:10px;display:flex;flex-direction:column;gap:4px;box-shadow:0 0 18px #ff5f8f33}
+.ftimer{text-align:center;color:#ff9fbd;font-weight:700;font-size:13px}
+.fimg{height:96px;display:grid;place-items:center;font-size:48px}
+.fname{font-weight:700;font-size:15px}
+.fexcl{color:#ff4d8a;font-weight:700;font-size:13px;margin-bottom:4px}
+.invcode{margin-top:auto;display:flex;flex-direction:column;gap:8px}
+.invcode input{background:#121418;border:2px solid #2d3139;border-radius:10px;font-size:14px;padding:9px 10px}
+.invclose{position:absolute;top:12px;right:12px;width:38px;height:38px;border-radius:10px;border:3px solid #0008;background:#8a1025;color:#ff5f6f;font-family:inherit;font-weight:700;font-size:18px;cursor:pointer;z-index:2}
+.invclose:hover{filter:brightness(1.15)}
+.invright{padding-top:58px}
+/* item pictures in the other menus */
+.item .ic img.thumb{width:64px;height:64px;object-fit:contain}
+.grid.small .item .ic img.thumb{width:46px;height:46px}
+#reel .item .ic img.thumb{width:56px;height:56px}
+@media (max-width:860px){
+  .invwin{grid-template-columns:1fr;height:auto;min-height:0}
+  .invside{border-right:0;border-bottom:2px solid #2d3139;padding:16px}
+  .invcats{flex-direction:row;overflow-x:auto;gap:6px;padding-bottom:4px}
+  .invcats button{flex:0 0 auto;padding:7px 11px}
+  .invme{margin-top:0}
+  .invmain{max-height:none;padding:16px}
+  .invgrid{grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:10px}
+  .invright{border-left:0;border-top:2px solid #2d3139;padding-top:16px}
+  .invcode{margin-top:0}
+}
+@media (prefers-reduced-motion: reduce){.thumb.chroma{animation:none}}
+.invsearch{flex-direction:row}
+nav.invcats{margin:0;max-width:none;flex-wrap:nowrap}
+.wname{font-size:14px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.wcard .wimg{inset:14% 10% 36%}
+.invwin > *{min-width:0}
+@media (max-width:860px){
+  .invwin{grid-template-columns:minmax(0,1fr)}
+  .invtitle{padding-right:48px}
+  .invgrid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .wcard .eqtag{font-size:0;gap:0}         /* just the ✓ on small cards so it doesn't hit the star */
+  .wcard .eqtag i{font-size:11px}
+}
