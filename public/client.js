@@ -133,7 +133,7 @@ function onMsg(m) {
     case 'codeAll': unboxPending = false; SFX.win(); toast(`Code redeemed: you got all ${m.count} knives and guns 🔪🔫`, true); break;
     case 'codeItems': unboxPending = false; SFX.win(); toast(`${m.from === 'event' ? 'Unlocked' : m.from === 'bundle' ? 'Bought' : 'Code redeemed'}: ${m.items.map(id => ITEM[id].name).join(' + ')} 🔥`, true); if (screen === 'lobby') renderLobby(); break;
     case 'chat': addChat(m.name, m.text, m.sys); break;
-    case 'codeCoins': unboxPending = false; SFX.win(); toast(`Code redeemed: +${m.coins.toLocaleString()} coins 💰`, true); break;
+    case 'codeCoins': unboxPending = false; SFX.win(); toast(`Code redeemed: +${shortNum(m.coins)} coins 💰`, true); break;
     case 'traders': traders = m.traders; if (screen === 'lobby') renderLobby(); break;
     case 'tradeResult':
       traders = m.traders; offMine = []; offTheirs = [];
@@ -684,11 +684,21 @@ document.querySelectorAll('.tab').forEach(b => b.onclick = () => {
 $('#mapSel').innerHTML = '<option value="-1">🎲 Random map</option>' + Sim.MAPS.map((m, i) => `<option value="${i}">${m.name}</option>`).join('');
 $('#practiceBtn').onclick = () => { tone(600, .1); startPractice(); };
 
+// 1,234 → "1,234", 12,345,678 → "12.3M", 1e56 → "100Spd": keeps giant balances inside the coin pill
+const SUFFIXES = ['', 'K', 'M', 'B', 'T', 'Qa', 'Qi', 'Sx', 'Sp', 'Oc', 'No', 'Dc', 'Ud', 'Dd', 'Td', 'Qad', 'Qid', 'Sxd', 'Spd', 'Ocd', 'Nod', 'Vg'];
+function shortNum(n) {
+  if (n < 1e6) return Math.floor(n).toLocaleString();
+  const tier = Math.min(SUFFIXES.length - 1, Math.floor(Math.log10(n) / 3));
+  if (tier === SUFFIXES.length - 1 && n >= 1e66) return n.toExponential(1);
+  const v = n / 10 ** (tier * 3);
+  return (v >= 100 ? Math.floor(v) : +v.toFixed(1)) + SUFFIXES[tier];
+}
 function sortedInv() { return P.inv.slice().sort((a, b) => ITEM[b.id].val - ITEM[a.id].val); }
 function renderLobby() {
   if (!P) return;
   $('#namePill').textContent = P.name;
-  $('#coinPill').textContent = `💰 ${P.coins.toLocaleString()}`;
+  $('#coinPill').textContent = `💰 ${shortNum(P.coins)}`;
+  $('#coinPill').title = `${P.coins.toLocaleString()} coins`;
   $('#lvlPill').textContent = `Lv ${P.level}`;
   $('#xpFill').style.width = (P.xp / P.xpNeed * 100) + '%';
   if (curTab === 'play') {

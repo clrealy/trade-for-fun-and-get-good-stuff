@@ -50,7 +50,7 @@ header{display:flex;justify-content:space-between;align-items:center;flex-wrap:w
 .logo span{color:var(--red)}
 .stats{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .pill{background:var(--panel2);padding:6px 14px;border-radius:999px;font-weight:600;font-size:18px}
-#coinPill{color:var(--gold)}
+#coinPill{color:var(--gold);max-width:60vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-variant-numeric:tabular-nums}
 .xpbar{width:120px;height:10px;background:var(--panel2);border-radius:99px;overflow:hidden}
 #xpFill{height:100%;background:var(--green);width:0}
 nav{display:flex;gap:8px;max-width:1100px;margin:0 auto 16px;flex-wrap:wrap}
@@ -145,7 +145,7 @@ input:focus{outline:none;border-color:var(--accent)}
 #roomPlayers{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-bottom:12px}
 #roomPlayers span{background:var(--panel2);padding:4px 10px;border-radius:8px;font-weight:600}
 #endNext{margin-bottom:12px}
-#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#3a1620;color:#fff;border:2px solid var(--red);padding:10px 18px;border-radius:12px;font-weight:600;z-index:20;max-width:90vw;text-align:center}
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#3a1620;color:#fff;border:2px solid var(--red);padding:10px 18px;border-radius:12px;font-weight:600;z-index:20;max-width:90vw;text-align:center;overflow-wrap:anywhere}
 #toast.ok{background:#15361c;border-color:var(--green)}
 @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
 .item .fastTag{font-size:10px;font-weight:700;color:var(--gold)}
