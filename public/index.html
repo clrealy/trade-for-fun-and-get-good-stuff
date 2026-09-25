@@ -136,6 +136,10 @@
           <select id="mapSel"></select>
           <button id="practiceBtn" class="btn ghost">Practice</button>
         </div>
+        <div id="viewRow" class="row">
+          <label for="viewSel" class="inlinelabel">Graphics</label>
+          <select id="viewSel"><option value="3d">3D</option><option value="2d">2D (faster on old phones)</option></select>
+        </div>
       </div>
       <div class="card">
         <h2>How to play</h2>
@@ -232,7 +236,9 @@
 
 <div id="toast" class="hide"></div>
 
+<script src="/vendor/three.min.js"></script>
 <script src="/shared/sim.js"></script>
+<script src="render3d.js"></script>
 <script src="client.js"></script>
 </body>
 </html>

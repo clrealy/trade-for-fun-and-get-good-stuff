@@ -73,6 +73,7 @@ const server = http.createServer((req, res) => {
   if (url === '/healthz') return send(res, 200, 'ok', 'text/plain');
   if (url === '/config.json') return send(res, 200, JSON.stringify({ auth: authMode, firebase: webConfig }), 'application/json', { 'Cache-Control': 'no-store' });
   if (url === '/shared/sim.js') return serveFile(res, path.join(ROOT, 'shared'), 'sim.js');
+  if (url === '/vendor/three.min.js') return serveFile(res, path.join(ROOT, 'node_modules', 'three', 'build'), 'three.min.js');
   serveFile(res, path.join(ROOT, 'public'), url === '/' ? 'index.html' : url.slice(1));
 });
 

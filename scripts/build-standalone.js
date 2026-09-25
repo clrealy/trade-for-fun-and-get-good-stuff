@@ -13,6 +13,8 @@ let html = R('public/index.html')
     '<script>window.MMEco=window.__mods.economy;window.MMStore=window.__mods.store;</script>',
     `<script>\n${R('public/local.js')}\n</script>`,
   ].join('\n'))
+  .replace('<script src="/vendor/three.min.js"></script>', '<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>')
+  .replace('<script src="render3d.js"></script>', () => `<script>\n${R('public/render3d.js')}\n</script>`)
   .replace('<script src="client.js"></script>', () => `<script>\n${R('public/client.js')}\n</script>`);
 fs.mkdirSync(path.join(__dirname, '..', 'dist'), { recursive: true });
 fs.writeFileSync(path.join(__dirname, '..', 'dist', 'standalone.html'), html);

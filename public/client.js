@@ -10,7 +10,13 @@ function resize() {
   Z = Math.max(.55, Math.min(1, Math.min(W, H) / 720));
   cv.width = W * DPR; cv.height = H * DPR; cv.style.width = W + 'px'; cv.style.height = H + 'px';
 }
+// 3D view (render3d.js). Falls back to the 2D canvas if WebGL or three.js isn't available.
+const R3 = typeof R3D !== 'undefined' ? R3D : { ok: false };
+let viewPref = (() => { try { return localStorage.getItem('mm_view') || '3d'; } catch (e) { return '3d'; } })();
+const use3D = () => R3.ok && viewPref !== '2d';
+addEventListener('resize', () => { if (R3.ok) R3.resize(W, H); });
 addEventListener('resize', resize); resize();
+if (R3.ok) R3.resize(W, H);
 
 const { ITEM, RAR, RORDER, CRATES, TILE, BAG_MAX } = Sim;
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -380,7 +386,8 @@ function update(dt) {
   if (V.endInfo && !V.endShown && performance.now() - V.endAt > 1400) { V.endShown = true; showEnd(); }
   const f = focusEnt();
   if (f) { V.cam.x += (f.x - V.cam.x) * Math.min(1, dt * 8); V.cam.y += (f.y - V.cam.y) * Math.min(1, dt * 8); }
-  mouse.wx = (mouse.x - W / 2) / Z + V.cam.x; mouse.wy = (mouse.y - H / 2) / Z + V.cam.y;
+  if (use3D()) { const p = R3.screenToWorld(mouse.x, mouse.y); if (p) { mouse.wx = p.x; mouse.wy = p.y; } }
+  else { mouse.wx = (mouse.x - W / 2) / Z + V.cam.x; mouse.wy = (mouse.y - H / 2) / Z + V.cam.y; }
   updateHUD();
 }
 function myAngle() { if (touchAim !== null) return touchAim; return V.lp ? Math.atan2(mouse.wy - V.lp.y, mouse.wx - V.lp.x) : 0; }
@@ -423,6 +430,9 @@ const coolBar = (n, f) => { f = clamp(f, 0, 1); return `<div class="cool"><i sty
 // ===================== Render =====================
 function render() {
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  const three = use3D() && V && V.snap;
+  if (R3.ok) R3.show(!!three);
+  if (three) { ctx.clearRect(0, 0, W, H); render3D(); return; }
   ctx.fillStyle = '#0d0b12'; ctx.fillRect(0, 0, W, H);
   if (!V || !V.snap) return;
   const M = V.M, s = V.snap;
@@ -496,10 +506,30 @@ function render() {
     if (f.type === 'flash') { ctx.fillStyle = 'rgba(255,240,150,.9)'; ctx.beginPath(); ctx.arc(f.x, f.y, 9, 0, 7); ctx.fill(); }
   }
   ctx.restore();
-
-  const me = V.me;
+  drawScreenOverlay(V.me, s, (x, y) => ({ x: (x - cx) * Z, y: (y - cy) * Z }));
+}
+function render3D() {
+  const s = V.snap, T = performance.now() / 1000, me = V.me;
+  R3.draw(V, ITEM, T, me ? (me.wo ? (me.role === 'murderer' ? 'k' : 'g') : 0) : undefined);
+  // name tags float above heads
+  ctx.font = '600 13px Fredoka, sans-serif'; ctx.textAlign = 'center';
+  const endRoles = V.endInfo ? new Map(V.endInfo.roles) : null;
+  for (const [id, d] of V.disp) {
+    if (!d.alive) continue;
+    const p = R3.worldToScreen(d.x, d.y, 1.3); if (p.behind) continue;
+    const r = V.roster.get(id) || {}, lbl = id === V.you ? 'You' : r.name;
+    ctx.fillStyle = 'rgba(0,0,0,.65)'; ctx.fillText(lbl, p.x + 1, p.y + 1);
+    let nc = '#fff';
+    if (endRoles && endRoles.get(id) === 'murderer') nc = '#ff4d5e';
+    if (id === V.you && me) nc = roleColor(me.role);
+    ctx.fillStyle = nc; ctx.fillText(lbl, p.x, p.y);
+  }
+  drawScreenOverlay(me, s, (x, y) => R3.worldToScreen(x, y, .3));
+}
+// HUD bits drawn on the canvas: arrow to the dropped gun, vignette, joystick, crosshair
+function drawScreenOverlay(me, s, toScreen) {
   if (s.g && me && me.alive && me.role === 'innocent') {
-    const gx = (s.g.x - cx) * Z, gy = (s.g.y - cy) * Z;
+    const gp = toScreen(s.g.x, s.g.y), gx = gp.x, gy = gp.y;
     if (gx < 0 || gy < 0 || gx > W || gy > H) {
       const a = Math.atan2(gy - H / 2, gx - W / 2), R = Math.min(W, H) / 2 - 40;
       const ax = W / 2 + Math.cos(a) * R, ay = H / 2 + Math.sin(a) * R;
@@ -629,7 +659,8 @@ const JOY_R = 60;
 let joy = { id: null, ox: 0, oy: 0, dx: 0, dy: 0 }, aimTouch = null, touchAim = null;
 function aimAt(x, y) {
   if (!V || !V.lp) return;
-  const wx = (x - W / 2) / Z + V.cam.x, wy = (y - H / 2) / Z + V.cam.y;
+  let wx = (x - W / 2) / Z + V.cam.x, wy = (y - H / 2) / Z + V.cam.y;
+  if (use3D()) { const p = R3.screenToWorld(x, y); if (!p) return; wx = p.x; wy = p.y; }
   touchAim = Math.atan2(wy - V.lp.y, wx - V.lp.x);
 }
 cv.addEventListener('touchstart', e => {
@@ -686,6 +717,9 @@ document.querySelectorAll('.tab').forEach(b => b.onclick = () => {
   renderLobby();
 });
 $('#mapSel').innerHTML = '<option value="-1">🎲 Random map</option>' + Sim.MAPS.map((m, i) => `<option value="${i}">${m.name}</option>`).join('');
+$('#viewSel').value = use3D() ? '3d' : '2d';
+if (!R3.ok) show('#viewRow', false);
+$('#viewSel').onchange = () => { viewPref = $('#viewSel').value; lsSet('mm_view', viewPref); };
 $('#practiceBtn').onclick = () => { tone(600, .1); startPractice(); };
 
 // 1,234 → "1,234", 12,345,678 → "12.3M", 1e56 → "100Spd": keeps giant balances inside the coin pill

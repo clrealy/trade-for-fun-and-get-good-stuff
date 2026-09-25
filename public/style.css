@@ -237,3 +237,6 @@ body.touch #introSub{font-size:17px}
 .bundle .binfo{flex:1;min-width:180px}
 .bundle h3{margin:0 0 4px}
 .bundle p{margin:0 0 10px}
+
+.inlinelabel{display:flex;align-items:center;margin:0;font-weight:600}
+#game3d{position:fixed;inset:0;display:none}
