@@ -857,7 +857,7 @@
     for (const e of R.ents) e.weaponOut = e.alive && (e.role === 'murderer' || e.hasGun);
     R.results = R.ents.filter(e => e.pid).map(e => {
       const won = (winner === 'murderer') === (e.startRole === 'murderer');
-      return { pid: e.pid, id: e.id, role: e.startRole, won, alive: e.alive, bag: e.bag, kills: e.kills };
+      return { pid: e.pid, id: e.id, role: e.startRole, won, alive: e.alive, bag: e.bag, kills: e.kills, hero: e.role === 'hero', mode: R.mode };
     });
     R.endInfo = { w: winner, roles: R.ents.map(e => [e.id, e.role]), murderer: R.murderer.name, sheriff: R.sheriffName, hero: R.heroName };
     emit(R, { t: 'end', ...R.endInfo });

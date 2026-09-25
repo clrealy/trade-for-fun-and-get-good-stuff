@@ -113,7 +113,7 @@ function giveRewards(r) {
   for (const res of r.R.results) {
     queue(res.pid, async () => {
       let summary;
-      const p = await store.update(res.pid, prof => { summary = Eco.applyRoundResult(prof, res); return prof; });
+      const p = await store.update(res.pid, prof => { summary = Eco.applyRoundResult(prof, res); Eco.checkTrophies(prof); return prof; });
       for (const c of r.clients) if (c.uid === res.pid) { c.profile = p; sendMsg(c, { t: 'reward', r: summary }); sendMsg(c, { t: 'profile', p: Eco.publicProfile(p) }); }
     }).catch(e => console.error('reward failed', res.pid, e.message));
   }
@@ -170,7 +170,7 @@ function queue(uid, fn) {
 }
 async function mutate(c, fn) {
   let out;
-  c.profile = await queue(c.uid, () => store.update(c.uid, p => { out = fn(p); return p; }));
+  c.profile = await queue(c.uid, () => store.update(c.uid, p => { out = fn(p); Eco.checkTrophies(p); return p; }));
   sendMsg(c, { t: 'profile', p: Eco.publicProfile(c.profile) });
   return out;
 }

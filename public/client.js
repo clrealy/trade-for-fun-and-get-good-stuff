@@ -127,7 +127,13 @@ function onMsg(m) {
   switch (m.t) {
     case 'hello': P = m.p; traders = m.traders; if (!V) setScreen('lobby'); break;
     case 'needName': setScreen('name'); $('#nameInput').focus(); break;
-    case 'profile': P = m.p; if (screen === 'lobby') renderLobby(); break;
+    case 'profile': {
+      const before = P && P.trophies ? new Set(P.trophies.filter(t => t.done).map(t => t.id)) : null;
+      P = m.p;
+      const fresh = before && P.trophies ? P.trophies.filter(t => t.done && !before.has(t.id)) : [];
+      if (fresh.length) trophyPopup(fresh);
+      if (screen === 'lobby') renderLobby(); break;
+    }
     case 'error':
       if (screen === 'name') $('#nameErr').textContent = m.msg;
       else if (screen === 'auth' || screen === 'connecting') { $('#authErr').textContent = m.msg; }
@@ -737,6 +743,12 @@ function shortNum(n) {
   const v = n / 10 ** (tier * 3);
   return (v >= 100 ? Math.floor(v) : +v.toFixed(1)) + SUFFIXES[tier];
 }
+function trophyPopup(list) {
+  SFX.win();
+  const t = list[0], more = list.length > 1 ? ` (+${list.length - 1} more)` : '';
+  const text = `🏆 Trophy unlocked: ${t.icon} ${t.name}! +${t.reward.toLocaleString()} coins${more}`;
+  if (V) msg(text, '#ffc233', 5); else toast(text, true);
+}
 function sortedInv() { return P.inv.slice().sort((a, b) => ITEM[b.id].val - ITEM[a.id].val); }
 function renderLobby() {
   if (!P) return;
@@ -775,6 +787,13 @@ function renderLobby() {
     const w = CRATES[0].w, tot = Object.values(w).reduce((a, b) => a + b, 0);
     $('#rates').innerHTML = RORDER.map(r => `<span style="color:${rarColor(r)}">${r} ${(w[r] / tot * 100).toFixed(1)}%</span>`).join('') + '<span class="muted">(Knife/Gun Box)</span>';
   } else if (curTab === 'trade') renderTrade();
+  else if (curTab === 'trophies') {
+    const T = P.trophies || [];
+    $('#trophyCount').textContent = `${T.filter(t => t.done).length} / ${T.length}`;
+    $('#trophyGrid').innerHTML = T.map(t => `<div class="trophy ${t.done ? 'done' : ''}"><div class="ti">${t.icon}</div><b>${esc(t.name)}</b>
+      <div class="td">${esc(t.desc)}</div><div class="tbar"><i style="width:${t.value / t.goal * 100}%"></i></div>
+      <div class="tr">${t.done ? '✅ Unlocked' : `${shortNum(t.value)} / ${shortNum(t.goal)}`} · 💰 ${t.reward.toLocaleString()}</div></div>`).join('');
+  }
 }
 
 // ---------- crates (the server rolls; we just animate the result) ----------

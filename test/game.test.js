@@ -257,3 +257,20 @@ test('a murderer kill plays the kill sound and tells the killer', () => {
   assert.ok(Sim.eventsFor(ev, m.id).some(e => e.t === 'killConfirm'));
   assert.ok(!Sim.eventsFor(ev, v.id).some(e => e.t === 'killConfirm'));
 });
+
+test('trophies unlock once and pay coins', () => {
+  const p = defaultProfile('t');
+  assert.deepStrictEqual(Eco.checkTrophies(p), []);
+  Eco.applyRoundResult(p, { role: 'murderer', won: true, alive: true, bag: 0, kills: 1, mode: '1v1' });
+  const c0 = p.coins;
+  assert.deepStrictEqual(Eco.checkTrophies(p), ['blood1']);
+  assert.strictEqual(p.coins, c0 + 50);
+  assert.deepStrictEqual(Eco.checkTrophies(p), [], 'no double unlock');
+  for (let i = 0; i < 9; i++) Eco.applyRoundResult(p, { role: 'murderer', won: true, alive: true, bag: 0, kills: 0, mode: '1v1' });
+  const got = Eco.checkTrophies(p);
+  assert.ok(got.includes('play1') && got.includes('win1') && got.includes('duel1'), got.join());
+  const pub = Eco.publicProfile(p).trophies;
+  assert.strictEqual(pub.length, Eco.TROPHIES.length);
+  assert.ok(pub.find(t => t.id === 'duel1').done);
+  assert.strictEqual(pub.find(t => t.id === 'duel2').value, 10);
+});

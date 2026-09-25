@@ -12,11 +12,11 @@
   }
   function save() { try { localStorage.setItem(KEY, JSON.stringify(P)); } catch (e) { } }
   // apply fn to a copy so a failed action changes nothing
-  function mutate(fn) { const draft = structuredClone(P); const out = fn(draft); P = draft; save(); emit({ t: 'profile', p: Eco.publicProfile(P) }); return out; }
+  function mutate(fn) { const draft = structuredClone(P); const out = fn(draft); Eco.checkTrophies(draft); P = draft; save(); emit({ t: 'profile', p: Eco.publicProfile(P) }); return out; }
   window.LocalServer = {
     start(cb) {
       emit = m => setTimeout(() => cb(m), 0);
-      P = load(); traders = Eco.genTraders();
+      P = load(); Eco.checkTrophies(P); save(); traders = Eco.genTraders(); // unlock anything already earned
       const txt = document.querySelector('#tab-play h3 + p'); if (txt) txt.textContent = 'Solo vs bots. You keep your coins and XP.';
       emit({ t: 'hello', p: Eco.publicProfile(P), traders: Eco.tradersView(traders) });
     },

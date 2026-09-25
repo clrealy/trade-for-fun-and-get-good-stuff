@@ -110,6 +110,7 @@
     <button class="tab" data-tab="inv">🎒 Inventory</button>
     <button class="tab" data-tab="shop">📦 Shop</button>
     <button class="tab" data-tab="trade">🤝 Trade</button>
+    <button class="tab" data-tab="trophies">🏆 Trophies</button>
   </nav>
 
   <section id="tab-play" class="tabpage">
@@ -186,6 +187,14 @@
     <div id="bundles"></div>
     <div id="crates" class="crates"></div>
     <div class="card"><h3>Drop rates</h3><div id="rates"></div></div>
+  </section>
+
+  <section id="tab-trophies" class="tabpage hide">
+    <div class="card">
+      <h2>🏆 Trophies <span class="muted" id="trophyCount"></span></h2>
+      <p class="muted small">Grind to unlock them. Each one pays coins the moment you get it.</p>
+      <div id="trophyGrid" class="trophygrid"></div>
+    </div>
   </section>
 
   <section id="tab-trade" class="tabpage hide">

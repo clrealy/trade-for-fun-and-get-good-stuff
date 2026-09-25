@@ -80,6 +80,10 @@ The Play tab tracks kills. At 50 kills a player can claim the summer set (Sunbur
 
 **Play → ⚔️ 1v1 vs bot** (solo) or **⚔️ Create 1v1 room** (online, share the code with one friend). It's one Murderer against one Sheriff with a 2-minute timer. Players start far apart, and the Sheriff wins if time runs out. Murderer kills play a kill sound, and the killer hears an extra sting.
 
+## Trophies
+
+The **🏆 Trophies** tab has 25 trophies for grinding: kills, rounds, wins, Murderer/Sheriff/Hero/1v1 wins, surviving, coins earned, boxes opened, trades, levels and owning Chromas. The server unlocks each one once, pays its coin reward right away and shows a popup. Edit the list in `TROPHIES` in `server/economy.js`.
+
 ## Chat and cheats
 
 Press **Enter** (or **/**) in a round to chat. Commands start with `/`, and `/help` lists them. `/sheffeme` gives you the gun (Murderers can't use it), `/murdme` makes you the Murderer, `/speed` toggles a speed boost, `/whoisit` tells you who the Murderer is, `/r` brings you back to life, and `/god` stops you from dying.
