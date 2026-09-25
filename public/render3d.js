@@ -13,6 +13,8 @@ const R3D = (() => {
     document.body.insertBefore(cvs, document.body.firstChild);
   } catch (e) { return api; }
   api.ok = true;
+  // if the GPU drops the context (common on phones), stop using 3D so the 2D view takes over
+  renderer.domElement.addEventListener('webglcontextlost', e => { e.preventDefault(); api.ok = false; renderer.domElement.style.display = 'none'; });
   renderer.setPixelRatio(Math.min(2, devicePixelRatio || 1));
   const scene = new THREE.Scene();
   scene.background = new THREE.Color('#0d0b12');
@@ -88,46 +90,145 @@ const R3D = (() => {
   const pools = [coins, shadows, blood, bullets, flashes, knifeMeshes];
 
   // ---------------- weapons + characters ----------------
-  function colorOf(item, T) { return item.col === 'chroma' ? new THREE.Color().setHSL(((T * 140) % 360) / 360, .95, .62) : new THREE.Color(item.col); }
-  // knife: flat pointed blade (lying face-up so the top-down camera sees its shape), crossguard, wooden grip, pommel
-  function bladeGeo(L) {
-    const sh = new THREE.Shape();
-    sh.moveTo(0, -.045); sh.lineTo(L * .72, -.05);
-    sh.quadraticCurveTo(L * .93, -.035, L, .012);          // curved cutting edge up to the tip
-    sh.lineTo(L * .7, .04); sh.lineTo(0, .04);               // straight spine back to the guard
-    const g = new THREE.ExtrudeGeometry(sh, { depth: .018, bevelEnabled: true, bevelThickness: .006, bevelSize: .006, bevelSegments: 1 });
-    g.translate(0, 0, -.009); g.rotateX(-Math.PI / 2);      // shape faces up (+Y), length along +X
+  // ---------------- weapon models ----------------
+  // Every skin gets a model by type (dagger, serrated, cleaver, scythe, energy / pistol, revolver, blaster, sniper, water).
+  // Models are built once per skin and cloned; +X points forward, +Y up (flat blade faces the camera).
+  const chromaMats = [];
+  function skinMat(item, opts = {}) {
+    const m = new THREE.MeshStandardMaterial({ color: item.col === 'chroma' ? '#ff0000' : item.col, metalness: opts.metal ?? .45, roughness: opts.rough ?? .35, emissive: opts.glow ? (item.col === 'chroma' ? '#ff0000' : item.col) : '#000000', emissiveIntensity: opts.glow ? .8 : 1, transparent: !!opts.alpha, opacity: opts.alpha || 1 });
+    if (item.col === 'chroma') chromaMats.push([m, !!opts.glow]);
+    return m;
+  }
+  const steel = new THREE.MeshStandardMaterial({ color: '#b9bec7', metalness: .7, roughness: .25 });
+  const darkMetal = new THREE.MeshStandardMaterial({ color: '#2c2d33', metalness: .6, roughness: .45 });
+  const wood = mat('#6b3f22'), woodDark = mat('#3b2616'), black = mat('#141418');
+  const mesh = (geo, m, x = 0, y = 0, z = 0, parent) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); if (parent) parent.add(o); return o; };
+  function flatShape(draw, depth = .018) {
+    const sh = new THREE.Shape(); draw(sh);
+    const g = new THREE.ExtrudeGeometry(sh, { depth, bevelEnabled: true, bevelThickness: .005, bevelSize: .005, bevelSegments: 1 });
+    g.translate(0, 0, -depth / 2); g.rotateX(-Math.PI / 2); return g;
+  }
+  const blades = {
+    dagger: L => flatShape(s => { s.moveTo(0, -.045); s.lineTo(L * .72, -.05); s.quadraticCurveTo(L * .93, -.035, L, .012); s.lineTo(L * .7, .04); s.lineTo(0, .04); }),
+    serrated: L => flatShape(s => { s.moveTo(0, -.045); s.lineTo(L * .75, -.05); s.quadraticCurveTo(L * .95, -.03, L, .015); const n = 7; for (let i = 0; i <= n; i++) s.lineTo(L * (.8 - i * .8 / n), i % 2 ? .07 : .045); s.lineTo(0, .045); }),
+    cleaver: L => flatShape(s => { s.moveTo(0, -.03); s.lineTo(L * .85, -.09); s.lineTo(L, -.07); s.lineTo(L * .97, .045); s.lineTo(0, .045); }),
+    curved: L => flatShape(s => { s.moveTo(0, -.04); s.quadraticCurveTo(L * .6, -.1, L, .07); s.quadraticCurveTo(L * .55, -.02, 0, .045); }),
+  };
+  function hilt(g, item, gemGlow) {
+    mesh(box(.035, .04, .19), darkMetal, .01, 0, 0, g);                                   // crossguard
+    mesh(new THREE.SphereGeometry(.025, 8, 6), skinMat(item, { glow: gemGlow }), .01, .02, 0, g); // gem in the guard
+    const grip = new THREE.CylinderGeometry(.027, .031, .15, 8); grip.rotateZ(Math.PI / 2);
+    mesh(grip, woodDark, -.075, 0, 0, g);
+    const wrap = new THREE.CylinderGeometry(.034, .034, .014, 8); wrap.rotateZ(Math.PI / 2);
+    for (const x of [-.04, -.075, -.11]) mesh(wrap, darkMetal, x, 0, 0, g);            // grip wraps
+    mesh(new THREE.SphereGeometry(.038, 8, 6), darkMetal, -.16, 0, 0, g);                 // pommel
+  }
+  function knifeStyle(item) {
+    const n = item.name.toLowerCase();
+    if (/scythe|harvester|batwing/.test(n)) return 'scythe';
+    if (/ray blade|galaxy|nebula|neon|sussy|chroma fang|icewing/.test(n)) return 'energy';
+    if (/butter|kitchen|rusty|sunburn/.test(n)) return 'cleaver';
+    if (/frost|toxic|thunder|blood|death|heat|inferno/.test(n)) return 'serrated';
+    return 'dagger';
+  }
+  function buildKnife(item) {
+    const g = new THREE.Group(), L = item.long ? .58 : .36, style = knifeStyle(item);
+    if (style === 'scythe') {
+      // long pole with a curved blade hooking sideways at the end
+      const pole = new THREE.CylinderGeometry(.022, .022, .6, 8); pole.rotateZ(Math.PI / 2);
+      mesh(pole, woodDark, .12, 0, 0, g);
+      for (const x of [-.12, .38]) { const c = new THREE.CylinderGeometry(.03, .03, .03, 8); c.rotateZ(Math.PI / 2); mesh(c, darkMetal, x, 0, 0, g); }
+      const b = mesh(blades.curved(L * .9), skinMat(item, { metal: .6 }), .4, 0, 0, g); b.rotation.y = Math.PI / 2;
+      mesh(new THREE.SphereGeometry(.03, 8, 6), skinMat(item, { glow: true }), .4, .02, 0, g);
+      return g;
+    }
+    if (style === 'energy') {
+      mesh(blades.dagger(L), skinMat(item, { glow: true, alpha: .9 }), .03, 0, 0, g);
+      mesh(blades.dagger(L * .8), new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: .55 }), .05, .006, 0, g); // bright core
+      hilt(g, item, true);
+      return g;
+    }
+    mesh(blades[style](L), skinMat(item, { metal: .6, rough: .25 }), .02, 0, 0, g);
+    if (style === 'dagger' || style === 'serrated') mesh(box(L * .6, .004, .012), darkMetal, .02 + L * .32, .016, .005, g); // fuller groove
+    hilt(g, item, false);
     return g;
   }
-  const BLADE = { short: bladeGeo(.34), long: bladeGeo(.58) };
-  const guardGeo = box(.035, .035, .17), gripGeo = new THREE.CylinderGeometry(.028, .032, .15, 8), pommelGeo = new THREE.SphereGeometry(.036, 8, 6);
-  gripGeo.rotateZ(Math.PI / 2);
-  function makeKnife() {
-    const g = new THREE.Group();
-    const blade = new THREE.Mesh(BLADE.short, new THREE.MeshStandardMaterial({ color: '#ccc', metalness: .55, roughness: .3 }));
-    blade.position.x = .02; g.add(blade);
-    const guard = new THREE.Mesh(guardGeo, mat('#3a3a44')); guard.position.x = .01; g.add(guard);
-    const grip = new THREE.Mesh(gripGeo, mat('#5a3620')); grip.position.x = -.075; g.add(grip);
-    const pommel = new THREE.Mesh(pommelGeo, mat('#3a3a44')); pommel.position.x = -.155; g.add(pommel);
-    g.userData.blade = blade; return g;
+  function gunStyle(item) {
+    const n = item.name.toLowerCase();
+    if (item.long) return 'sniper';
+    if (/water|splash/.test(n)) return 'water';
+    if (/revolver|golden six|luger|death gun/.test(n)) return 'revolver';
+    if (/blaster|laser|raygun|lightbringer|swirly|cap gun/.test(n)) return 'blaster';
+    return 'pistol';
   }
-  function styleKnife(k, item, T) {
-    const b = k.userData.blade, geo = item.long ? BLADE.long : BLADE.short;
-    if (b.geometry !== geo) b.geometry = geo;
-    const c = colorOf(item, T); b.material.color.copy(c); b.material.emissive.copy(c).multiplyScalar(.18);
+  const cyl = (r, len, seg = 10) => { const c = new THREE.CylinderGeometry(r, r, len, seg); c.rotateZ(Math.PI / 2); return c; };
+  function buildGun(item) {
+    const g = new THREE.Group(), style = gunStyle(item), main = skinMat(item), glow = skinMat(item, { glow: true });
+    const grip = (x, m = darkMetal) => { const gr = mesh(box(.07, .15, .055), m, x, -.085, 0, g); gr.rotation.z = -.35; };
+    const trigger = x => { const t = new THREE.TorusGeometry(.03, .008, 4, 8, Math.PI); t.rotateX(Math.PI); mesh(t, darkMetal, x, -.035, 0, g); mesh(box(.01, .03, .01), black, x, -.03, 0, g); };
+    if (style === 'pistol') {
+      mesh(box(.28, .065, .06), main, .09, .015, 0, g);                 // slide
+      mesh(box(.24, .04, .05), darkMetal, .08, -.03, 0, g);             // frame
+      mesh(cyl(.016, .06), black, .25, .015, 0, g);                     // muzzle
+      mesh(box(.014, .02, .012), black, .21, .055, 0, g); mesh(box(.02, .02, .03), black, -.03, .055, 0, g); // sights
+      for (let i = 0; i < 4; i++) mesh(box(.006, .05, .062), darkMetal, -.02 + i * .016, .015, 0, g); // slide grooves
+      mesh(box(.12, .008, .062), glow, .12, .049, 0, g);                // accent stripe
+      grip(-.01, main); trigger(.04);
+    } else if (style === 'revolver') {
+      mesh(cyl(.03, .3), main, .2, .025, 0, g);                         // long barrel
+      mesh(box(.28, .012, .02), darkMetal, .2, .05, 0, g);              // top rib
+      const drum = mesh(cyl(.045, .08, 6), darkMetal, .03, .01, 0, g);   // cylinder
+      for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3; mesh(cyl(.01, .082, 6), black, .03, .01 + Math.cos(a) * .03, Math.sin(a) * .03, g); }
+      mesh(box(.04, .04, .02), darkMetal, -.03, .045, 0, g);            // hammer
+      grip(-.04, wood); trigger(.02);
+      mesh(box(.02, .025, .012), main, .34, .05, 0, g);                 // front sight
+      drum.rotation.x = .3;
+    } else if (style === 'blaster') {
+      mesh(new THREE.SphereGeometry(.07, 12, 10), main, .02, .02, 0, g).scale.set(1.6, 1, 1); // rounded body
+      mesh(cyl(.028, .2), darkMetal, .17, .02, 0, g);                   // emitter
+      for (const x of [.1, .15, .2]) { const r = new THREE.TorusGeometry(.036, .008, 6, 14); r.rotateY(Math.PI / 2); mesh(r, glow, x, .02, 0, g); } // glowing coils
+      mesh(new THREE.SphereGeometry(.03, 10, 8), glow, .28, .02, 0, g); // muzzle orb
+      for (const z of [-.06, .06]) { const f = mesh(box(.08, .01, .05), main, -.03, .06, z, g); f.rotation.x = z > 0 ? .5 : -.5; } // fins
+      grip(-.02, darkMetal); trigger(.03);
+    } else if (style === 'sniper') {
+      mesh(cyl(.02, .44), darkMetal, .38, .02, 0, g);                   // barrel
+      mesh(cyl(.03, .05), black, .6, .02, 0, g);                        // muzzle brake
+      mesh(box(.3, .07, .06), main, .08, .01, 0, g);                    // receiver
+      mesh(box(.2, .06, .05), main, -.16, -.02, 0, g).rotation.z = .12;  // stock
+      mesh(box(.03, .08, .055), black, -.27, -.03, 0, g);               // butt pad
+      mesh(cyl(.025, .2), black, .1, .075, 0, g);                       // scope
+      for (const x of [0, .2]) mesh(cyl(.032, .025), darkMetal, x, .075, 0, g); // scope rings/caps
+      mesh(new THREE.CircleGeometry(.022, 12).rotateY(Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#7ee8ff' }), .214, .075, 0, g); // lens
+      mesh(box(.05, .08, .04), darkMetal, .12, -.06, 0, g);             // magazine
+      grip(.0, darkMetal); trigger(.05);
+    } else { // water
+      mesh(box(.22, .08, .07), main, .06, .01, 0, g);                   // body
+      mesh(cyl(.014, .1), mat('#ff8c1a'), .22, .01, 0, g);              // nozzle
+      const tank = mesh(cyl(.045, .14), new THREE.MeshStandardMaterial({ color: '#7fd8ff', transparent: true, opacity: .6, roughness: .1 }), .04, .08, 0, g);
+      mesh(cyl(.03, .12), new THREE.MeshBasicMaterial({ color: '#2e9bff', transparent: true, opacity: .7 }), .04, .075, 0, g); // water inside
+      mesh(box(.03, .04, .075), mat('#ff8c1a'), -.05, .045, 0, g);      // pump
+      grip(-.02, mat('#ff8c1a')); trigger(.03); tank.scale.y = 1;
+    }
+    return g;
   }
-  function makeGun() {
-    const g = new THREE.Group();
-    const barrel = new THREE.Mesh(box(.3, .07, .06), new THREE.MeshLambertMaterial({ color: '#888' })); barrel.position.x = .1; g.add(barrel);
-    const grip = new THREE.Mesh(box(.07, .14, .05), mat('#2a2a2a')); grip.position.set(-.02, -.08, 0); g.add(grip);
-    const scope = new THREE.Mesh(box(.18, .06, .05), mat('#222')); scope.position.set(.14, .07, 0); g.add(scope);
-    g.userData = { barrel, scope }; return g;
+  const templates = new Map();
+  function modelFor(item, type) {
+    const k = type + item.id;
+    if (!templates.has(k)) templates.set(k, type === 'knife' ? buildKnife(item) : buildGun(item));
+    return templates.get(k).clone();
   }
-  function styleGun(gm, item, T) {
-    const { barrel, scope } = gm.userData, L = item.long ? .62 : .3;
-    barrel.scale.x = L / .3; barrel.position.x = L / 2 - .05; barrel.material.color.copy(colorOf(item, T));
-    scope.visible = !!item.long;
+  function colorOf(item, T) { return item.col === 'chroma' ? new THREE.Color().setHSL(((T * 140) % 360) / 360, .95, .62) : new THREE.Color(item.col); }
+  function tickChroma(T) { const c = colorOf({ col: 'chroma' }, T); for (const [m, glow] of chromaMats) { m.color.copy(c); if (glow) m.emissive.copy(c); } }
+  // containers keep the old API: make*() gives a holder, style*() swaps in the right model for a skin
+  function holder() { const g = new THREE.Group(); g.userData.id = null; return g; }
+  function setModel(h, item, type) {
+    if (h.userData.id === item.id) return;
+    while (h.children.length) h.remove(h.children[0]);
+    h.add(modelFor(item, type)); h.userData.id = item.id;
   }
+  const makeKnife = holder, makeGun = holder;
+  const styleKnife = (h, item) => setModel(h, item, 'knife');
+  const styleGun = (h, item) => setModel(h, item, 'gun');
   const people = new Map(); // ent id → rig
   function makeRig(color) {
     const root = new THREE.Group(), body = new THREE.Group(); root.add(body);
@@ -141,8 +242,8 @@ const R3D = (() => {
     part(.26, .26, .26, skin, 0, .88, 0);
     part(.28, .08, .28, shirt, -.01, 1.03, 0); // hair/cap
     part(.02, .05, .04, mat('#222'), .13, .9, -.06); part(.02, .05, .04, mat('#222'), .13, .9, .06);
-    const knife = makeKnife(); knife.position.set(0, -.36, 0); knife.visible = false; armR.add(knife);
-    const gun = makeGun(); gun.position.set(.08, -.3, 0); gun.visible = false; armR.add(gun);
+    const knife = makeKnife(); knife.position.set(0, -.36, 0); knife.scale.setScalar(1.15); knife.visible = false; armR.add(knife);
+    const gun = makeGun(); gun.position.set(0, -.36, 0); gun.scale.setScalar(1.6); gun.visible = false; armR.add(gun);
     const ring = new THREE.Mesh(new THREE.RingGeometry(.36, .42, 24), new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: .7, side: THREE.DoubleSide }));
     ring.rotation.x = -Math.PI / 2; ring.position.y = .02; ring.visible = false; root.add(ring);
     root.scale.setScalar(1.1);
@@ -176,7 +277,7 @@ const R3D = (() => {
     } else r.armR.rotation.set(0, 0, swing * .8);
   }
 
-  const dropGun = makeGun(); scene.add(dropGun); dropGun.visible = false;
+  const dropGun = makeGun(); dropGun.scale.setScalar(1.8); scene.add(dropGun); dropGun.visible = false;
   const dropRing = new THREE.Mesh(new THREE.TorusGeometry(.35, .04, 8, 32), new THREE.MeshBasicMaterial({ color: '#4da3ff' }));
   dropRing.rotation.x = Math.PI / 2; scene.add(dropRing); dropRing.visible = false;
 
@@ -208,6 +309,7 @@ const R3D = (() => {
     const M = V.M, s = V.snap;
     if (M.idx !== mapIdx) { buildMap(M); for (const r of people.values()) scene.remove(r.root); people.clear(); }
     placeCamera(V.cam.x, V.cam.y);
+    tickChroma(T);
     pools.forEach(p => p.reset());
     // coins
     for (const [x, y] of s.c) { const m = coins.get(); const b = (x * 7 + y * 13) % 6; m.position.set(x * S, .28 + Math.sin(T * 4 + b) * .04, y * S); m.rotation.y = T * 3 + b; }

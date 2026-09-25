@@ -843,11 +843,17 @@ $('#lobby .logo').addEventListener('click', () => {
 
 // ===================== Loop =====================
 let last = performance.now();
+let renderFails = 0;
 function frame(t) {
+  requestAnimationFrame(frame); // queue first so one bad frame can never freeze the game
   const dt = Math.min(.05, (t - last) / 1000); last = t;
   if (V) update(dt);
-  render();
-  requestAnimationFrame(frame);
+  try { render(); renderFails = 0; }
+  catch (e) {
+    console.error('render failed', e);
+    // if the 3D view breaks on this device, drop to 2D instead of showing a black screen
+    if (use3D() && ++renderFails >= 2) { viewPref = '2d'; if (R3.ok) R3.show(false); toast('3D had a problem on this device, switched to 2D'); }
+  }
 }
 // When this page is updated while open, keep a practice round going instead of dropping the player.
 function resumePractice(data) {
