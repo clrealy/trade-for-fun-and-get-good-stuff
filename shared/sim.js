@@ -426,7 +426,7 @@
   }
 
   // ===================== Round =====================
-  const BAG_MAX = 40, ROUND_TIME = 180, INTRO_TIME = 4, MAX_PLAYERS = 12, PLAYER_SPEED = 190, BOT_SPEED = 172;
+  const BAG_MAX = 40, DUEL_TIME = 120, ROUND_TIME = 180, INTRO_TIME = 4, MAX_PLAYERS = 12, PLAYER_SPEED = 190, BOT_SPEED = 172;
   const BOT_NAMES = ['xX_Slayer_Xx', 'noob_123', 'BaconHair', 'Guest_1337', 'coolkid2009', 'pizzalover', 'ItsYaBoi', 'sussybaka', 'MM2Pro', 'KnifeKing', 'ChillGamer', 'OofMaster', 'godly_hunter', 'tradeMeHarv', 'lil_ninja', 'JustVibin', 'BloxBurger', 'nikilis_fan', 'GamerGrl', 'sheriffOrElse'];
   const COLORS = ['#ff6b6b', '#ffa94d', '#ffd43b', '#69db7c', '#38d9a9', '#4dabf7', '#748ffc', '#da77f2', '#f783ac', '#e8e8e8', '#a9744f', '#63e6be'];
 
@@ -455,13 +455,15 @@
     let mapIdx = opts.mapIdx;
     if (!(mapIdx >= 0 && mapIdx < MAPS.length)) mapIdx = Math.floor(Math.random() * MAPS.length);
     const M = buildMap(mapIdx);
-    const R = { M, mapIdx, ents: [], coins: [], proj: [], bodies: [], gunDrop: null, time: ROUND_TIME, phase: 'intro', introT: INTRO_TIME, coinT: 0, t: 0, endT: 0, events: [], heroName: null, winner: null, results: null, nextId: 1 };
+    const duel = opts.mode === '1v1';
+    const R = { M, mapIdx, mode: duel ? '1v1' : 'classic', ents: [], coins: [], proj: [], bodies: [], gunDrop: null, time: duel ? DUEL_TIME : ROUND_TIME, phase: 'intro', introT: INTRO_TIME, coinT: 0, t: 0, endT: 0, events: [], heroName: null, winner: null, results: null, nextId: 1 };
     const cols = shuffle(COLORS);
-    const humans = (opts.players || []).slice(0, MAX_PLAYERS);
+    const cap = duel ? 2 : MAX_PLAYERS;
+    const humans = (opts.players || []).slice(0, cap);
     humans.forEach((p, i) => R.ents.push(mkEnt(R.nextId++, { ...p, human: true, color: p.color || cols[i % cols.length] })));
     const taken = new Set(humans.map(h => h.name.toLowerCase()));
     const names = shuffle(BOT_NAMES).filter(n => !taken.has(n.toLowerCase()));
-    const fill = opts.fillBots === false ? 0 : MAX_PLAYERS - R.ents.length;
+    const fill = opts.fillBots === false ? 0 : cap - R.ents.length;
     for (let i = 0; i < fill; i++) R.ents.push(mkEnt(R.nextId++, { name: names[i % names.length], color: cols[(humans.length + i) % cols.length], knife: botSkin('knife'), gun: botSkin('gun') }));
     // spread-out spawns
     const spots = shuffle(M.reach), used = [];
@@ -473,10 +475,18 @@
       }
       best = best || randReach(M); used.push(best); e.x = best.x; e.y = best.y;
     }
+    if (duel && R.ents.length === 2) {
+      // duel: start far apart, out of each other's sight when possible
+      const a = randReach(M); let far = null, fd = -1;
+      for (let k = 0; k < 300; k++) { const c = randReach(M), d = dist(a, c) + (los(M, a.x, a.y, c.x, c.y) ? 0 : 400); if (d > fd) { fd = d; far = c; } }
+      Object.assign(R.ents[0], { x: a.x, y: a.y }); Object.assign(R.ents[1], { x: far.x, y: far.y });
+    }
     // roles: MM2-style tickets (humans grow theirs each round they miss out)
-    const m = weightedPick(R.ents, e => e.mT); m.role = 'murderer';
+    // 1v1 is a coin flip; classic uses the tickets
+    const m = duel ? pick(R.ents) : weightedPick(R.ents, e => e.mT); m.role = 'murderer';
     const rest = R.ents.filter(e => e !== m);
-    const s = weightedPick(rest, e => e.sT); s.role = 'sheriff'; s.hasGun = true;
+    const s = duel ? rest[0] : weightedPick(rest, e => e.sT); s.role = 'sheriff'; s.hasGun = true;
+    if (duel) { m.ai.grace = rand(4, 8); s.ai.know = m; s.ai.react = rand(.4, .7); } // no hiding in a duel: both know who's who
     for (const e of R.ents) e.startRole = e.role;
     R.murderer = m; R.sheriffName = s.name;
     for (let i = 0; i < 14; i++) spawnCoin(R);
@@ -531,7 +541,8 @@
     v.alive = false; v.weaponOut = false;
     addBody(R, v);
     emit(R, { t: 'fx', k: 'blood', x: v.x, y: v.y });
-    emit(R, { t: 'sfx', s: 'die', x: v.x, y: v.y });
+    emit(R, { t: 'sfx', s: k && k.role === 'murderer' ? 'kill' : 'die', x: v.x, y: v.y });
+    if (k && k.role === 'murderer') emit(R, { t: 'killConfirm', to: k.id, name: v.name });
     if (v.hasGun) { v.hasGun = false; dropGun(R, v.x, v.y); }
     if (k) {
       k.kills++;
@@ -619,14 +630,14 @@
           if (b.weaponOut) spd = 196;
           if (see) b.ang = Math.atan2(t.y - b.y, t.x - b.x);
           if (d < b.r + t.r + 22 && see && !watched) tryStab(R, b);
-          else if (see && !watched && d > 130 && d < 430 && b.throwCd <= 0 && Math.random() < dt * (t.hasGun ? 2.5 : .9)) {
+          else if (see && !watched && d > 130 && d < 430 && b.throwCd <= 0 && Math.random() < dt * (t.hasGun ? 2.5 : .9) * (R.mode === '1v1' ? .35 : 1)) {
             const lead = d / 720;
             b.ang = Math.atan2(t.y + t.vy * lead - b.y, t.x + t.vx * lead - b.x) + rand(-.08, .08);
             tryThrow(R, b);
           }
           setGoal(R, b, t.x, t.y);
         }
-        if (gh && gh !== b && gh.weaponOut && los(M, b.x, b.y, gh.x, gh.y) && dist(b, gh) < 450 && b.throwCd <= 0 && Math.random() < dt * 2) {
+        if (gh && gh !== b && gh.weaponOut && los(M, b.x, b.y, gh.x, gh.y) && dist(b, gh) < 450 && b.throwCd <= 0 && Math.random() < dt * 2 * (R.mode === '1v1' ? .35 : 1)) {
           b.ang = Math.atan2(gh.y - b.y, gh.x - b.x); tryThrow(R, b);
         }
         // gun pointed at you → juke sideways
@@ -655,7 +666,8 @@
           else { ai.path = []; ai.goal = null; }
         } else {
           ai.react = Math.max(ai.react, rand(.35, .6));
-          const t = ai.lastSeen || k; setGoal(R, b, t.x, t.y);
+          const t = ai.lastSeen || (R.mode === '1v1' ? null : k); // in a duel the sheriff has to find you first
+          if (t) setGoal(R, b, t.x, t.y); else collect(R, b, dt);
           if (ai.lastSeen && dist(b, ai.lastSeen) < 30) { ai.lastSeen = null; ai.know = Math.random() < .5 ? k : null; } // lost them
         }
       } else { b.weaponOut = false; collect(R, b, dt); }

@@ -54,6 +54,10 @@ const SFX = {
   ray: () => { tone(1800, .22, 'sawtooth', .045, -1500); tone(2600, .12, 'sine', .03, -2000); setTimeout(() => tone(900, .08, 'square', .02, 400), 60); },
   throw: () => tone(700, .2, 'triangle', .05, -500),
   die: () => tone(400, .4, 'sawtooth', .05, -330),
+  // murderer kill: blade swish + thud + a short scream-y drop
+  kill: () => { noise(.12, .22); tone(260, .18, 'square', .06, -200); setTimeout(() => { noise(.2, .18); tone(90, .25, 'sine', .12, -40); }, 70); setTimeout(() => tone(900, .35, 'sawtooth', .035, -700), 40); },
+  // extra sting only the killer hears
+  killConfirm: () => { tone(1320, .09, 'square', .04); setTimeout(() => tone(1760, .14, 'square', .04), 90); },
   gun: () => { tone(500, .12, 'square', .05); setTimeout(() => tone(750, .15, 'square', .05), 110); },
   win: () => [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => tone(f, .18, 'square', .05), i * 120)),
   lose: () => [400, 330, 260].forEach((f, i) => setTimeout(() => tone(f, .25, 'triangle', .06), i * 180)),
@@ -200,7 +204,7 @@ function onRoom(m) {
     if (V && !V.offline && V.endInfo) { $('#endNext').textContent = `Next round starts in ${m.timer}s`; return; }
     if (V && !V.offline) endGameView();
     setScreen('room');
-    $('#roomTitle').textContent = m.private ? 'Private room' : 'Public match';
+    $('#roomTitle').textContent = m.mode === '1v1' ? '⚔️ 1v1 room' : m.private ? 'Private room' : 'Public match';
     show('#roomCode', m.private); $('#roomCode').textContent = m.code;
     $('#roomTimer').textContent = `Round starts in ${m.timer}s`;
     $('#roomPlayers').innerHTML = m.players.map(n => `<span>${esc(n)}</span>`).join('');
@@ -209,6 +213,7 @@ function onRoom(m) {
 }
 $('#quickBtn').onclick = () => net({ t: 'quickplay' });
 $('#privBtn').onclick = () => net({ t: 'createPrivate' });
+$('#duelBtn').onclick = () => net({ t: 'create1v1' });
 $('#joinForm').onsubmit = e => { e.preventDefault(); const c = $('#codeInput').value.trim(); if (c) net({ t: 'joinCode', code: c }); };
 $('#leaveRoomBtn').onclick = () => net({ t: 'leave' });
 
@@ -232,8 +237,8 @@ function startOnlineView(m) {
   newView(m.map, m.roster, m.you, false);
   if (m.you === null) msg('Round in progress. You\'ll join the next one 👀', '#fff', 5);
 }
-function startPractice() {
-  const R = Sim.createRound({ mapIdx: +$('#mapSel').value, players: [{ pid: 'me', name: P ? P.name : 'You', knife: equippedId('knife'), gun: equippedId('gun'), mT: 1, sT: 1 }] });
+function startPractice(mode) {
+  const R = Sim.createRound({ mode, mapIdx: +$('#mapSel').value, players: [{ pid: 'me', name: P ? P.name : 'You', knife: equippedId('knife'), gun: equippedId('gun'), mT: 1, sT: 1 }] });
   newView(R.mapIdx, Sim.roster(R), R.ents[0].id, true);
   V.R = R;
   applySnap(Sim.snapshotFor(R, V.you));
@@ -293,6 +298,7 @@ function handleEvent(ev) {
       else if (ev.k === 'stuck') V.fx.push({ type: 'stuck', x: ev.x, y: ev.y, ang: ev.a, skin: ev.skin, t: 1.2 });
       else if (ev.k === 'flash') V.fx.push({ type: 'flash', x: ev.x, y: ev.y, t: .08 });
       break;
+    case 'killConfirm': SFX.killConfirm(); msg(`You killed ${ev.name} 🔪`, '#ff4d5e', 2.5); break;
     case 'coin': SFX.coin(); if (ev.full) msg('Coin bag full! 💰', '#ffc233'); break;
     case 'gunDrop': msg('The Sheriff has been killed! The gun has dropped 🔫', '#4da3ff', 5); SFX.gun(); break;
     case 'gunTaken': msg('Someone picked up the gun...', '#fff', 4); break;
@@ -720,6 +726,7 @@ $('#viewSel').value = use3D() ? '3d' : '2d';
 if (!R3.ok) show('#viewRow', false);
 $('#viewSel').onchange = () => { viewPref = $('#viewSel').value; lsSet('mm_view', viewPref); };
 $('#practiceBtn').onclick = () => { tone(600, .1); startPractice(); };
+$('#duelPracticeBtn').onclick = () => { tone(600, .1); startPractice('1v1'); };
 
 // 1,234 → "1,234", 12,345,678 → "12.3M", 1e56 → "100Spd": keeps giant balances inside the coin pill
 const SUFFIXES = ['', 'K', 'M', 'B', 'T', 'Qa', 'Qi', 'Sx', 'Sp', 'Oc', 'No', 'Dc', 'Ud', 'Dd', 'Td', 'Qad', 'Qid', 'Sxd', 'Spd', 'Ocd', 'Nod', 'Vg'];

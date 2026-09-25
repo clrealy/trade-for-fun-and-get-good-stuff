@@ -38,6 +38,7 @@
             break;
           }
           case 'quickplay': case 'createPrivate': case 'joinCode': startPractice(); break;
+          case 'create1v1': startPractice('1v1'); break;
           case 'leave': emit({ t: 'left' }); break;
         }
       } catch (e) { emit({ t: 'error', msg: e.message }); }

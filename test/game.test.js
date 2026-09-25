@@ -232,3 +232,28 @@ test('the Raygun makes its own sound', () => {
   assert.deepStrictEqual(sounds, ['ray', 'shoot']);
   assert.ok(R.ents[0].atkCd < 0.2, 'raygun has no reload');
 });
+
+test('1v1: two players, one murderer and one sheriff, and the round finishes', () => {
+  for (let i = 0; i < 10; i++) {
+    const R = Sim.createRound({ mode: '1v1', players: [{ pid: 'a', name: 'a' }] });
+    assert.strictEqual(R.ents.length, 2);
+    assert.deepStrictEqual(R.ents.map(e => e.role).sort(), ['murderer', 'sheriff']);
+    assert.strictEqual(R.time, 120);
+    R.ents[0].human = false;
+    for (let n = 0; n < 5000 && R.phase !== 'end'; n++) Sim.step(R, 1 / 30);
+    assert.ok(R.winner);
+  }
+});
+
+test('a murderer kill plays the kill sound and tells the killer', () => {
+  const R = Sim.createRound({ players: [{ pid: 'a', name: 'a' }, { pid: 'b', name: 'b' }], fillBots: false });
+  R.phase = 'play';
+  const [m, v] = R.ents; m.role = 'murderer'; v.role = 'innocent'; v.hasGun = false; R.murderer = m;
+  v.x = m.x + 20; v.y = m.y;
+  Sim.setInput(R, m.id, { x: m.x, y: m.y, a: 0, atk: true }); Sim.setInput(R, v.id, { x: v.x, y: v.y, a: 0 });
+  Sim.step(R, 1 / 30);
+  const ev = Sim.drain(R);
+  assert.ok(ev.some(e => e.t === 'sfx' && e.s === 'kill'));
+  assert.ok(Sim.eventsFor(ev, m.id).some(e => e.t === 'killConfirm'));
+  assert.ok(!Sim.eventsFor(ev, v.id).some(e => e.t === 'killConfirm'));
+});

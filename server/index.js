@@ -81,13 +81,13 @@ const server = http.createServer((req, res) => {
 const rooms = new Map();
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 function newCode() { let c; do { c = Array.from({ length: 5 }, () => CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)]).join(''); } while (rooms.has(c)); return c; }
-function createRoom(isPrivate) { const r = { code: newCode(), private: isPrivate, clients: new Set(), state: 'waiting', timer: WAIT_TIME, R: null, tick: 0, lobbyT: 0 }; rooms.set(r.code, r); return r; }
-function roomInfo(r) { return { t: 'room', code: r.code, private: r.private, state: r.state, timer: Math.ceil(r.timer), players: [...r.clients].map(c => c.profile.name) }; }
+function createRoom(isPrivate, mode = 'classic') { const r = { code: newCode(), private: isPrivate, mode, clients: new Set(), state: 'waiting', timer: WAIT_TIME, R: null, tick: 0, lobbyT: 0 }; rooms.set(r.code, r); return r; }
+function roomInfo(r) { return { t: 'room', code: r.code, private: r.private, mode: r.mode, state: r.state, timer: Math.ceil(r.timer), players: [...r.clients].map(c => c.profile.name) }; }
 function broadcast(r, msg) { const s = JSON.stringify(msg); for (const c of r.clients) sendRaw(c, s); }
 
 function joinRoom(c, r) {
   leaveRoom(c);
-  if (r.clients.size >= Sim.MAX_PLAYERS) throw new Error('That room is full');
+  if (r.clients.size >= (r.mode === '1v1' ? 2 : Sim.MAX_PLAYERS)) throw new Error('That room is full');
   r.clients.add(c); c.room = r; c.entId = null;
   broadcast(r, roomInfo(r));
   if (r.R) sendMsg(c, { t: 'round', map: r.R.mapIdx, roster: Sim.roster(r.R), you: null });
@@ -100,7 +100,7 @@ function leaveRoom(c) {
 }
 function startRound(r) {
   const players = [...r.clients].map(c => ({ pid: c.uid, name: c.profile.name, knife: Eco.equippedId(c.profile, 'knife'), gun: Eco.equippedId(c.profile, 'gun'), mT: c.profile.mT, sT: c.profile.sT }));
-  r.R = Sim.createRound({ players });
+  r.R = Sim.createRound({ players, mode: r.mode });
   r.state = 'round'; r.rewarded = false;
   const roster = Sim.roster(r.R);
   for (const c of r.clients) {
@@ -218,6 +218,7 @@ const HANDLERS = {
     joinRoom(c, best || createRoom(false));
   },
   createPrivate(c) { joinRoom(c, createRoom(true)); },
+  create1v1(c) { joinRoom(c, createRoom(true, '1v1')); },
   joinCode(c, m) {
     const code = String(m.code || '').toUpperCase().trim();
     const r = rooms.get(code); if (!r) throw new Error('No room with that code');

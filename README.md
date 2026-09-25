@@ -76,6 +76,10 @@ The Play tab tracks kills. At 50 kills a player can claim the summer set (Sunbur
 - **Owner luck:** accounts in `ADMIN_UIDS`, or anyone who redeems the secret code `DEATHLUCK95`, get a 95% chance at a Death item from the Halloween Box. Keep that code private.
 - **Raygun Set** (Raygun + Ray Blade, the Raygun fires a green laser with its own sound): 3,999 coins in the Shop, or the secret code `ZAPZAPBOOM13`. The game reveals it when you tap the lobby logo 13 times fast.
 
+## 1v1
+
+**Play → ⚔️ 1v1 vs bot** (solo) or **⚔️ Create 1v1 room** (online, share the code with one friend). It's one Murderer against one Sheriff with a 2-minute timer. Players start far apart, and the Sheriff wins if time runs out. Murderer kills play a kill sound, and the killer hears an extra sting.
+
 ## Chat and cheats
 
 Press **Enter** (or **/**) in a round to chat. Commands start with `/`, and `/help` lists them. `/sheffeme` gives you the gun (Murderers can't use it), `/murdme` makes you the Murderer, `/speed` toggles a speed boost, `/whoisit` tells you who the Murderer is, `/r` brings you back to life, and `/god` stops you from dying.
