@@ -73,8 +73,9 @@
     I('g20', 'gun', 'Death Gun', 'Ancient', '#7b2cbf', 1, { val: 6000, exclusive: true }),
     I('k26', 'knife', 'Death Knife', 'Ancient', '#9d4edd', 1, { val: 3000, exclusive: true }),
     I('k27', 'knife', 'Chroma Death Knife', 'Chroma', 'chroma', 1, { val: 12000, exclusive: true }),
+    I('g22', 'gun', 'Chroma Death Gun', 'Chroma', 'chroma', 1, { val: 24000, exclusive: true }),
     // Raygun Set: 3,999 coins in the Shop, or the secret code
-    I('g21', 'gun', 'Raygun', 'Ancient', '#39ff14', 1, { val: 4000, exclusive: true }),
+    I('g21', 'gun', 'Raygun', 'Ancient', '#39ff14', 1, { val: 4000, exclusive: true, sound: 'ray' }),
     I('k28', 'knife', 'Ray Blade', 'Ancient', '#00e5ff', 1, { val: 4000, exclusive: true }),
     I('g16', 'gun', 'Chroma Ginger Scope', 'Chroma', 'chroma', 1, { val: 1e48, exclusive: true, noCooldown: true, long: true }),
     I('g14', 'gun', 'Ginger Scope', 'Ancient', '#c9743a', 1, { val: 10000000000000, exclusive: true, noCooldown: true, long: true }),
@@ -84,13 +85,15 @@
     { id: 'knifebox', name: 'Knife Box', icon: '🗡️', price: 60, type: 'knife', desc: 'A random knife skin.', w: { Common: 45, Uncommon: 28, Rare: 16, Legendary: 8, Godly: 2.5, Ancient: 0.4, Chroma: 0.1 } },
     { id: 'gunbox', name: 'Gun Box', icon: '🔫', price: 60, type: 'gun', desc: 'A random gun skin.', w: { Common: 45, Uncommon: 28, Rare: 16, Legendary: 8, Godly: 2.5, Ancient: 0.4, Chroma: 0.1 } },
     { id: 'sumbox', name: 'Sum Box', icon: '☀️', price: 200, type: null, desc: '5% chance at a Chroma Sunburn or Chroma Splash Blaster 🌈', specials: [{ id: 'k25', chance: .025 }, { id: 'g19', chance: .025 }], w: { Common: 18, Uncommon: 30, Rare: 26, Legendary: 16, Godly: 7.5, Ancient: 2, Chroma: 0.5 } },
-    { id: 'halloween', name: 'Halloween Box', icon: '🎃', price: 250, type: null, desc: '10% Death Knife, 2% Chroma Death Knife 💀', specials: [{ id: 'k26', chance: .10 }, { id: 'k27', chance: .02 }], w: { Common: 18, Uncommon: 30, Rare: 26, Legendary: 16, Godly: 7.5, Ancient: 2, Chroma: 0.5 } },
+    { id: 'halloween', name: 'Halloween Box', icon: '🎃', price: 250, type: null, desc: 'Death Set + Chroma Death Set inside 💀 10% Death Knife, 5% Death Gun, 2% Chroma Death Knife, 1% Chroma Death Gun', specials: [{ id: 'k26', chance: .10 }, { id: 'g20', chance: .05 }, { id: 'k27', chance: .02 }, { id: 'g22', chance: .01 }],
+      // owner luck: 95% for a Death item
+      luckySpecials: [{ id: 'k26', chance: .30 }, { id: 'g20', chance: .30 }, { id: 'k27', chance: .175 }, { id: 'g22', chance: .175 }], w: { Common: 18, Uncommon: 30, Rare: 26, Legendary: 16, Godly: 7.5, Ancient: 2, Chroma: 0.5 } },
     { id: 'mystery', name: 'Mystery Box', icon: '🎁', price: 175, type: null, desc: 'Way better odds. Godly hunting 👀', w: { Common: 18, Uncommon: 30, Rare: 26, Legendary: 16, Godly: 7.5, Ancient: 2, Chroma: 0.5 } },
   ];
   // a crate roll: its special items first (if it has any), otherwise by rarity
-  function rollCrate(c) {
+  function rollCrate(c, lucky) {
     let x = Math.random();
-    for (const sp of c.specials || []) { if (x < sp.chance) return ITEM[sp.id]; x -= sp.chance; }
+    for (const sp of (lucky && c.luckySpecials) || c.specials || []) { if (x < sp.chance) return ITEM[sp.id]; x -= sp.chance; }
     return rollItem(c.w, c.type);
   }
   function rollItem(weights, type) {
@@ -514,9 +517,9 @@
     e.weaponOut = true; e.atkCd = fast(e.gun) ? .12 : 2.2;
     const sp = 1600;
     const muzzle = ITEM[e.gun] && ITEM[e.gun].long ? 52 : 22;
-    R.proj.push({ type: 'bullet', x: e.x + Math.cos(e.ang) * muzzle, y: e.y + Math.sin(e.ang) * muzzle, vx: Math.cos(e.ang) * sp, vy: Math.sin(e.ang) * sp, owner: e, life: ITEM[e.gun] && ITEM[e.gun].long ? 1.1 : .55 }); // scoped guns shoot twice as far
+    R.proj.push({ type: 'bullet', skin: e.gun, x: e.x + Math.cos(e.ang) * muzzle, y: e.y + Math.sin(e.ang) * muzzle, vx: Math.cos(e.ang) * sp, vy: Math.sin(e.ang) * sp, owner: e, life: ITEM[e.gun] && ITEM[e.gun].long ? 1.1 : .55 }); // scoped guns shoot twice as far
     emit(R, { t: 'fx', k: 'flash', x: e.x + Math.cos(e.ang) * (muzzle + 6), y: e.y + Math.sin(e.ang) * (muzzle + 6) });
-    emit(R, { t: 'sfx', s: 'shoot', x: e.x, y: e.y });
+    emit(R, { t: 'sfx', s: ITEM[e.gun] && ITEM[e.gun].sound === 'ray' ? 'ray' : 'shoot', x: e.x, y: e.y });
   }
   function dropGun(R, x, y) {
     R.gunDrop = { x: Math.round(x), y: Math.round(y) };

@@ -72,8 +72,9 @@ The Play tab tracks kills. At 50 kills a player can claim the summer set (Sunbur
 ## Halloween
 
 - **Halloween Event** (Play tab): 150 kills unlocks the **Death Gun**.
-- **🎃 Halloween Box** (250 coins): 10% **Death Knife**, 2% **Chroma Death Knife**. They drop nowhere else.
-- **Raygun Set** (Raygun + Ray Blade): 3,999 coins in the Shop, or the secret code `ZAPZAPBOOM13`. The game reveals it when you tap the lobby logo 13 times fast.
+- **🎃 Halloween Box** (250 coins): the Death Set and Chroma Death Set. 10% **Death Knife**, 5% **Death Gun**, 2% **Chroma Death Knife**, 1% **Chroma Death Gun**. The Knives and the Chroma Death Gun drop nowhere else.
+- **Owner luck:** accounts in `ADMIN_UIDS`, or anyone who redeems the secret code `DEATHLUCK95`, get a 95% chance at a Death item from the Halloween Box. Keep that code private.
+- **Raygun Set** (Raygun + Ray Blade, the Raygun fires a green laser with its own sound): 3,999 coins in the Shop, or the secret code `ZAPZAPBOOM13`. The game reveals it when you tap the lobby logo 13 times fast.
 
 ## Chat and cheats
 

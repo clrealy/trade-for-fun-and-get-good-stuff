@@ -238,8 +238,8 @@ const HANDLERS = {
     if (BLOCKED.some(b => l.includes(b))) throw new Error('Keep the chat clean');
     broadcast(c.room, { t: 'chat', name: c.profile.name, text });
   },
-  async crate(c, m) { const inst = await mutate(c, p => Eco.openCrate(p, m.id)); sendMsg(c, { t: 'unboxed', item: inst.id, crate: m.id }); },
-  async redeem(c, m) { const r = await mutate(c, p => Eco.redeem(p, m.code)); sendMsg(c, r.inst ? { t: 'unboxed', item: r.inst.id, crate: 'mystery' } : r.all ? { t: 'codeAll', count: r.all.length } : r.items ? { t: 'codeItems', items: r.items } : { t: 'codeCoins', coins: r.coins }); },
+  async crate(c, m) { const inst = await mutate(c, p => Eco.openCrate(p, m.id, ADMIN_UIDS.has(c.uid))); sendMsg(c, { t: 'unboxed', item: inst.id, crate: m.id }); },
+  async redeem(c, m) { const r = await mutate(c, p => Eco.redeem(p, m.code)); sendMsg(c, r.inst ? { t: 'unboxed', item: r.inst.id, crate: 'mystery' } : r.luck ? { t: 'codeLuck' } : r.all ? { t: 'codeAll', count: r.all.length } : r.items ? { t: 'codeItems', items: r.items } : { t: 'codeCoins', coins: r.coins }); },
   async claimEvent(c, m) { const items = await mutate(c, p => Eco.claimEvent(p, m.id)); sendMsg(c, { t: 'codeItems', items, from: 'event' }); },
   async buyBundle(c, m) { const items = await mutate(c, p => Eco.buyBundle(p, m.id)); sendMsg(c, { t: 'codeItems', items, from: 'bundle' }); },
   async equip(c, m) { await mutate(c, p => Eco.equip(p, m.u)); },

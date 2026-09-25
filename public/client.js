@@ -45,6 +45,8 @@ const SFX = {
   coin: () => tone(1200, .08, 'square', .03, 600),
   stab: () => { noise(.08, .12); tone(300, .1, 'sawtooth', .04, -200); },
   shoot: () => { noise(.2, .25); tone(160, .15, 'square', .05, -100); },
+  // Raygun: sci-fi pew (fast downward sweep + a sparkly overtone)
+  ray: () => { tone(1800, .22, 'sawtooth', .045, -1500); tone(2600, .12, 'sine', .03, -2000); setTimeout(() => tone(900, .08, 'square', .02, 400), 60); },
   throw: () => tone(700, .2, 'triangle', .05, -500),
   die: () => tone(400, .4, 'sawtooth', .05, -330),
   gun: () => { tone(500, .12, 'square', .05); setTimeout(() => tone(750, .15, 'square', .05), 110); },
@@ -133,6 +135,7 @@ function onMsg(m) {
     case 'codeAll': unboxPending = false; SFX.win(); toast(`Code redeemed: you got all ${m.count} knives and guns 🔪🔫`, true); break;
     case 'codeItems': unboxPending = false; SFX.win(); toast(`${m.from === 'event' ? 'Unlocked' : m.from === 'bundle' ? 'Bought' : 'Code redeemed'}: ${m.items.map(id => ITEM[id].name).join(' + ')} 🔥`, true); if (screen === 'lobby') renderLobby(); break;
     case 'chat': addChat(m.name, m.text, m.sys); break;
+    case 'codeLuck': unboxPending = false; SFX.win(); toast('🍀 Owner luck on: 95% Death items from the Halloween Box 💀', true); if (screen === 'lobby') renderLobby(); break;
     case 'codeCoins': unboxPending = false; SFX.win(); toast(`Code redeemed: +${shortNum(m.coins)} coins 💰`, true); break;
     case 'traders': traders = m.traders; if (screen === 'lobby') renderLobby(); break;
     case 'tradeResult':
@@ -485,6 +488,7 @@ function render() {
   for (const [k, x, y, vx, vy, skin] of s.p) {
     const px = x + vx * age, py = y + vy * age;
     if (k === 'k') drawKnife(px, py, T * 25, ITEM[skin] || ITEM.k0, T);
+    else if (ITEM[skin] && ITEM[skin].sound === 'ray') { ctx.strokeStyle = '#39ff14'; ctx.shadowColor = '#39ff14'; ctx.shadowBlur = 12; ctx.lineWidth = 5; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(px - vx * .035, py - vy * .035); ctx.lineTo(px, py); ctx.stroke(); ctx.shadowBlur = 0; }
     else { ctx.strokeStyle = '#fff6a0'; ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(px - vx * .02, py - vy * .02); ctx.lineTo(px, py); ctx.stroke(); }
   }
   for (const f of V.fx) {
@@ -726,7 +730,7 @@ function renderLobby() {
       <div class="binfo"><h3>${b.icon} ${esc(b.name)}</h3><p class="muted small">Get the whole set at once. Rumor says there's a secret code somewhere too 👀</p>
       <button class="btn" data-b="${esc(b.id)}" ${b.owned || P.coins < b.price ? 'disabled' : ''}>${b.owned ? 'Owned ✅' : `💰 ${b.price.toLocaleString()}`}</button></div></div>`).join('');
     $('#bundles').querySelectorAll('button[data-b]').forEach(btn => btn.onclick = () => net({ t: 'buyBundle', id: btn.dataset.b }));
-    $('#crates').innerHTML = CRATES.map(c => `<div class="crate"><div class="box">${c.icon}</div><h3>${c.name}</h3><p>${c.desc}</p><button class="btn" data-c="${c.id}" ${P.coins < c.price ? 'disabled' : ''}>💰 ${c.price}</button></div>`).join('');
+    $('#crates').innerHTML = CRATES.map(c => `<div class="crate"><div class="box">${c.icon}</div><h3>${c.name}</h3><p>${P.luck && c.luckySpecials ? '🍀 Your luck: 95% Death Set or Chroma Death Set!' : c.desc}</p><button class="btn" data-c="${c.id}" ${P.coins < c.price ? 'disabled' : ''}>💰 ${c.price}</button></div>`).join('');
     $('#crates').querySelectorAll('button').forEach(b => b.onclick = () => { if (unboxPending) return; unboxPending = true; net({ t: 'crate', id: b.dataset.c }); });
     const w = CRATES[0].w, tot = Object.values(w).reduce((a, b) => a + b, 0);
     $('#rates').innerHTML = RORDER.map(r => `<span style="color:${rarColor(r)}">${r} ${(w[r] / tot * 100).toFixed(1)}%</span>`).join('') + '<span class="muted">(Knife/Gun Box)</span>';
@@ -739,7 +743,7 @@ function playUnbox(crateId, winId) {
   unboxPending = false;
   const c = CRATES.find(x => x.id === crateId) || CRATES[0], win = ITEM[winId];
   const N = 45, WIN = 38, cards = [];
-  for (let i = 0; i < N; i++) cards.push(i === WIN ? win : Sim.rollCrate(c));
+  for (let i = 0; i < N; i++) cards.push(i === WIN ? win : Sim.rollCrate(c, P && P.luck));
   const reel = $('#reel');
   reel.style.transition = 'none'; reel.style.transform = 'translateX(0)';
   reel.innerHTML = cards.map(it => itemCard(it, { noval: true })).join('');

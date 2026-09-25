@@ -35,7 +35,7 @@ function buyBundle(p, id) {
 const MAX_INV = 500;
 
 function publicProfile(p) {
-  return { name: p.name, coins: p.coins, xp: p.xp, level: p.level, xpNeed: xpNeed(p.level), inv: p.inv, equip: p.equip, mT: p.mT, sT: p.sT, stats: p.stats,
+  return { name: p.name, coins: p.coins, xp: p.xp, level: p.level, xpNeed: xpNeed(p.level), inv: p.inv, equip: p.equip, mT: p.mT, sT: p.sT, stats: p.stats, luck: !!p.luck,
     events: EVENTS.map(E => { const ev = (p.events && p.events[E.id]) || { kills: 0, claimed: false }; return { ...E, kills: Math.min(ev.kills, E.goal), claimed: ev.claimed }; }),
     bundles: BUNDLES.map(b => ({ ...b, owned: b.items.every(i => p.inv.some(x => x.id === i)) })) };
 }
@@ -55,12 +55,12 @@ function removeInst(p, u) {
   return inst;
 }
 
-function openCrate(p, crateId) {
+function openCrate(p, crateId, lucky) {
   const c = Sim.CRATES.find(x => x.id === crateId);
   if (!c) throw new Error('Unknown crate');
   if (p.coins < c.price) throw new Error('Not enough coins');
   p.coins -= c.price;
-  const item = Sim.rollCrate(c);
+  const item = Sim.rollCrate(c, lucky || !!p.luck);
   const inst = addItem(p, item.id);
   p.stats.unboxed++;
   return inst;
@@ -73,7 +73,10 @@ function redeem(p, rawCode) {
   p.redeemed = p.redeemed || [];
   if (p.redeemed.includes(code)) throw new Error('You already used that code');
   let out;
-  if (c.reward.all) {
+  if (c.reward.luck) {
+    if (p.luck) throw new Error('Your luck is already on 🍀');
+    p.luck = true; out = { luck: true };
+  } else if (c.reward.all) {
     const all = Sim.ITEMS.filter(i => !i.nodrop);
     if (p.inv.length + all.length > MAX_INV) throw new Error('Inventory full (500 items)');
     out = { all: all.map(i => addItem(p, i.id).id) };

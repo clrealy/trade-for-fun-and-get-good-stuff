@@ -206,3 +206,28 @@ test('Raygun Set costs 3,999 coins, once, or the secret code', () => {
   const q = defaultProfile('q');
   assert.deepStrictEqual(Eco.redeem(q, 'zap zap boom 13').items, ['g21', 'k28']);
 });
+
+test('owner luck: 95% Death items from the Halloween Box, only when turned on', () => {
+  const box = Sim.CRATES.find(c => c.id === 'halloween'), death = ['k26', 'g20', 'k27', 'g22'];
+  let lucky = 0, normal = 0;
+  for (let i = 0; i < 20000; i++) { if (death.includes(Sim.rollCrate(box, true).id)) lucky++; if (death.includes(Sim.rollCrate(box).id)) normal++; }
+  assert.ok(lucky > 18700 && lucky < 19300, `lucky ${lucky}/20000`);
+  assert.ok(normal > 3200 && normal < 4000, `normal ${normal}/20000`);
+  const p = defaultProfile('me');
+  assert.deepStrictEqual(Eco.redeem(p, 'deathluck95'), { luck: true });
+  p.coins = 250 * 200; let got = 0;
+  for (let i = 0; i < 200; i++) if (death.includes(Eco.openCrate(p, 'halloween').id)) got++;
+  assert.ok(got > 170, `owner got ${got}/200`);
+  const other = defaultProfile('them'); other.coins = 250 * 200; let theirs = 0;
+  for (let i = 0; i < 200; i++) if (death.includes(Eco.openCrate(other, 'halloween').id)) theirs++;
+  assert.ok(theirs < 70, `others got ${theirs}/200`);
+});
+
+test('the Raygun makes its own sound', () => {
+  const R = Sim.createRound({ players: [{ pid: 'a', name: 'a', gun: 'g21' }, { pid: 'b', name: 'b', gun: 'g1' }], fillBots: false });
+  R.phase = 'play';
+  for (const e of R.ents) { e.role = 'sheriff'; e.hasGun = true; Sim.setInput(R, e.id, { x: e.x, y: e.y, a: 0, atk: true }); }
+  Sim.step(R, 1 / 30);
+  const sounds = Sim.drain(R).filter(ev => ev.t === 'sfx').map(ev => ev.s).sort();
+  assert.deepStrictEqual(sounds, ['ray', 'shoot']);
+});
