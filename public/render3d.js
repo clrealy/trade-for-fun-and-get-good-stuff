@@ -158,7 +158,11 @@ const R3D = (() => {
     if (item.long) return 'sniper';
     if (/water|splash/.test(n)) return 'water';
     if (/revolver|golden six|luger|death gun/.test(n)) return 'revolver';
-    if (/blaster|laser|raygun|lightbringer|swirly|cap gun/.test(n)) return 'blaster';
+    if (/raygun|laser/.test(n)) return 'blaster';        // the sci-fi raygun look is only for ray guns
+    if (/lightbringer/.test(n)) return 'winged';
+    if (/swirly/.test(n)) return 'swirl';
+    if (/cap gun|bruh|retro/.test(n)) return 'toy';
+    if (/blaster|money|jackpot/.test(n)) return 'heavy';
     return 'pistol';
   }
   const cyl = (r, len, seg = 10) => { const c = new THREE.CylinderGeometry(r, r, len, seg); c.rotateZ(Math.PI / 2); return c; };
@@ -183,6 +187,43 @@ const R3D = (() => {
       grip(-.04, wood); trigger(.02);
       mesh(box(.02, .025, .012), main, .34, .05, 0, g);                 // front sight
       drum.rotation.x = .3;
+    } else if (style === 'winged') {
+      // Lightbringer: chunky pistol with golden wings sweeping back off the slide
+      mesh(box(.3, .08, .07), main, .09, .02, 0, g);
+      mesh(box(.26, .04, .055), darkMetal, .08, -.03, 0, g);
+      mesh(cyl(.02, .06), black, .26, .02, 0, g);
+      const gold = new THREE.MeshStandardMaterial({ color: '#ffcf3a', metalness: .8, roughness: .25, emissive: '#6a4a00' });
+      for (const z of [-1, 1]) for (let k = 0; k < 3; k++) {
+        const f = mesh(box(.16 - k * .035, .02, .035), gold, -.02 - k * .03, .07 + k * .03, z * (.05 + k * .018), g);
+        f.rotation.z = .5 + k * .25; f.rotation.y = z * .35;
+      }
+      mesh(new THREE.SphereGeometry(.02, 8, 6), skinMat(item, { glow: true }), .06, .065, 0, g); // gem
+      grip(-.01, mat('#f2ead0')); trigger(.04);
+    } else if (style === 'swirl') {
+      // candy-cane barrel: alternating colored and white rings
+      mesh(box(.14, .08, .07), main, .0, .02, 0, g);
+      for (let k = 0; k < 7; k++) mesh(cyl(.034, .026), k % 2 ? mat('#ffffff') : main, .1 + k * .027, .02, 0, g);
+      mesh(new THREE.SphereGeometry(.035, 10, 8), mat('#ffffff'), .3, .02, 0, g);
+      grip(-.03, main); trigger(.02);
+    } else if (style === 'toy') {
+      // toy blaster: chunky rounded body, bright stripes, orange safety tip
+      mesh(box(.24, .1, .08), main, .06, .02, 0, g);
+      mesh(box(.24, .025, .082), mat('#ffffff'), .06, .045, 0, g);
+      mesh(cyl(.03, .08), main, .21, .015, 0, g);
+      mesh(cyl(.034, .03), mat('#ff7a1a'), .26, .015, 0, g);                 // orange tip
+      mesh(box(.05, .03, .085), mat('#ffd23f'), -.02, .075, 0, g);         // hammer bump
+      grip(-.03, mat('#ffd23f')); trigger(.03);
+    } else if (style === 'heavy') {
+      // boxy SMG: long receiver, short barrel with shroud, top rail, magazine
+      mesh(box(.32, .09, .07), main, .07, .02, 0, g);
+      mesh(box(.3, .02, .03), darkMetal, .07, .075, 0, g);                 // top rail
+      for (let k = 0; k < 5; k++) mesh(box(.012, .02, .036), black, -.04 + k * .055, .088, 0, g);
+      mesh(cyl(.028, .1), darkMetal, .27, .02, 0, g);                        // shroud
+      mesh(cyl(.014, .04), black, .33, .02, 0, g);                           // muzzle
+      mesh(box(.05, .13, .045), darkMetal, .1, -.08, 0, g).rotation.z = .1; // magazine
+      mesh(box(.1, .05, .05), darkMetal, -.13, -.005, 0, g);                 // stock stub
+      mesh(box(.14, .01, .072), glow, .07, .005, 0, g);                      // accent line
+      grip(-.03, darkMetal); trigger(.03);
     } else if (style === 'blaster') {
       mesh(new THREE.SphereGeometry(.07, 12, 10), main, .02, .02, 0, g).scale.set(1.6, 1, 1); // rounded body
       mesh(cyl(.028, .2), darkMetal, .17, .02, 0, g);                   // emitter
