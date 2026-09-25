@@ -133,7 +133,7 @@ function onMsg(m) {
     case 'codeAll': unboxPending = false; SFX.win(); toast(`Code redeemed: you got all ${m.count} knives and guns 🔪🔫`, true); break;
     case 'codeItems': unboxPending = false; SFX.win(); toast(`${m.from === 'event' ? 'Unlocked' : m.from === 'bundle' ? 'Bought' : 'Code redeemed'}: ${m.items.map(id => ITEM[id].name).join(' + ')} 🔥`, true); if (screen === 'lobby') renderLobby(); break;
     case 'chat': addChat(m.name, m.text, m.sys); break;
-    case 'codeCoins': unboxPending = false; SFX.win(); toast(`Code redeemed: +${m.coins} coins 💰`, true); break;
+    case 'codeCoins': unboxPending = false; SFX.win(); toast(`Code redeemed: +${m.coins.toLocaleString()} coins 💰`, true); break;
     case 'traders': traders = m.traders; if (screen === 'lobby') renderLobby(); break;
     case 'tradeResult':
       traders = m.traders; offMine = []; offTheirs = [];
@@ -688,7 +688,7 @@ function sortedInv() { return P.inv.slice().sort((a, b) => ITEM[b.id].val - ITEM
 function renderLobby() {
   if (!P) return;
   $('#namePill').textContent = P.name;
-  $('#coinPill').textContent = `💰 ${P.coins}`;
+  $('#coinPill').textContent = `💰 ${P.coins.toLocaleString()}`;
   $('#lvlPill').textContent = `Lv ${P.level}`;
   $('#xpFill').style.width = (P.xp / P.xpNeed * 100) + '%';
   if (curTab === 'play') {

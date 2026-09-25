@@ -23,6 +23,7 @@ module.exports = {
   LUGERLIFE: { reward: { item: 'g9' }, expires: null },          // Luger
   SNOWDAY: { reward: { item: 'g10' }, expires: null },           // Blizzard
   LEGENDARY: { reward: { rarity: 'Legendary' }, expires: null },
+  MILLIONAIRE: { reward: { coins: 1000000 }, expires: null },
   FREECASH: { reward: { coins: 500 }, expires: null },
   BIGBAG: { reward: { coins: 1000 }, expires: null },
 };

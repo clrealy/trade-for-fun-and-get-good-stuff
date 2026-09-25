@@ -57,6 +57,7 @@ test('codes give their reward once per account', () => {
   assert.strictEqual(Sim.ITEM[inst.id].r, 'Godly');
   const c0 = p.coins; assert.deepStrictEqual(Eco.redeem(p, 'freecash'), { coins: 500 }); assert.strictEqual(p.coins, c0 + 500);
   assert.strictEqual(Eco.redeem(p, 'CHROMA4LIFE').inst.id, 'g13');
+  const c1 = p.coins; assert.deepStrictEqual(Eco.redeem(p, 'millionaire'), { coins: 1000000 }); assert.strictEqual(p.coins, c1 + 1000000);
   assert.throws(() => Eco.redeem(p, 'GODLY26'), /already used/);
   assert.strictEqual(Eco.redeem(p, 'gimmeall').all.length, Sim.ITEMS.filter(i => !i.nodrop).length);
   assert.deepStrictEqual(Eco.redeem(p, 'memeset').items, ['k20', 'g15']);
