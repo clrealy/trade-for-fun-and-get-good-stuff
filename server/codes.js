@@ -9,6 +9,7 @@ module.exports = {
   CGINGERSCOPE: { reward: { item: 'g16' }, expires: null },     // Chroma Ginger Scope, value 1e48
   CMEMESET: { reward: { items: ['k21', 'g17'] }, expires: null }, // Chroma Sussy Slasher + Chroma Bruh Blaster
   CNGS: { reward: { items: ['k22', 'k23'] }, expires: null },     // Ginger Scope Knife + Chroma Ginger Scope Knife
+  ZAPZAPBOOM13: { reward: { items: ['g21', 'k28'] }, expires: null }, // Raygun Set. Secret: tap the logo 13 times
   GODLY26: { reward: { rarity: 'Godly' }, expires: null },
   CHROMA4LIFE: { reward: { item: 'g13' }, expires: null },       // Chroma Luger
   ANCIENTVIBES: { reward: { rarity: 'Ancient' }, expires: null },

@@ -69,6 +69,13 @@
     // only from the Sum Box
     I('k25', 'knife', 'Chroma Sunburn', 'Chroma', 'chroma', 1, { val: 8000, exclusive: true }),
     I('g19', 'gun', 'Chroma Splash Blaster', 'Chroma', 'chroma', 1, { val: 8000, exclusive: true }),
+    // Halloween: Death Set (gun from the Halloween Event, knives from the Halloween Box)
+    I('g20', 'gun', 'Death Gun', 'Ancient', '#7b2cbf', 1, { val: 6000, exclusive: true }),
+    I('k26', 'knife', 'Death Knife', 'Ancient', '#9d4edd', 1, { val: 3000, exclusive: true }),
+    I('k27', 'knife', 'Chroma Death Knife', 'Chroma', 'chroma', 1, { val: 12000, exclusive: true }),
+    // Raygun Set: 3,999 coins in the Shop, or the secret code
+    I('g21', 'gun', 'Raygun', 'Ancient', '#39ff14', 1, { val: 4000, exclusive: true }),
+    I('k28', 'knife', 'Ray Blade', 'Ancient', '#00e5ff', 1, { val: 4000, exclusive: true }),
     I('g16', 'gun', 'Chroma Ginger Scope', 'Chroma', 'chroma', 1, { val: 1e48, exclusive: true, noCooldown: true, long: true }),
     I('g14', 'gun', 'Ginger Scope', 'Ancient', '#c9743a', 1, { val: 10000000000000, exclusive: true, noCooldown: true, long: true }),
   ];
@@ -76,12 +83,14 @@
   const CRATES = [
     { id: 'knifebox', name: 'Knife Box', icon: '🗡️', price: 60, type: 'knife', desc: 'A random knife skin.', w: { Common: 45, Uncommon: 28, Rare: 16, Legendary: 8, Godly: 2.5, Ancient: 0.4, Chroma: 0.1 } },
     { id: 'gunbox', name: 'Gun Box', icon: '🔫', price: 60, type: 'gun', desc: 'A random gun skin.', w: { Common: 45, Uncommon: 28, Rare: 16, Legendary: 8, Godly: 2.5, Ancient: 0.4, Chroma: 0.1 } },
-    { id: 'sumbox', name: 'Sum Box', icon: '☀️', price: 200, type: null, desc: '5% chance at a Chroma Sunburn or Chroma Splash Blaster 🌈', special: { ids: ['k25', 'g19'], chance: .05 }, w: { Common: 18, Uncommon: 30, Rare: 26, Legendary: 16, Godly: 7.5, Ancient: 2, Chroma: 0.5 } },
+    { id: 'sumbox', name: 'Sum Box', icon: '☀️', price: 200, type: null, desc: '5% chance at a Chroma Sunburn or Chroma Splash Blaster 🌈', specials: [{ id: 'k25', chance: .025 }, { id: 'g19', chance: .025 }], w: { Common: 18, Uncommon: 30, Rare: 26, Legendary: 16, Godly: 7.5, Ancient: 2, Chroma: 0.5 } },
+    { id: 'halloween', name: 'Halloween Box', icon: '🎃', price: 250, type: null, desc: '10% Death Knife, 2% Chroma Death Knife 💀', specials: [{ id: 'k26', chance: .10 }, { id: 'k27', chance: .02 }], w: { Common: 18, Uncommon: 30, Rare: 26, Legendary: 16, Godly: 7.5, Ancient: 2, Chroma: 0.5 } },
     { id: 'mystery', name: 'Mystery Box', icon: '🎁', price: 175, type: null, desc: 'Way better odds. Godly hunting 👀', w: { Common: 18, Uncommon: 30, Rare: 26, Legendary: 16, Godly: 7.5, Ancient: 2, Chroma: 0.5 } },
   ];
   // a crate roll: its special items first (if it has any), otherwise by rarity
   function rollCrate(c) {
-    if (c.special && Math.random() < c.special.chance) return ITEM[pick(c.special.ids)];
+    let x = Math.random();
+    for (const sp of c.specials || []) { if (x < sp.chance) return ITEM[sp.id]; x -= sp.chance; }
     return rollItem(c.w, c.type);
   }
   function rollItem(weights, type) {

@@ -4,25 +4,40 @@ const Sim = require('../shared/sim.js');
 const CODES = require('./codes.js');
 
 const xpNeed = lvl => 100 + lvl * 60;
-// Seasonal event: get `goal` kills (counted from when the event starts) to claim the rewards.
-const EVENT = { id: 'summer26', name: 'Summer Event', goal: 50, rewards: ['k24', 'g18'] };
-function eventState(p) {
+// Events: get `goal` kills (counted from when the event starts) to claim the rewards.
+const EVENTS = [
+  { id: 'summer26', name: 'Summer Event', icon: '☀️', goal: 50, rewards: ['k24', 'g18'], desc: 'Want the Chroma versions? Try the ☀️ Sum Box in the Shop.' },
+  { id: 'halloween26', name: 'Halloween Event', icon: '🎃', goal: 150, rewards: ['g20'], desc: 'Unlock the Death Gun. The Death Knives are in the 🎃 Halloween Box.' },
+];
+function eventState(p, id) {
   p.events = p.events || {};
-  return (p.events[EVENT.id] = p.events[EVENT.id] || { kills: 0, claimed: false });
+  return (p.events[id] = p.events[id] || { kills: 0, claimed: false });
 }
-function claimEvent(p) {
-  const ev = eventState(p);
-  if (ev.claimed) throw new Error('You already claimed the summer rewards');
-  if (ev.kills < EVENT.goal) throw new Error(`You need ${EVENT.goal - ev.kills} more kills`);
-  if (p.inv.length + EVENT.rewards.length > MAX_INV) throw new Error('Inventory full (500 items)');
+function claimEvent(p, id = EVENTS[0].id) {
+  const E = EVENTS.find(e => e.id === id); if (!E) throw new Error('Unknown event');
+  const ev = eventState(p, id);
+  if (ev.claimed) throw new Error(`You already claimed the ${E.name} rewards`);
+  if (ev.kills < E.goal) throw new Error(`You need ${E.goal - ev.kills} more kills`);
+  if (p.inv.length + E.rewards.length > MAX_INV) throw new Error('Inventory full (500 items)');
   ev.claimed = true;
-  return EVENT.rewards.map(id => addItem(p, id).id);
+  return E.rewards.map(id => addItem(p, id).id);
+}
+// Bundles: buy a whole set for coins, once
+const BUNDLES = [{ id: 'raygun', name: 'Raygun Set', icon: '🔫', price: 3999, items: ['g21', 'k28'] }];
+function buyBundle(p, id) {
+  const b = BUNDLES.find(x => x.id === id); if (!b) throw new Error('Unknown bundle');
+  if (b.items.every(i => p.inv.some(x => x.id === i))) throw new Error(`You already have the ${b.name}`);
+  if (p.coins < b.price) throw new Error('Not enough coins');
+  if (p.inv.length + b.items.length > MAX_INV) throw new Error('Inventory full (500 items)');
+  p.coins -= b.price;
+  return b.items.map(i => addItem(p, i).id);
 }
 const MAX_INV = 500;
 
 function publicProfile(p) {
-  const ev = (p.events && p.events[EVENT.id]) || { kills: 0, claimed: false };
-  return { name: p.name, coins: p.coins, xp: p.xp, level: p.level, xpNeed: xpNeed(p.level), inv: p.inv, equip: p.equip, mT: p.mT, sT: p.sT, stats: p.stats, event: { ...EVENT, kills: Math.min(ev.kills, EVENT.goal), claimed: ev.claimed } };
+  return { name: p.name, coins: p.coins, xp: p.xp, level: p.level, xpNeed: xpNeed(p.level), inv: p.inv, equip: p.equip, mT: p.mT, sT: p.sT, stats: p.stats,
+    events: EVENTS.map(E => { const ev = (p.events && p.events[E.id]) || { kills: 0, claimed: false }; return { ...E, kills: Math.min(ev.kills, E.goal), claimed: ev.claimed }; }),
+    bundles: BUNDLES.map(b => ({ ...b, owned: b.items.every(i => p.inv.some(x => x.id === i)) })) };
 }
 function equippedId(p, type) {
   const inst = p.inv.find(i => i.u === p.equip[type]);
@@ -82,7 +97,7 @@ function equip(p, u) {
 function applyRoundResult(p, res) {
   const r = Sim.rewardFor(res);
   p.coins += r.coins; p.stats.coins += r.coins; p.xp += r.xp;
-  p.stats.rounds++; p.stats.kills += res.kills; eventState(p).kills += res.kills; if (res.won) p.stats.wins++; if (!res.alive) p.stats.deaths++;
+  p.stats.rounds++; p.stats.kills += res.kills; for (const E of EVENTS) eventState(p, E.id).kills += res.kills; if (res.won) p.stats.wins++; if (!res.alive) p.stats.deaths++;
   let lv = 0; while (p.xp >= xpNeed(p.level)) { p.xp -= xpNeed(p.level); p.level++; lv++; }
   p.mT = res.role === 'murderer' ? 1 : Math.min(50, p.mT + 1);
   p.sT = res.role === 'sheriff' ? 1 : Math.min(50, p.sT + 1);
@@ -131,4 +146,4 @@ function trade(p, trader, mineU, theirsU) {
   return { ok, line };
 }
 
-module.exports = { EVENT, claimEvent, publicProfile, equippedId, openCrate, redeem, equip, applyRoundResult, genTraders, tradersView, trade, xpNeed };
+module.exports = { EVENTS, BUNDLES, claimEvent, buyBundle, publicProfile, equippedId, openCrate, redeem, equip, applyRoundResult, genTraders, tradersView, trade, xpNeed };

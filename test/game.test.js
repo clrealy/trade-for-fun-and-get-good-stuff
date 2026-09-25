@@ -156,12 +156,12 @@ test('summer event unlocks at 50 kills', () => {
   const p = defaultProfile('t');
   assert.throws(() => Eco.claimEvent(p), /50 more kills/);
   Eco.applyRoundResult(p, { role: 'murderer', won: true, alive: true, bag: 0, kills: 11 });
-  assert.strictEqual(Eco.publicProfile(p).event.kills, 11);
+  assert.strictEqual(Eco.publicProfile(p).events[0].kills, 11);
   assert.throws(() => Eco.claimEvent(p), /39 more kills/);
   for (let i = 0; i < 4; i++) Eco.applyRoundResult(p, { role: 'murderer', won: true, alive: true, bag: 0, kills: 11 });
   assert.deepStrictEqual(Eco.claimEvent(p), ['k24', 'g18']);
   assert.throws(() => Eco.claimEvent(p), /already claimed/);
-  assert.ok(Eco.publicProfile(p).event.claimed);
+  assert.ok(Eco.publicProfile(p).events[0].claimed);
 });
 
 test('the Sum Box is the only place the Chroma summer items drop', () => {
@@ -174,4 +174,34 @@ test('the Sum Box is the only place the Chroma summer items drop', () => {
   assert.ok(special > 700 && special < 1300, `sum box specials ${special}/20000`);
   assert.strictEqual(elsewhere, 0);
   const p = defaultProfile('t'); p.coins = 200; Eco.openCrate(p, 'sumbox'); assert.strictEqual(p.coins, 0);
+});
+
+test('halloween: Death Gun at 150 kills, knives only from the Halloween Box', () => {
+  const p = defaultProfile('t');
+  for (let i = 0; i < 13; i++) Eco.applyRoundResult(p, { role: 'murderer', won: true, alive: true, bag: 0, kills: 11 });
+  assert.throws(() => Eco.claimEvent(p, 'halloween26'), /7 more kills/);
+  assert.deepStrictEqual(Eco.claimEvent(p, 'summer26'), ['k24', 'g18']);
+  Eco.applyRoundResult(p, { role: 'murderer', won: true, alive: true, bag: 0, kills: 11 });
+  assert.deepStrictEqual(Eco.claimEvent(p, 'halloween26'), ['g20']);
+  const box = Sim.CRATES.find(c => c.id === 'halloween');
+  const n = { k26: 0, k27: 0 }, elsewhere = { k26: 0, k27: 0 };
+  for (let i = 0; i < 20000; i++) {
+    const id = Sim.rollCrate(box).id; if (id in n) n[id]++;
+    for (const c of Sim.CRATES) if (c !== box) { const o = Sim.rollCrate(c).id; if (o in elsewhere) elsewhere[o]++; }
+  }
+  assert.ok(n.k26 > 1600 && n.k26 < 2400, `death knife ${n.k26}`);
+  assert.ok(n.k27 > 250 && n.k27 < 550, `chroma death knife ${n.k27}`);
+  assert.deepStrictEqual(elsewhere, { k26: 0, k27: 0 });
+});
+
+test('Raygun Set costs 3,999 coins, once, or the secret code', () => {
+  const p = defaultProfile('t'); p.coins = 3998;
+  assert.throws(() => Eco.buyBundle(p, 'raygun'), /Not enough coins/);
+  p.coins = 5000;
+  assert.deepStrictEqual(Eco.buyBundle(p, 'raygun'), ['g21', 'k28']);
+  assert.strictEqual(p.coins, 1001);
+  assert.throws(() => Eco.buyBundle(p, 'raygun'), /already have/);
+  assert.ok(Eco.publicProfile(p).bundles[0].owned);
+  const q = defaultProfile('q');
+  assert.deepStrictEqual(Eco.redeem(q, 'zap zap boom 13').items, ['g21', 'k28']);
 });

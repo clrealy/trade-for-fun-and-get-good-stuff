@@ -69,6 +69,12 @@ Players type codes in **Inventory → Add code**. Codes ignore caps and spaces, 
 
 The Play tab tracks kills. At 50 kills a player can claim the summer set (Sunburn + Splash Blaster). The Chroma versions only drop from the ☀️ Sum Box in the Shop (5% chance). Change the goal or rewards in `EVENT` in `server/economy.js`.
 
+## Halloween
+
+- **Halloween Event** (Play tab): 150 kills unlocks the **Death Gun**.
+- **🎃 Halloween Box** (250 coins): 10% **Death Knife**, 2% **Chroma Death Knife**. They drop nowhere else.
+- **Raygun Set** (Raygun + Ray Blade): 3,999 coins in the Shop, or the secret code `ZAPZAPBOOM13`. The game reveals it when you tap the lobby logo 13 times fast.
+
 ## Chat and cheats
 
 Press **Enter** (or **/**) in a round to chat. Commands start with `/`, and `/help` lists them. `/sheffeme` gives you the gun (Murderers can't use it), `/murdme` makes you the Murderer, `/speed` toggles a speed boost, `/whoisit` tells you who the Murderer is, `/r` brings you back to life, and `/god` stops you from dying.

@@ -131,7 +131,7 @@ function onMsg(m) {
     case 'reward': showReward(m.r); break;
     case 'unboxed': playUnbox(m.crate, m.item); break;
     case 'codeAll': unboxPending = false; SFX.win(); toast(`Code redeemed: you got all ${m.count} knives and guns 🔪🔫`, true); break;
-    case 'codeItems': unboxPending = false; SFX.win(); toast(`${m.from === 'event' ? 'Summer set unlocked' : 'Code redeemed'}: ${m.items.map(id => ITEM[id].name).join(' + ')} 🔥`, true); if (screen === 'lobby') renderLobby(); break;
+    case 'codeItems': unboxPending = false; SFX.win(); toast(`${m.from === 'event' ? 'Unlocked' : m.from === 'bundle' ? 'Bought' : 'Code redeemed'}: ${m.items.map(id => ITEM[id].name).join(' + ')} 🔥`, true); if (screen === 'lobby') renderLobby(); break;
     case 'chat': addChat(m.name, m.text, m.sys); break;
     case 'codeCoins': unboxPending = false; SFX.win(); toast(`Code redeemed: +${m.coins} coins 💰`, true); break;
     case 'traders': traders = m.traders; if (screen === 'lobby') renderLobby(); break;
@@ -326,7 +326,7 @@ function showEnd() {
 function showReward(r) {
   if (!V) return;
   V.reward = r;
-  $('#endRewards').innerHTML = `${r.won ? '<b style="color:#5bd46a">You won!</b>' : '<b style="color:#ff4d5e">You lost</b>'}<br>💰 +${r.coins} coins · ⭐ +${r.xp} XP` + (r.kills ? ` · ☠️ ${r.kills} kill${r.kills > 1 ? 's' : ''}` : '') + (r.levelUps ? `<br><b style="color:#ffc233">LEVEL UP! You're level ${P ? P.level : ''} 🎉</b>` : '') + (P && P.event && !P.event.claimed ? `<br>☀️ Summer kills: ${P.event.kills} / ${P.event.goal}` : '');
+  $('#endRewards').innerHTML = `${r.won ? '<b style="color:#5bd46a">You won!</b>' : '<b style="color:#ff4d5e">You lost</b>'}<br>💰 +${r.coins} coins · ⭐ +${r.xp} XP` + (r.kills ? ` · ☠️ ${r.kills} kill${r.kills > 1 ? 's' : ''}` : '') + (r.levelUps ? `<br><b style="color:#ffc233">LEVEL UP! You're level ${P ? P.level : ''} 🎉</b>` : '') + (P && P.events ? P.events.filter(e => !e.claimed).map(e => `<br>${e.icon} ${esc(e.name)}: ${e.kills} / ${e.goal} kills`).join('') : '');
 }
 $('#endBtn').onclick = () => {
   if (V && V.offline) { endGameView(); setScreen('lobby'); return; }
@@ -682,7 +682,6 @@ document.querySelectorAll('.tab').forEach(b => b.onclick = () => {
   renderLobby();
 });
 $('#mapSel').innerHTML = '<option value="-1">🎲 Random map</option>' + Sim.MAPS.map((m, i) => `<option value="${i}">${m.name}</option>`).join('');
-$('#evClaim').onclick = () => net({ t: 'claimEvent' });
 $('#practiceBtn').onclick = () => { tone(600, .1); startPractice(); };
 
 function sortedInv() { return P.inv.slice().sort((a, b) => ITEM[b.id].val - ITEM[a.id].val); }
@@ -693,16 +692,12 @@ function renderLobby() {
   $('#lvlPill').textContent = `Lv ${P.level}`;
   $('#xpFill').style.width = (P.xp / P.xpNeed * 100) + '%';
   if (curTab === 'play') {
-    const ev = P.event;
-    if (ev) {
-      $('#evName').textContent = ev.name;
-      $('#evRewards').innerHTML = ev.rewards.map(id => itemCard(ITEM[id], { noval: true })).join('');
-      $('#evFill').style.width = (ev.kills / ev.goal * 100) + '%';
-      $('#evText').textContent = ev.claimed ? 'Claimed ✅' : `${ev.kills} / ${ev.goal} kills`;
-      const btn = $('#evClaim');
-      btn.disabled = ev.claimed || ev.kills < ev.goal;
-      btn.textContent = ev.claimed ? 'Claimed' : ev.kills >= ev.goal ? 'Claim summer set 🎁' : `${ev.goal - ev.kills} more kills`;
-    }
+    $('#events').innerHTML = (P.events || []).map(ev => `<div class="card eventcard ${esc(ev.id)}">
+      <div class="eventhead"><div><h2>${ev.icon} ${esc(ev.name)}</h2><p class="muted small">Get kills in any round and reach ${ev.goal} to unlock the rewards. ${esc(ev.desc || '')}</p></div>
+      <div class="evrewards">${ev.rewards.map(id => itemCard(ITEM[id], { noval: true })).join('')}</div></div>
+      <div class="evbar"><div class="evfill" style="width:${ev.kills / ev.goal * 100}%"></div><span class="evtext">${ev.claimed ? 'Claimed ✅' : `${ev.kills} / ${ev.goal} kills`}</span></div>
+      <button class="btn" data-ev="${esc(ev.id)}" ${ev.claimed || ev.kills < ev.goal ? 'disabled' : ''}>${ev.claimed ? 'Claimed' : ev.kills >= ev.goal ? 'Claim rewards 🎁' : `${ev.goal - ev.kills} more kills`}</button></div>`).join('');
+    $('#events').querySelectorAll('button[data-ev]').forEach(b => b.onclick = () => net({ t: 'claimEvent', id: b.dataset.ev }));
     const n = Sim.MAX_PLAYERS, pm = P.mT / (P.mT + n - 1), ps = (1 - pm) * (P.sT / (P.sT + n - 2));
     $('#mChance').textContent = Math.round(pm * 100) + '%';
     $('#sChance').textContent = Math.round(ps * 100) + '%';
@@ -716,6 +711,11 @@ function renderLobby() {
     $('#invGrid').innerHTML = inv.length ? inv.map(i => itemCard(ITEM[i.id], { eq: P.equip[ITEM[i.id].type] === i.u, attr: `data-u="${i.u}"` })).join('') : '<div class="muted">No items yet. Go unbox some in the Shop 📦</div>';
     $('#invGrid').querySelectorAll('.item').forEach(el => el.onclick = () => { tone(800, .06); net({ t: 'equip', u: +el.dataset.u }); });
   } else if (curTab === 'shop') {
+    $('#bundles').innerHTML = (P.bundles || []).map(b => `<div class="card bundle">
+      <div class="evrewards">${b.items.map(id => itemCard(ITEM[id], { noval: true })).join('')}</div>
+      <div class="binfo"><h3>${b.icon} ${esc(b.name)}</h3><p class="muted small">Get the whole set at once. Rumor says there's a secret code somewhere too 👀</p>
+      <button class="btn" data-b="${esc(b.id)}" ${b.owned || P.coins < b.price ? 'disabled' : ''}>${b.owned ? 'Owned ✅' : `💰 ${b.price.toLocaleString()}`}</button></div></div>`).join('');
+    $('#bundles').querySelectorAll('button[data-b]').forEach(btn => btn.onclick = () => net({ t: 'buyBundle', id: btn.dataset.b }));
     $('#crates').innerHTML = CRATES.map(c => `<div class="crate"><div class="box">${c.icon}</div><h3>${c.name}</h3><p>${c.desc}</p><button class="btn" data-c="${c.id}" ${P.coins < c.price ? 'disabled' : ''}>💰 ${c.price}</button></div>`).join('');
     $('#crates').querySelectorAll('button').forEach(b => b.onclick = () => { if (unboxPending) return; unboxPending = true; net({ t: 'crate', id: b.dataset.c }); });
     const w = CRATES[0].w, tot = Object.values(w).reduce((a, b) => a + b, 0);
@@ -784,6 +784,14 @@ function renderTrade() {
 }
 $('#sendTrade').onclick = () => net({ t: 'trade', trader: curTrader, mine: offMine.map(i => i.u), theirs: offTheirs.map(i => i.u) });
 $('#refreshTraders').onclick = () => { $('#tradeChat').textContent = ''; net({ t: 'traders', refresh: true }); };
+
+// 🤫 easter egg: tap the lobby logo 13 times fast to reveal the Raygun code
+let logoTaps = 0, logoT = 0;
+$('#lobby .logo').addEventListener('click', () => {
+  clearTimeout(logoT); logoT = setTimeout(() => { logoTaps = 0; }, 2500);
+  if (++logoTaps >= 13) { logoTaps = 0; SFX.win(); toast('🤫 You found it. Secret code: ZAPZAPBOOM13', true); }
+  else if (logoTaps >= 10) tone(300 + logoTaps * 60, .08, 'square', .03);
+});
 
 // ===================== Loop =====================
 let last = performance.now();

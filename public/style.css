@@ -93,7 +93,7 @@ select{background:var(--panel2);color:var(--text);border:0;border-radius:10px;pa
 .equipped .card{margin-bottom:16px}
 .equipped .item{max-width:160px}
 
-.crates{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:16px;margin-bottom:16px}
+.crates{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:16px;margin-bottom:16px}
 .crate{background:var(--panel);border-radius:16px;padding:18px;text-align:center}
 .crate .box{font-size:70px;animation:bob 2s ease-in-out infinite}
 .crate h3{margin:6px 0}
@@ -164,8 +164,8 @@ input:focus{outline:none;border-color:var(--accent)}
 .evrewards{display:flex;gap:8px}
 .evrewards .item{width:110px;cursor:default}
 .evbar{position:relative;height:28px;background:var(--bg);border-radius:10px;overflow:hidden;margin-bottom:12px}
-#evFill{position:absolute;inset:0 auto 0 0;background:linear-gradient(90deg,#ff9f1c,#ffd43b);width:0;transition:width .4s}
-#evText{position:relative;display:block;text-align:center;line-height:28px;font-weight:700;font-variant-numeric:tabular-nums;text-shadow:0 1px 2px #000}
+#events .evfill{position:absolute;inset:0 auto 0 0;background:linear-gradient(90deg,#ff9f1c,#ffd43b);width:0;transition:width .4s}
+#events .evtext{position:relative;display:block;text-align:center;line-height:28px;font-weight:700;font-variant-numeric:tabular-nums;text-shadow:0 1px 2px #000}
 
 .lobbyfoot{max-width:1100px;margin:8px auto 0;text-align:center;padding-block:12px}
 .lobbyfoot a{color:var(--gold);font-weight:600;font-size:16px;text-decoration:none;border-bottom:2px solid transparent}
@@ -229,3 +229,11 @@ body.touch #introSub{font-size:17px}
   .tab{font-size:14px;padding:7px 12px}
   .pill{font-size:14px;padding:4px 10px}
 }
+
+.eventcard.halloween26{background:linear-gradient(120deg,#ff6a0033,#7b2cbf44),var(--panel)}
+.eventcard.halloween26 .evfill{background:linear-gradient(90deg,#ff6a00,#9d4edd)}
+.bundle{display:flex;gap:16px;align-items:center;flex-wrap:wrap;background:linear-gradient(120deg,#39ff1422,#00e5ff22),var(--panel)}
+.bundle .evrewards{flex:0 0 auto}
+.bundle .binfo{flex:1;min-width:180px}
+.bundle h3{margin:0 0 4px}
+.bundle p{margin:0 0 10px}
