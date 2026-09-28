@@ -101,6 +101,24 @@ The solo build is obfuscated with `javascript-obfuscator`: strings (including th
 
 Rounds render in 3D with three.js (`public/render3d.js`): blocky characters, real walls and a tilted camera that follows you. The menus, HUD and controls are the same as in 2D. The online server hosts three.js itself (`/vendor/three.min.js`, from the `three` npm package), and the solo build loads it from cdnjs. Players can switch to 2D under **Play → Graphics**, and the game uses 2D automatically if WebGL isn't available.
 
+## Graphics and effects
+
+**Play → Graphics** has three settings. **3D Ultra** is the default on computers: real shadows, gunshot and explosion lights, floating dust, glowing tracers and rare weapons. **3D** is the default on phones and skips the costly parts. **2D** is the flat view.
+
+Every setting gets the game-feel effects:
+- **Role roulette**: role names spin before landing on yours, like MM2.
+- **Screen shake** on shots, explosions and kills. It's turned off if your device asks for reduced motion.
+- **Kill feed**: it shows who went down, never who did it.
+- **Killer banners**: ELIMINATED, DOUBLE KILL and up to GODLIKE, plus MURDERER DOWN for whoever shoots the Murderer.
+- **Final kill cam**: slow motion with letterbox bars.
+- **Heartbeat** and red screen edges when a visible knife is close.
+- **Timer**: ticks in the last 15 seconds.
+- **Death**: bodies fall over and souls float up, and blood stays on the floor.
+- **Movement dust**: footstep dust, landing rings and juke after-images.
+- **End screen**: confetti when you win.
+
+**🎵 Music** (next to Graphics) is a synth loop that speeds up and gets heavier as players die, time runs out or the Murderer gets close. Sounds are panned left or right and get quieter with distance.
+
 ## Controls
 
 WASD to move, mouse to aim, left click to stab or shoot, right click or Q to throw the knife, E to pull out or put away your weapon. **Shift** jukes (a quick dash, 1.5 s cooldown). **Space** jumps (clears tables and plants), **B** bomb jumps way up (5 s cooldown, works mid-jump for extra height), hold **C** to crouch (slower, smaller target). Stabs miss players in the air and bullets fly under them.

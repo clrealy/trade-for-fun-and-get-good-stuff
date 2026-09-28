@@ -589,9 +589,11 @@
         addBody(R, k);
         if (k.hasGun) { k.hasGun = false; dropGun(R, k.x, k.y); }
         emit(R, { t: 'died', to: k.id, how: 'badShot' });
+        emit(R, { t: 'kf', v: k.id, k: 'bad' });
       }
     }
     emit(R, { t: 'died', to: v.id, how: k ? (k.role === 'murderer' ? 'murdered' : 'shot') : 'died', by: k ? k.name : null });
+    emit(R, { t: 'kf', v: v.id, k: k ? (k.role === 'murderer' ? 'knife' : 'shot') : 'died', x: Math.round(v.x), y: Math.round(v.y) }); // kill feed: who went down, never who did it
     if (v.role === 'murderer') emit(R, { t: 'murdererDown', by: k ? k.name : null, byId: k ? k.id : null });
   }
 

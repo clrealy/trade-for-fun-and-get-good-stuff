@@ -13,8 +13,13 @@ function resize() {
 }
 // 3D view (render3d.js). Falls back to the 2D canvas if WebGL or three.js isn't available.
 const R3 = typeof R3D !== 'undefined' ? R3D : { ok: false };
-let viewPref = (() => { try { return localStorage.getItem('mm_view') || '3d'; } catch (e) { return '3d'; } })();
+// 'ultra' (shadows, lights, particles) on computers, plain '3d' on phones, or '2d'
+const coarse = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
+let viewPref = (() => { try { return localStorage.getItem('mm_view') || (coarse ? '3d' : 'ultra'); } catch (e) { return coarse ? '3d' : 'ultra'; } })();
 const use3D = () => R3.ok && viewPref !== '2d';
+const fancy = () => viewPref === 'ultra';
+const calm = matchMedia('(prefers-reduced-motion: reduce)').matches; // no screen shake for people who turned motion off
+if (R3.ok && R3.setQuality) R3.setQuality(viewPref);
 addEventListener('resize', resize); resize();
 
 const { ITEM, RAR, RORDER, CRATES, TILE, BAG_MAX } = Sim;
@@ -28,44 +33,100 @@ const lsGet = k => { try { return localStorage.getItem(k); } catch (e) { return 
 const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { } };
 
 // ===================== Audio =====================
-let AC = null;
-function tone(f, d = .1, type = 'square', vol = .05, slide = 0) {
+let AC = null, bus = null; // bus: where sounds go (a panner for sounds that happen somewhere on the map)
+function ac() { AC = AC || new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === 'suspended') AC.resume(); return AC; }
+function tone(f, d = .1, type = 'square', vol = .05, slide = 0, at = 0, dest = null) {
   try {
-    AC = AC || new (window.AudioContext || window.webkitAudioContext)();
-    const o = AC.createOscillator(), g = AC.createGain(), t = AC.currentTime;
+    ac();
+    const o = AC.createOscillator(), g = AC.createGain(), t = AC.currentTime + at;
     o.type = type; o.frequency.setValueAtTime(f, t); if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(20, f + slide), t + d);
     g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.0001, t + d);
-    o.connect(g).connect(AC.destination); o.start(t); o.stop(t + d);
+    o.connect(g).connect(dest || bus || AC.destination); o.start(t); o.stop(t + d);
   } catch (e) { }
 }
-function noise(d = .15, vol = .15) {
+function noise(d = .15, vol = .15, at = 0, dest = null, hp = 0) {
   try {
-    AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+    ac();
     const n = AC.sampleRate * d, b = AC.createBuffer(1, n, AC.sampleRate), ch = b.getChannelData(0);
     for (let i = 0; i < n; i++) ch[i] = (Math.random() * 2 - 1) * (1 - i / n) ** 2;
-    const s = AC.createBufferSource(), g = AC.createGain(); g.gain.value = vol; s.buffer = b; s.connect(g).connect(AC.destination); s.start();
+    const s = AC.createBufferSource(), g = AC.createGain(); g.gain.value = vol; s.buffer = b;
+    let out = s; if (hp) { const f = AC.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = hp; s.connect(f); out = f; }
+    out.connect(g).connect(dest || bus || AC.destination); s.start(AC.currentTime + at);
   } catch (e) { }
 }
+// play a sound from a spot on the map: quieter far away, panned left/right
+function spatial(x, y, fn) {
+  if (!V) return fn();
+  const dx = x - V.cam.x, dy = y - V.cam.y, d = Math.hypot(dx, dy);
+  if (d > 1100) return;
+  try {
+    ac(); const g = AC.createGain(); g.gain.value = Math.max(.12, 1 - d / 1100);
+    if (AC.createStereoPanner) { const p = AC.createStereoPanner(); p.pan.value = clamp(dx / 600, -.85, .85); g.connect(p).connect(AC.destination); } else g.connect(AC.destination);
+    const o = bus; bus = g; try { fn(); } finally { bus = o; }
+  } catch (e) { fn(); }
+}
 const SFX = {
-  coin: () => tone(1200, .08, 'square', .03, 600),
+  coin: () => { tone(1200, .08, 'square', .03, 600); tone(1800, .1, 'sine', .02, 400, .05); },
   stab: () => { noise(.08, .12); tone(300, .1, 'sawtooth', .04, -200); },
   jump: () => tone(420, .12, 'square', .03, 380),
-  whoosh: () => { noise(.18, .18); tone(900, .16, 'sine', .03, -700); },
-  boom: () => { noise(.35, .35); tone(110, .45, 'sawtooth', .07, -70); setTimeout(() => tone(620, .25, 'triangle', .04, 500), 60); },
-  shoot: () => { noise(.2, .25); tone(160, .15, 'square', .05, -100); },
+  land: () => { noise(.06, .08); tone(90, .08, 'sine', .06, -30); },
+  whoosh: () => { noise(.18, .18, 0, null, 900); tone(900, .16, 'sine', .03, -700); },
+  boom: () => { noise(.5, .4); tone(110, .5, 'sawtooth', .07, -70); tone(55, .6, 'sine', .14, -25); tone(620, .25, 'triangle', .04, 500, .06); },
+  shoot: () => { noise(.25, .3); tone(160, .15, 'square', .05, -100); tone(60, .22, 'sine', .12, -30); noise(.4, .05, .06, null, 2000); },
   // Raygun: sci-fi pew (fast downward sweep + a sparkly overtone)
-  ray: () => { tone(1800, .22, 'sawtooth', .045, -1500); tone(2600, .12, 'sine', .03, -2000); setTimeout(() => tone(900, .08, 'square', .02, 400), 60); },
+  ray: () => { tone(1800, .22, 'sawtooth', .045, -1500); tone(2600, .12, 'sine', .03, -2000); tone(900, .08, 'square', .02, 400, .06); },
   throw: () => tone(700, .2, 'triangle', .05, -500),
   die: () => tone(400, .4, 'sawtooth', .05, -330),
   // murderer kill: blade swish + thud + a short scream-y drop
-  kill: () => { noise(.12, .22); tone(260, .18, 'square', .06, -200); setTimeout(() => { noise(.2, .18); tone(90, .25, 'sine', .12, -40); }, 70); setTimeout(() => tone(900, .35, 'sawtooth', .035, -700), 40); },
+  kill: () => { noise(.12, .22); tone(260, .18, 'square', .06, -200); noise(.2, .18, .07); tone(90, .25, 'sine', .12, -40, .07); tone(900, .35, 'sawtooth', .035, -700, .04); },
   // extra sting only the killer hears
-  killConfirm: () => { tone(1320, .09, 'square', .04); setTimeout(() => tone(1760, .14, 'square', .04), 90); },
-  gun: () => { tone(500, .12, 'square', .05); setTimeout(() => tone(750, .15, 'square', .05), 110); },
-  win: () => [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => tone(f, .18, 'square', .05), i * 120)),
-  lose: () => [400, 330, 260].forEach((f, i) => setTimeout(() => tone(f, .25, 'triangle', .06), i * 180)),
+  killConfirm: () => { tone(1320, .09, 'square', .04); tone(1760, .14, 'square', .04, 0, .09); },
+  gun: () => { tone(500, .12, 'square', .05); tone(750, .15, 'square', .05, 0, .11); },
+  win: () => [523, 659, 784, 1046].forEach((f, i) => { tone(f, .18, 'square', .05, 0, i * .12); tone(f / 2, .22, 'triangle', .05, 0, i * .12); }),
+  lose: () => [400, 330, 260].forEach((f, i) => tone(f, .25, 'triangle', .06, 0, i * .18)),
   roll: () => tone(900, .03, 'square', .02),
+  heart: k => { tone(62, .12, 'sine', .16 + k * .12, -18); tone(56, .14, 'sine', .12 + k * .1, -16, .16); },
+  tick: () => tone(1500, .04, 'square', .025),
+  spin: i => tone(500 + i * 40, .04, 'square', .025),
+  // role reveal stingers
+  reveal: role => role === 'murderer' ? (tone(98, .9, 'sawtooth', .07, -40), tone(147, .9, 'sawtooth', .04, -60), noise(.5, .12))
+    : role === 'sheriff' ? [392, 523, 659, 784].forEach((f, i) => tone(f, .2, 'square', .045, 0, i * .08))
+    : [523, 659, 784].forEach((f, i) => tone(f, .18, 'triangle', .06, 0, i * .09)),
+  streak: n => [0, 1, 2, 3].slice(0, Math.min(4, n)).forEach(i => tone(660 * Math.pow(1.26, i + n - 2), .16, 'square', .045, 0, i * .07)),
+  go: () => { tone(880, .12, 'square', .05); tone(1320, .3, 'square', .05, 0, .12); },
 };
+
+// ===================== Music =====================
+// A small synth loop that gets faster and heavier as the round gets tense. Off with the 🎵 switch.
+const Music = (() => {
+  let on = lsGetSafe('mm_music') !== '0', gain = null, timer = 0, next = 0, step = 0, level = 0;
+  const bassNotes = [110, 87.31, 98, 82.41]; // A, F, G, E
+  const chords = [[220, 261.6, 329.6], [174.6, 220, 261.6], [196, 246.9, 293.7], [164.8, 207.7, 246.9]];
+  function tick() {
+    if (!AC || !gain) return;
+    const bpm = 92 + level * 44, sp = 60 / bpm / 4; // 16th notes
+    while (next < AC.currentTime + .15) {
+      const at = next - AC.currentTime, bar = Math.floor(step / 16) % 4, i = step % 16;
+      if (i % 2 === 0) tone(bassNotes[bar] * (i % 8 === 6 ? 2 : 1), sp * 1.8, 'triangle', .07, 0, at, gain);
+      if (level > .15 && i % 4 === 0) tone(120, .12, 'sine', .22, -80, at, gain); // kick
+      if (level > .35 && i % 4 === 2) noise(.04, .06, at, gain, 6000); // hats
+      if (level > .6 && i % 2 === 1) tone(chords[bar][(i >> 1) % 3] * 2, sp * .9, 'square', .012, 0, at, gain); // arpeggio
+      if (level > .85 && i === 8) noise(.12, .09, at, gain, 1500); // snare
+      next += sp; step++;
+    }
+  }
+  function start() {
+    if (!on || timer) return;
+    try { ac(); gain = AC.createGain(); gain.gain.value = .45; gain.connect(AC.destination); next = AC.currentTime + .05; step = 0; timer = setInterval(tick, 50); } catch (e) { }
+  }
+  function stop() {
+    clearInterval(timer); timer = 0;
+    if (gain) { const g = gain; gain = null; try { g.gain.setTargetAtTime(0, AC.currentTime, .3); setTimeout(() => g.disconnect(), 1500); } catch (e) { } }
+  }
+  return { start, stop, set level(v) { level = clamp(v, 0, 1); }, get on() { return on; }, toggle(v) { on = v; lsSetSafe('mm_music', v ? '1' : '0'); if (!v) stop(); } };
+})();
+function lsGetSafe(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+function lsSetSafe(k, v) { try { localStorage.setItem(k, v); } catch (e) { } }
 
 let toastT = 0;
 function toast(text, ok) {
@@ -237,8 +298,11 @@ function newView(mapIdx, roster, you, offline) {
     offline, M: Sim.buildMap(mapIdx), roster: new Map(roster.map(r => [r.id, r])), you,
     disp: new Map(), snap: null, snapT: 0, lp: null, fx: [], cam: { x: 0, y: 0 }, spec: null, phase: 'intro',
     me: null, endInfo: null, endShownAt: 0, reward: null, introShown: false, R: null,
+    // eye candy
+    shake: 0, shakeX: 0, shakeY: 0, zoom: 1, decals: [], pops: [], danger: 0, hbT: 0, hurt: 0, hitT: 0, streak: 0, streakT: 0, cine: null, lastBlood: null, lastSec: -1, slow: 1,
   };
-  $('#msgs').innerHTML = ''; $('#chatLog').innerHTML = ''; closeChat(); hudCache = {};
+  $('#msgs').innerHTML = ''; $('#chatLog').innerHTML = ''; $('#feed').innerHTML = ''; $('#banner').className = ''; closeChat(); hudCache = {};
+  document.body.classList.remove('dead'); Music.level = 0; Music.start();
   show('#lobby', false); show('#roomScreen', false); show('#endScreen', false); show('#hud');
   screen = 'game';
 }
@@ -254,6 +318,7 @@ function startPractice(mode) {
 }
 function endGameView() {
   V = null; mouse.down = false; dashT = dashCd = 0;
+  Music.stop(); document.body.classList.remove('dead'); clearTimeout(introJob);
   show('#hud', false); show('#intro', false); show('#endScreen', false);
 }
 function equippedId(type) {
@@ -284,10 +349,26 @@ function applySnap(s) {
 function showIntro() {
   V.introShown = true;
   const R = { murderer: ['MURDERER', '#ff4d5e', 'Kill everyone. Don\'t get caught with your knife out 🔪'], sheriff: ['SHERIFF', '#4da3ff', 'Find the murderer and shoot them. Don\'t shoot innocents!'], innocent: ['INNOCENT', '#5bd46a', 'Hide, survive, and collect coins. Grab the gun if the sheriff dies.'] }[V.me.role] || ['INNOCENT', '#5bd46a', ''];
-  $('#introRole').textContent = R[0]; $('#introRole').style.color = R[1]; $('#introSub').textContent = R[2];
+  // MM2-style roulette: the role names flick past, slow down, and slam onto yours
+  const roles = [['INNOCENT', '#5bd46a'], ['SHERIFF', '#4da3ff'], ['MURDERER', '#ff4d5e']];
+  const el = $('#introRole'), intro = $('#intro'), view = V, myRole = V.me.role;
+  $('#introSub').textContent = ''; intro.className = 'spin'; intro.style.setProperty('--rc', '#ffffff');
+  let i = 0, wait = 55;
+  const flick = () => {
+    if (V !== view) return;
+    if (wait > 260) {
+      el.textContent = R[0]; el.style.color = R[1]; $('#introSub').textContent = R[2];
+      intro.style.setProperty('--rc', R[1]); intro.className = 'landed ' + myRole;
+      SFX.reveal(myRole); addShake(myRole === 'murderer' ? 14 : 8);
+      return;
+    }
+    const [n, c] = roles[i++ % 3]; el.textContent = n; el.style.color = c; SFX.spin(i % 6);
+    wait *= 1.17; introJob = setTimeout(flick, wait);
+  };
+  clearTimeout(introJob); flick();
   show('#intro');
-  tone(220, .3, 'triangle', .06); setTimeout(() => tone(330, .4, 'triangle', .06), 300);
 }
+let introJob = 0;
 const nameOf = id => id === V.you ? 'You' : (V.roster.get(id) || {}).name || 'Someone';
 function msg(text, color = '#fff', dur = 3.5) {
   const d = document.createElement('div'); d.textContent = text; d.style.color = color;
@@ -295,37 +376,104 @@ function msg(text, color = '#fff', dur = 3.5) {
   setTimeout(() => d.style.opacity = 0, dur * 1000); setTimeout(() => d.remove(), dur * 1000 + 600);
   while ($('#msgs').children.length > 4) $('#msgs').firstChild.remove();
 }
+// ---------- juice ----------
+function addShake(a, x, y, range = 600) {
+  if (!V || calm) return;
+  if (x !== undefined) { const d = Math.hypot(x - V.cam.x, y - V.cam.y); a *= Math.max(0, 1 - d / range); }
+  V.shake = Math.min(26, V.shake + a);
+}
+let bannerT = 0;
+function banner(main, sub = '', color = '#fff', big = false) {
+  const b = $('#banner');
+  b.innerHTML = `<div class="b1" style="color:${color}">${esc(main)}</div>${sub ? `<div class="b2">${esc(sub)}</div>` : ''}`;
+  b.className = ''; void b.offsetWidth; b.className = 'show' + (big ? ' big' : '');
+  clearTimeout(bannerT); bannerT = setTimeout(() => { b.className = ''; }, big ? 2600 : 1700);
+}
+function feed(html) {
+  const f = $('#feed'), d = document.createElement('div'); d.innerHTML = html; f.prepend(d);
+  while (f.children.length > 5) f.lastChild.remove();
+  setTimeout(() => d.classList.add('out'), 5000); setTimeout(() => d.remove(), 5600);
+}
+function pop(x, y, text, color = '#ffd43b') { if (V) V.pops.push({ x, y, text, color, t: 1 }); }
+const STREAKS = ['', '', 'DOUBLE KILL', 'TRIPLE KILL', 'QUAD KILL', 'RAMPAGE', 'UNSTOPPABLE', 'GODLIKE'];
+function embers(x, y, n, colors, speed = 260) {
+  if (!fancy()) return;
+  for (let i = 0; i < n; i++) { const a = rand(0, 6.28), v = rand(.3, 1) * speed; V.fx.push({ type: 'ember', x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, z: rand(.1, .6), vz: rand(1, 4), t: rand(.4, .9), c: colors[i % colors.length] }); }
+}
 function handleEvent(ev) {
   if (!V) return;
   switch (ev.t) {
     case 'start':
       show('#intro', false);
+      banner('GO!', '', '#fff'); SFX.go();
       if (V.me) msg(V.me.role === 'murderer' ? 'You have your knife. Happy hunting 😈' : V.me.role === 'sheriff' ? 'You have the gun. Find the murderer 👀' : 'Round started. Stay alive!', '#fff', 3);
       break;
-    case 'sfx': if (Math.hypot(ev.x - V.cam.x, ev.y - V.cam.y) < 900 && SFX[ev.s]) SFX[ev.s](); break;
+    case 'sfx': if (SFX[ev.s]) spatial(ev.x, ev.y, SFX[ev.s]); break;
     case 'fx':
-      if (ev.k === 'blood') for (let i = 0; i < 14; i++) V.fx.push({ type: 'blood', x: ev.x, y: ev.y, vx: rand(-120, 120), vy: rand(-120, 120), t: rand(.3, .6) });
+      if (ev.k === 'blood') {
+        for (let i = 0; i < 18; i++) V.fx.push({ type: 'blood', x: ev.x, y: ev.y, vx: rand(-150, 150), vy: rand(-150, 150), t: rand(.3, .7) });
+        for (let i = 0; i < 3; i++) V.decals.push({ x: ev.x + rand(-14, 14), y: ev.y + rand(-14, 14), r: rand(.35, .8), a: rand(0, 6.28) });
+        if (V.decals.length > 60) V.decals.splice(0, V.decals.length - 60);
+        V.lastBlood = { x: ev.x, y: ev.y, at: performance.now() };
+        addShake(6, ev.x, ev.y, 500);
+      }
       else if (ev.k === 'stuck') V.fx.push({ type: 'stuck', x: ev.x, y: ev.y, ang: ev.a, skin: ev.skin, t: 1.2 });
-      else if (ev.k === 'flash') V.fx.push({ type: 'flash', x: ev.x, y: ev.y, t: .08 });
-      else if (ev.k === 'dash') V.fx.push({ type: 'dash', x: ev.x, y: ev.y, t: .35 });
-      else if (ev.k === 'boom') V.fx.push({ type: 'boom', x: ev.x, y: ev.y, t: .45 });
+      else if (ev.k === 'flash') {
+        V.fx.push({ type: 'flash', x: ev.x, y: ev.y, t: .08 });
+        const mine = V.lp && Math.hypot(ev.x - V.lp.x, ev.y - V.lp.y) < 80;
+        addShake(mine ? 7 : 3, ev.x, ev.y, mine ? 1e9 : 500);
+        embers(ev.x, ev.y, 5, ['#ffe08a', '#ffb347'], 180);
+      }
+      else if (ev.k === 'dash') {
+        V.fx.push({ type: 'dash', x: ev.x, y: ev.y, t: .35 });
+        let best = null, bd = 60; for (const d of V.disp.values()) { const dd = Math.hypot(d.x - ev.x, d.y - ev.y); if (d.alive && dd < bd) { bd = dd; best = d; } }
+        if (best) best.dashT = .26;
+      }
+      else if (ev.k === 'boom') {
+        V.fx.push({ type: 'boom', x: ev.x, y: ev.y, t: .45 });
+        addShake(16, ev.x, ev.y, 800);
+        embers(ev.x, ev.y, 22, ['#ffb347', '#ff6a1a', '#ffe08a']);
+      }
       break;
-    case 'killConfirm': SFX.killConfirm(); msg(`You killed ${ev.name} 🔪`, '#ff4d5e', 2.5); break;
-    case 'coin': SFX.coin(); if (ev.full) msg('Coin bag full! 💰', '#ffc233'); break;
+    case 'killConfirm': {
+      SFX.killConfirm(); V.hitT = .35; addShake(5);
+      const now = performance.now();
+      V.streak = now - V.streakT < 5000 ? V.streak + 1 : 1; V.streakT = now;
+      if (V.streak >= 2) { banner(STREAKS[Math.min(V.streak, STREAKS.length - 1)], `${ev.name} eliminated`, '#ff4d5e', true); SFX.streak(V.streak); }
+      else banner('ELIMINATED', ev.name, '#ff4d5e');
+      break;
+    }
+    case 'coin':
+      SFX.coin(); if (V.lp) pop(V.lp.x, V.lp.y, '+1 💰');
+      if (ev.full) { msg('Coin bag full! 💰', '#ffc233'); if (V.lp) pop(V.lp.x, V.lp.y - 20, 'BAG FULL!', '#ffc233'); }
+      break;
+    case 'kf': {
+      const icon = ev.k === 'knife' ? '🔪' : ev.k === 'shot' ? '🔫' : ev.k === 'bad' ? '⚠️' : '💀';
+      const who = ev.v === V.you ? '<b class="me">You</b>' : `<b>${esc(nameOf(ev.v))}</b>`;
+      feed(`<span class="ic">${icon}</span> ${who} ${ev.k === 'knife' ? 'got stabbed' : ev.k === 'shot' ? 'got shot' : ev.k === 'bad' ? 'shot an innocent' : 'died'}`);
+      break;
+    }
     case 'gunDrop': msg('The Sheriff has been killed! The gun has dropped 🔫', '#4da3ff', 5); SFX.gun(); break;
     case 'gunTaken': msg('Someone picked up the gun...', '#fff', 4); break;
     case 'hero': msg('You picked up the gun! You are the HERO 🦸', '#ffc233', 4); SFX.gun(); break;
     case 'badShot': msg(`${nameOf(ev.id)} shot an innocent! 💀`, '#ff4d5e', 4); break;
     case 'died':
+      V.hurt = 1; addShake(18); if (fancy()) document.body.classList.add('dead');
       msg(ev.how === 'badShot' ? 'You shot an innocent and died.' : ev.how === 'murdered' ? `You were killed by ${ev.by}!` : ev.how === 'shot' ? `${ev.by} shot you!` : 'You died.', '#ff4d5e', 5);
       break;
-    case 'murdererDown': msg(`${ev.byId ? nameOf(ev.byId) : 'Someone'} killed the Murderer! 🎉`, '#5bd46a', 5); break;
+    case 'murdererDown':
+      msg(`${ev.byId ? nameOf(ev.byId) : 'Someone'} killed the Murderer! 🎉`, '#5bd46a', 5);
+      if (ev.byId === V.you) { banner('MURDERER DOWN', 'you saved everyone 🎯', '#4da3ff', true); SFX.streak(3); V.hitT = .35; }
+      break;
     case 'end': onEnd(ev); break;
   }
 }
 function onEnd(info) {
   if (V.endInfo) return;
   V.endInfo = info; V.endAt = performance.now();
+  Music.stop();
+  // final kill cam: zoom in on the last death in slow motion
+  if (V.lastBlood && V.endAt - V.lastBlood.at < 2500) { V.cine = { x: V.lastBlood.x, y: V.lastBlood.y, at: V.endAt }; banner(info.w === 'murderer' ? 'FINAL KILL' : 'MURDERER DOWN', '', info.w === 'murderer' ? '#ff4d5e' : '#5bd46a', true); }
   if (V.offline && window.LocalServer) window.LocalServer.result(V.R.results.find(r => r.pid === 'me'));
   if (V.me) {
     const won = (info.w === 'murderer') === (startRoleOf(info) === 'murderer');
@@ -347,7 +495,16 @@ function showEnd() {
   else if (!V.reward) $('#endRewards').innerHTML = 'Counting your rewards…';
   if (!V.offline) { $('#endNext').textContent = 'Next round starts soon.'; $('#endBtn').textContent = 'Continue'; }
   if (V.reward) showReward(V.reward);
+  const t = $('#endTitle'); t.classList.remove('slam'); void t.offsetWidth; t.classList.add('slam');
+  $('#confetti').innerHTML = '';
+  if (V.me && (info.w === 'murderer') === (startRoleOf(info) === 'murderer')) confetti();
   show('#endScreen');
+}
+function confetti() {
+  const box = $('#confetti'), cols = ['#ff4d5e', '#ffc233', '#5bd46a', '#4da3ff', '#b36bff', '#ffffff'];
+  let h = '';
+  for (let i = 0; i < 70; i++) h += `<i style="left:${rand(0, 100).toFixed(1)}%;background:${cols[i % cols.length]};animation-delay:${rand(0, .8).toFixed(2)}s;animation-duration:${rand(2.2, 3.8).toFixed(2)}s;--dx:${rand(-80, 80).toFixed(0)}px;--r:${rand(360, 1080).toFixed(0)}deg"></i>`;
+  box.innerHTML = h;
 }
 function showReward(r) {
   if (!V) return;
@@ -370,8 +527,11 @@ function focusEnt() {
 }
 
 // ===================== Update =====================
-function update(dt) {
+function update(rdt) {
   const me = V.me;
+  // final kill cam: time slows right down, then comes back
+  V.slow = V.cine ? clamp(.18 + (performance.now() - V.cine.at - 900) / 1500, .18, 1) : 1;
+  const dt = rdt * V.slow;
   // offline: step the local simulation
   if (V.offline) {
     Sim.setInput(V.R, V.you, currentInput());
@@ -401,13 +561,59 @@ function update(dt) {
     if (Math.hypot(mx, my) > .5) d.walk += dt * 12;
     d.a = d.ta;
   }
-  for (let i = V.fx.length - 1; i >= 0; i--) { const f = V.fx[i]; f.t -= dt; if (f.vx) { f.x += f.vx * dt; f.y += f.vy * dt; f.vx *= .9; f.vy *= .9; } if (f.t <= 0) V.fx.splice(i, 1); }
-  if (V.endInfo && !V.endShown && performance.now() - V.endAt > 1400) { V.endShown = true; showEnd(); }
+  for (let i = V.fx.length - 1; i >= 0; i--) {
+    const f = V.fx[i]; f.t -= dt;
+    if (f.vx) { const k = Math.pow(.02, dt); f.x += f.vx * dt; f.y += f.vy * dt; f.vx *= k; f.vy *= k; }
+    if (f.vz !== undefined) { f.z += f.vz * dt; f.vz -= 12 * dt; if (f.z < .03) { f.z = .03; f.vz *= -.4; } }
+    if (f.t <= 0) V.fx.splice(i, 1);
+  }
+  juice(rdt, dt);
+  if (V.endInfo && !V.endShown && performance.now() - V.endAt > (V.cine ? 2600 : 1400)) { V.endShown = true; showEnd(); }
   const f = focusEnt();
-  if (f) { V.cam.x += (f.x - V.cam.x) * Math.min(1, dt * 8); V.cam.y += (f.y - V.cam.y) * Math.min(1, dt * 8); }
+  let fx = f ? f.x : V.cam.x, fy = f ? f.y : V.cam.y;
+  // look a little toward where you're aiming
+  if (!isTouch && me && me.alive && V.lp && V.phase === 'play') { const ax = mouse.wx - V.lp.x, ay = mouse.wy - V.lp.y, al = Math.hypot(ax, ay) || 1, k = Math.min(70, al * .18); fx += ax / al * k; fy += ay / al * k; }
+  if (V.cine) { fx = V.cine.x; fy = V.cine.y; }
+  V.cam.x += (fx - V.cam.x) * Math.min(1, rdt * (V.cine ? 4 : 8)); V.cam.y += (fy - V.cam.y) * Math.min(1, rdt * (V.cine ? 4 : 8));
+  V.zoom += ((V.cine ? .5 : 1) - V.zoom) * Math.min(1, rdt * 3);
   if (use3D()) { const p = R3.screenToWorld(mouse.x, mouse.y); if (p) { mouse.wx = p.x; mouse.wy = p.y; } }
   else { mouse.wx = (mouse.x - W / 2) / Z + V.cam.x; mouse.wy = (mouse.y - H / 2) / Z + V.cam.y; }
   updateHUD();
+}
+// footsteps, landings, the heartbeat when a knife is close, the last-seconds ticking, screen shake, music
+function juice(rdt, dt) {
+  const me = V.me, now = performance.now();
+  V.shake *= Math.pow(.004, rdt); if (V.shake < .2) V.shake = 0;
+  V.shakeX = (Math.random() * 2 - 1) * V.shake; V.shakeY = (Math.random() * 2 - 1) * V.shake;
+  V.hurt = Math.max(0, V.hurt - rdt * 1.2); V.hitT = Math.max(0, V.hitT - rdt);
+  for (let i = V.pops.length - 1; i >= 0; i--) { const p = V.pops[i]; p.t -= rdt * .9; p.y -= rdt * 40; if (p.t <= 0) V.pops.splice(i, 1); }
+  let danger = 0;
+  for (const [id, d] of V.disp) {
+    if (d.dashT > 0) d.dashT -= dt;
+    if (!d.alive) { d.pz = 0; continue; }
+    const z = d.z || 0;
+    if ((d.pz || 0) > .3 && z === 0) { V.fx.push({ type: 'land', x: d.x, y: d.y, t: .35 }); if (id === V.you) { addShake(3); SFX.land(); } }
+    d.pz = z;
+    const mv = d.px !== undefined ? Math.hypot(d.x - d.px, d.y - d.py) / Math.max(dt, 1e-3) : 0; d.px = d.x; d.py = d.y;
+    if (fancy() && mv > 60 && !z) { d.stepT = (d.stepT || 0) - dt; if (d.stepT <= 0) { d.stepT = .24; V.fx.push({ type: 'step', x: d.x + rand(-5, 5), y: d.y + 10, t: .4 }); } }
+    // a knife out near you, where you can see it → heartbeat
+    if (me && me.alive && me.role !== 'murderer' && id !== V.you && d.w === 'k' && V.lp) {
+      const dd = Math.hypot(d.x - V.lp.x, d.y - V.lp.y);
+      if (dd < 420 && Sim.los(V.M, V.lp.x, V.lp.y, d.x, d.y)) danger = Math.max(danger, 1 - dd / 420);
+    }
+  }
+  V.danger += (danger - V.danger) * Math.min(1, rdt * 6);
+  V.hbT -= rdt;
+  if (V.danger > .08 && V.hbT <= 0 && V.phase === 'play') { SFX.heart(V.danger); V.hbT = 1 - V.danger * .55; }
+  // last 15 seconds: tick every second
+  const s = V.snap, sec = s ? Math.ceil(s.tm) : -1;
+  if (s && s.ph === 'play' && sec <= 15 && sec > 0 && sec !== V.lastSec) { V.lastSec = sec; SFX.tick(); }
+  $('#timer').classList.toggle('low', !!(s && s.ph === 'play' && s.tm <= 30));
+  // music gets heavier as people die, the clock runs out, or a knife gets close
+  if (s) {
+    const alive = s.e.filter(e => e[4]).length, total = Math.max(2, s.e.length);
+    Music.level = s.ph !== 'play' ? .1 : (s.e.length === 2 ? .45 : .2) + (1 - alive / total) * .45 + (s.tm < 30 ? .3 : 0) + V.danger * .4;
+  }
 }
 function myAngle() { if (touchAim !== null) return touchAim; return V.lp ? Math.atan2(mouse.wy - V.lp.y, mouse.wx - V.lp.x) : 0; }
 function currentInput() {
@@ -455,9 +661,10 @@ function render() {
   if (three) { ctx.clearRect(0, 0, W, H); render3D(); return; }
   ctx.fillStyle = '#0d0b12'; ctx.fillRect(0, 0, W, H);
   if (!V || !V.snap) return;
-  const M = V.M, s = V.snap;
+  const M = V.M, s = V.snap, Z0 = Z;
+  Z = Z0 / (V.zoom || 1); // final kill cam zooms in
   const VW = W / Z, VH = H / Z; // how much of the world fits on screen
-  const cx = V.cam.x - VW / 2, cy = V.cam.y - VH / 2, T = performance.now() / 1000;
+  const cx = V.cam.x - VW / 2 + V.shakeX * .6, cy = V.cam.y - VH / 2 + V.shakeY * .6, T = performance.now() / 1000;
   ctx.save(); ctx.scale(Z, Z); ctx.translate(-cx, -cy);
   const tx0 = Math.max(0, Math.floor(cx / TILE)), ty0 = Math.max(0, Math.floor(cy / TILE));
   const tx1 = Math.min(M.W - 1, Math.floor((cx + VW) / TILE)), ty1 = Math.min(M.H - 1, Math.floor((cy + VH) / TILE));
@@ -492,6 +699,11 @@ function render() {
     drawGunLocal(g.x - 8, g.y, '#8a8f99');
   }
   for (const f of V.fx) if (f.type === 'stuck') { ctx.globalAlpha = Math.min(1, f.t * 2); drawKnife(f.x, f.y, f.ang, ITEM[f.skin] || ITEM.k0, T); ctx.globalAlpha = 1; }
+  for (const dc of V.decals) { ctx.fillStyle = 'rgba(120,0,16,.55)'; ctx.beginPath(); ctx.ellipse(dc.x, dc.y, dc.r * 30, dc.r * 22, dc.a, 0, 7); ctx.fill(); }
+  for (const f of V.fx) {
+    if (f.type === 'step') { const k = 1 - f.t / .4; ctx.fillStyle = `rgba(210,200,185,${.3 * (1 - k)})`; ctx.beginPath(); ctx.arc(f.x, f.y, 4 + k * 7, 0, 7); ctx.fill(); }
+    if (f.type === 'land') { const k = 1 - f.t / .35; ctx.strokeStyle = `rgba(255,255,255,${.5 * (1 - k)})`; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(f.x, f.y + 10, 10 + k * 26, 5 + k * 13, 0, 0, 7); ctx.stroke(); }
+  }
   for (const b of s.b) {
     const r = V.roster.get(b.id) || { color: '#999' };
     ctx.fillStyle = 'rgba(160,0,0,.35)'; ctx.beginPath(); ctx.ellipse(b.x + 4, b.y + 6, 22, 15, .3, 0, 7); ctx.fill();
@@ -526,9 +738,11 @@ function render() {
     if (f.type === 'dash') { const k = 1 - f.t / .35; ctx.fillStyle = `rgba(220,230,255,${.5 - k * .5})`; for (let i = 0; i < 5; i++) { ctx.beginPath(); ctx.arc(f.x + Math.cos(i * 1.3) * k * 26, f.y + Math.sin(i * 1.3) * k * 26, 9 - k * 6, 0, 7); ctx.fill(); } }
     if (f.type === 'boom') { const k = 1 - f.t / .45; ctx.strokeStyle = `rgba(255,140,30,${1 - k})`; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(f.x, f.y, 10 + k * 60, 0, 7); ctx.stroke(); ctx.fillStyle = `rgba(255,220,120,${.6 - k * .6})`; ctx.beginPath(); ctx.arc(f.x, f.y, 8 + k * 30, 0, 7); ctx.fill(); }
     if (f.type === 'flash') { ctx.fillStyle = 'rgba(255,240,150,.9)'; ctx.beginPath(); ctx.arc(f.x, f.y, 9, 0, 7); ctx.fill(); }
+    if (f.type === 'ember') { ctx.fillStyle = f.c; ctx.globalAlpha = Math.min(1, f.t * 2); ctx.fillRect(f.x - 2, f.y - 2 - f.z * 16, 4, 4); ctx.globalAlpha = 1; }
   }
   ctx.restore();
-  drawScreenOverlay(V.me, s, (x, y) => ({ x: (x - cx) * Z, y: (y - cy) * Z }));
+  const Zs = Z; Z = Z0;
+  drawScreenOverlay(V.me, s, (x, y) => ({ x: (x - cx) * Zs, y: (y - cy) * Zs }));
 }
 function render3D() {
   const s = V.snap, T = performance.now() / 1000, me = V.me;
@@ -562,13 +776,35 @@ function drawScreenOverlay(me, s, toScreen) {
   }
   const v = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * .35, W / 2, H / 2, Math.max(W, H) * .75);
   v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,.55)'); ctx.fillStyle = v; ctx.fillRect(0, 0, W, H);
+  // knife close by: the edges pulse red with the heartbeat
+  if (V.danger > .05) {
+    const beat = Math.max(0, Math.sin(performance.now() / 1000 * Math.PI * 2 / Math.max(.45, 1 - V.danger * .55))) ** 4;
+    const dv = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * .3, W / 2, H / 2, Math.max(W, H) * .7);
+    dv.addColorStop(0, 'rgba(255,0,30,0)'); dv.addColorStop(1, `rgba(200,0,30,${(.25 + beat * .35) * V.danger})`); ctx.fillStyle = dv; ctx.fillRect(0, 0, W, H);
+  }
+  if (V.hurt > 0) { ctx.fillStyle = `rgba(220,0,30,${V.hurt * .45})`; ctx.fillRect(0, 0, W, H); }
+  // floating +1s
+  ctx.textAlign = 'center';
+  for (const p of V.pops) {
+    const sp = toScreen(p.x, p.y); ctx.globalAlpha = Math.min(1, p.t * 2);
+    ctx.font = `700 ${Math.round(16 + (1 - p.t) * 6)}px Fredoka, sans-serif`; ctx.fillStyle = '#000'; ctx.fillText(p.text, sp.x + 1, sp.y - 40 + 2); ctx.fillStyle = p.color; ctx.fillText(p.text, sp.x, sp.y - 40);
+  }
+  ctx.globalAlpha = 1;
+  // cinematic bars for the final kill cam
+  if (V.cine) { const k = clamp((performance.now() - V.cine.at) / 400, 0, 1), bh = H * .11 * k; ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, bh); ctx.fillRect(0, H - bh, W, bh); }
   if (joy.id !== null) {
     ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.beginPath(); ctx.arc(joy.ox, joy.oy, JOY_R, 0, 7); ctx.fill();
     ctx.fillStyle = 'rgba(255,255,255,.45)'; ctx.beginPath(); ctx.arc(joy.ox + joy.dx * JOY_R, joy.oy + joy.dy * JOY_R, 26, 0, 7); ctx.fill();
   }
   if (!isTouch && me && me.alive && (me.role === 'murderer' || me.gun) && V.phase === 'play') {
-    ctx.strokeStyle = 'rgba(255,255,255,.8)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(mouse.x, mouse.y, 8, 0, 7);
-    ctx.moveTo(mouse.x - 13, mouse.y); ctx.lineTo(mouse.x - 5, mouse.y); ctx.moveTo(mouse.x + 5, mouse.y); ctx.lineTo(mouse.x + 13, mouse.y); ctx.stroke();
+    const cool = me.atk > 0, g = cool ? 4 : 0; // the crosshair opens up while reloading
+    ctx.strokeStyle = cool ? 'rgba(255,255,255,.45)' : 'rgba(255,255,255,.9)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(mouse.x, mouse.y, 8 + g, 0, 7);
+    ctx.moveTo(mouse.x - 14 - g, mouse.y); ctx.lineTo(mouse.x - 5 - g, mouse.y); ctx.moveTo(mouse.x + 5 + g, mouse.y); ctx.lineTo(mouse.x + 14 + g, mouse.y); ctx.stroke();
+    if (V.hitT > 0) { // hit marker
+      const k = 6 + (1 - V.hitT / .35) * 6; ctx.strokeStyle = `rgba(255,60,80,${V.hitT / .35})`; ctx.lineWidth = 3; ctx.beginPath();
+      ctx.moveTo(mouse.x - k - 6, mouse.y - k - 6); ctx.lineTo(mouse.x - k, mouse.y - k); ctx.moveTo(mouse.x + k + 6, mouse.y - k - 6); ctx.lineTo(mouse.x + k, mouse.y - k);
+      ctx.moveTo(mouse.x - k - 6, mouse.y + k + 6); ctx.lineTo(mouse.x - k, mouse.y + k); ctx.moveTo(mouse.x + k + 6, mouse.y + k + 6); ctx.lineTo(mouse.x + k, mouse.y + k); ctx.stroke();
+    }
   }
 }
 const roleColor = r => ({ murderer: '#ff4d5e', sheriff: '#4da3ff', hero: '#ffc233', innocent: '#5bd46a' })[r] || '#fff';
@@ -768,9 +1004,11 @@ document.querySelectorAll('.tab').forEach(b => b.onclick = () => {
   renderLobby();
 });
 $('#mapSel').innerHTML = '<option value="-1">🎲 Random map</option>' + Sim.MAPS.map((m, i) => `<option value="${i}">${m.name}</option>`).join('');
-$('#viewSel').value = use3D() ? '3d' : '2d';
-if (!R3.ok) show('#viewRow', false);
-$('#viewSel').onchange = () => { viewPref = $('#viewSel').value; lsSet('mm_view', viewPref); };
+$('#viewSel').value = !use3D() ? '2d' : viewPref;
+if (!R3.ok) { $('#viewSel').innerHTML = '<option value="2d">2D</option>'; $('#viewSel').disabled = true; }
+$('#viewSel').onchange = () => { viewPref = $('#viewSel').value; lsSet('mm_view', viewPref); if (R3.ok && R3.setQuality) R3.setQuality(viewPref); };
+$('#musicChk').checked = Music.on;
+$('#musicChk').onchange = () => Music.toggle($('#musicChk').checked);
 $('#practiceBtn').onclick = () => { tone(600, .1); startPractice(); };
 $('#duelPracticeBtn').onclick = () => { tone(600, .1); startPractice('1v1'); };
 

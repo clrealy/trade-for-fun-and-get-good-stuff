@@ -16,11 +16,25 @@ const R3D = (() => {
   // if the GPU drops the context (common on phones), stop using 3D so the 2D view takes over
   renderer.domElement.addEventListener('webglcontextlost', e => { e.preventDefault(); api.ok = false; renderer.domElement.style.display = 'none'; });
   renderer.setPixelRatio(Math.min(2, devicePixelRatio || 1));
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color('#0d0b12');
+  // night sky behind the map, and fog so the far side of the map fades into it
+  scene.background = (() => {
+    const c = document.createElement('canvas'); c.width = 4; c.height = 256; const g = c.getContext('2d');
+    const gr = g.createLinearGradient(0, 0, 0, 256); gr.addColorStop(0, '#2a1646'); gr.addColorStop(.55, '#120c20'); gr.addColorStop(1, '#050409');
+    g.fillStyle = gr; g.fillRect(0, 0, 4, 256); return new THREE.CanvasTexture(c);
+  })();
+  scene.fog = new THREE.Fog('#0e0a18', 17, 36);
   const camera = new THREE.PerspectiveCamera(45, 1, .1, 200);
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x4a4060, .85));
-  const sun = new THREE.DirectionalLight(0xffffff, .55); sun.position.set(4, 10, 6); scene.add(sun);
+  scene.add(new THREE.HemisphereLight(0xfff4ea, 0x3c3458, .5));
+  const sun = new THREE.DirectionalLight(0xfff0dc, .62); sun.position.set(4, 10, 6); scene.add(sun, sun.target);
+  sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -.0005; sun.shadow.normalBias = .02;
+  Object.assign(sun.shadow.camera, { left: -13, right: 13, top: 13, bottom: -13, near: .5, far: 40 });
+  const fill = new THREE.DirectionalLight(0x8fb4ff, .16); fill.position.set(-6, 5, -8); scene.add(fill);
+  // quick flashes of light for gunshots, explosions and the dropped gun (only in Ultra: every light costs on phones)
+  const fxLights = [0, 1, 2].map(() => { const l = new THREE.PointLight(0xffffff, 0, 6, 2); l.visible = false; scene.add(l); return l; });
+  let quality = 'ultra';
+  const ultra = () => quality === 'ultra';
 
   const matCache = new Map();
   const mat = (color, extra) => {
@@ -53,8 +67,14 @@ const R3D = (() => {
     mapGroup = new THREE.Group(); mapIdx = M.idx;
     // floor: one plane with a checker texture
     const floorTex = canvasTex(M.W * 8, M.H * 8, g => { for (let y = 0; y < M.H; y++) for (let x = 0; x < M.W; x++) { g.fillStyle = M.floor[(x + y) & 1]; g.fillRect(x * 8, y * 8, 8, 8); } });
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(M.W, M.H), new THREE.MeshLambertMaterial({ map: floorTex }));
-    floor.rotation.x = -Math.PI / 2; floor.position.set(M.W / 2, 0, M.H / 2); mapGroup.add(floor);
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(M.W, M.H), new THREE.MeshPhongMaterial({ map: floorTex, shininess: 30, specular: 0x1a1822 }));
+    floor.rotation.x = -Math.PI / 2; floor.position.set(M.W / 2, 0, M.H / 2); floor.receiveShadow = true; mapGroup.add(floor);
+    // the map sits on a thick slab with glowing edges, like a diorama floating in the night
+    const slab = new THREE.Mesh(G.unit, mat('#1b1528')); slab.scale.set(M.W + .5, 1.6, M.H + .5); slab.position.set(M.W / 2, -.81, M.H / 2); mapGroup.add(slab);
+    const edge = new THREE.MeshBasicMaterial({ color: '#b36bff', transparent: true, opacity: .75 });
+    for (const [w, d, x, z] of [[M.W + .54, .05, M.W / 2, -.25], [M.W + .54, .05, M.W / 2, M.H + .25], [.05, M.H + .54, -.25, M.H / 2], [.05, M.H + .54, M.W + .25, M.H / 2]]) {
+      const e = new THREE.Mesh(G.unit, edge); e.scale.set(w, .05, d); e.position.set(x, -.02, z); mapGroup.add(e);
+    }
     const cells = { '#': [], T: [], P: [], B: [] };
     for (let y = 0; y < M.H; y++) for (let x = 0; x < M.W; x++) { const c = M.grid[y][x]; if (cells[c]) cells[c].push([x, y]); }
     const WH = 1.35;
@@ -65,6 +85,7 @@ const R3D = (() => {
     mapGroup.add(instanced(G.unit, new THREE.MeshLambertMaterial({ map: bookTex }), cells.B, (o, x, y) => { o.position.set(x + .5, .6, y + .5); o.scale.set(.96, 1.2, .96); }));
     mapGroup.add(instanced(new THREE.CylinderGeometry(.16, .12, .3, 10), mat('#8b4a2b'), cells.P, (o, x, y) => { o.position.set(x + .5, .15, y + .5); }));
     mapGroup.add(instanced(new THREE.IcosahedronGeometry(.3, 1), mat('#2f9e44'), cells.P, (o, x, y) => { o.position.set(x + .5, .55, y + .5); }));
+    mapGroup.traverse(o => { if (o.isMesh && o !== floor) { o.castShadow = true; o.receiveShadow = true; } });
     scene.add(mapGroup);
   }
 
@@ -89,7 +110,48 @@ const R3D = (() => {
   const flashes = pool(() => new THREE.Mesh(new THREE.SphereGeometry(.14, 8, 8), new THREE.MeshBasicMaterial({ color: '#fff3a0' })));
   const puffs = pool(() => new THREE.Mesh(new THREE.SphereGeometry(.18, 10, 8), new THREE.MeshBasicMaterial({ color: '#e6ecff', transparent: true, opacity: .6, depthWrite: false })));
   const knifeMeshes = pool(() => makeKnife());
-  const pools = [coins, shadows, blood, bullets, flashes, booms, puffs, knifeMeshes];
+  // soft round glow (additive) used for muzzle flashes, tracers, embers, coins and rare weapons
+  const glowTex = (() => {
+    const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d');
+    const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(.25, 'rgba(255,255,255,.55)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c);
+  })();
+  const add = { transparent: true, depthWrite: false, blending: THREE.AdditiveBlending };
+  const glows = pool(() => new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, ...add, fog: false })));
+  function glow(x, y, z, size, color, op = 1) { const g = glows.get(); g.position.set(x, y, z); g.scale.set(size, size, 1); g.material.color.set(color); g.material.opacity = op; return g; }
+  // bullet tracers: a flat streak that fades out toward the tail
+  const tracerTex = (() => {
+    const c = document.createElement('canvas'); c.width = 64; c.height = 8; const g = c.getContext('2d');
+    const gr = g.createLinearGradient(0, 0, 64, 0); gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(1, 'rgba(255,255,255,1)');
+    g.fillStyle = gr; g.fillRect(0, 0, 64, 8); return new THREE.CanvasTexture(c);
+  })();
+  const tracerGeo = new THREE.PlaneGeometry(1, 1); tracerGeo.rotateX(-Math.PI / 2);
+  const tracers = pool(() => new THREE.Mesh(tracerGeo, new THREE.MeshBasicMaterial({ map: tracerTex, ...add, side: THREE.DoubleSide })));
+  // knife slash: a glowing crescent in front of the murderer
+  const slashGeo = new THREE.RingGeometry(.3, .62, 24, 1, -1.15, 2.3); slashGeo.rotateX(-Math.PI / 2);
+  const slashes = pool(() => new THREE.Mesh(slashGeo, new THREE.MeshBasicMaterial({ ...add, side: THREE.DoubleSide })));
+  // shockwave ring on the floor (bomb jumps, landings)
+  const waveGeo = new THREE.RingGeometry(.82, 1, 40); waveGeo.rotateX(-Math.PI / 2);
+  const waves = pool(() => new THREE.Mesh(waveGeo, new THREE.MeshBasicMaterial({ ...add, side: THREE.DoubleSide })));
+  // blood on the floor, stays for the round
+  const decalGeo = new THREE.CircleGeometry(.5, 18); decalGeo.rotateX(-Math.PI / 2);
+  const decalMat = new THREE.MeshLambertMaterial({ color: '#7a0010', transparent: true, opacity: .85, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
+  const decals = pool(() => { const m = new THREE.Mesh(decalGeo, decalMat); m.receiveShadow = true; return m; });
+  // see-through figure: souls floating up from bodies, and after-images when someone jukes
+  function figure() {
+    const g = new THREE.Group(), m = new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false });
+    const part = (w, h, d, y) => { const p = new THREE.Mesh(box(w, h, d), m); p.position.y = y; g.add(p); };
+    part(.2, .38, .34, .55); part(.26, .26, .26, .88); part(.14, .36, .28, .18); part(.1, .3, .5, .6);
+    g.userData.m = m; g.scale.setScalar(1.1); return g;
+  }
+  const ghosts = pool(figure), echoes = pool(figure);
+  const pools = [coins, shadows, blood, bullets, flashes, booms, puffs, knifeMeshes, glows, tracers, slashes, waves, decals, ghosts, echoes];
+  // dust floating in the air around the camera
+  const DUST = 240, dustPos = new Float32Array(DUST * 3), dustSeed = new Float32Array(DUST);
+  for (let i = 0; i < DUST; i++) { dustPos[i * 3] = Math.random() * 28 - 14; dustPos[i * 3 + 1] = Math.random() * 3.2; dustPos[i * 3 + 2] = Math.random() * 28 - 14; dustSeed[i] = Math.random() * 100; }
+  const dustGeo = new THREE.BufferGeometry(); dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPos, 3));
+  const dust = new THREE.Points(dustGeo, new THREE.PointsMaterial({ color: '#ffe6c2', size: .05, map: glowTex, ...add, opacity: .55 }));
+  dust.frustumCulled = false; scene.add(dust);
 
   // ---------------- weapons + characters ----------------
   // ---------------- weapon models ----------------
@@ -267,7 +329,8 @@ const R3D = (() => {
   function setModel(h, item, type) {
     if (h.userData.id === item.id) return;
     while (h.children.length) h.remove(h.children[0]);
-    h.add(modelFor(item, type)); h.userData.id = item.id;
+    const m = modelFor(item, type); m.traverse(o => { if (o.isMesh) o.castShadow = true; });
+    h.add(m); h.userData.id = item.id;
   }
   const makeKnife = holder, makeGun = holder;
   const styleKnife = (h, item) => setModel(h, item, 'knife');
@@ -292,8 +355,9 @@ const R3D = (() => {
     const ring = new THREE.Mesh(new THREE.RingGeometry(.36, .42, 24), new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: .7, side: THREE.DoubleSide }));
     ring.rotation.x = -Math.PI / 2; ring.position.y = .02; ring.visible = false; root.add(ring);
     root.scale.setScalar(1.1);
+    root.traverse(o => { if (o.isMesh && o !== ring) o.castShadow = true; });
     scene.add(root);
-    return { root, body, legL, legR, armL, armR, knife, knifeGrip, gun, ring, color };
+    return { root, body, legL, legR, armL, armR, knife, knifeGrip, gun, ring, color, deadAt: 0, trail: [] };
   }
   function rigFor(id, color) {
     let r = people.get(id);
@@ -305,9 +369,10 @@ const R3D = (() => {
     r.root.position.set(d.x * S, dead ? 0 : (d.z || 0), d.y * S);
     r.root.rotation.set(0, -d.a, 0);
     r.ring.visible = isMe && !dead;
-    if (dead) { // lying on the floor
+    if (dead !== false) { // falls over, bounces a little, then lies on the floor
+      const p = dead, e = p < 1 ? 1 - Math.pow(1 - p, 3) * Math.cos(p * 5) : 1;
       r.body.scale.set(1, 1, 1);
-      r.body.rotation.set(Math.PI / 2, 0, 0); r.body.position.set(0, .14, 0);
+      r.body.rotation.set(Math.PI / 2 * Math.min(1.08, e), 0, 0); r.body.position.set(0, .14 * Math.min(1, p * 1.5), 0);
       r.legL.rotation.z = r.legR.rotation.z = r.armL.rotation.z = r.armR.rotation.z = 0;
       r.knife.visible = r.gun.visible = false; return;
     }
@@ -334,17 +399,19 @@ const R3D = (() => {
   dropRing.rotation.x = Math.PI / 2; scene.add(dropRing); dropRing.visible = false;
 
   // ---------------- camera ----------------
-  let W = 1, H = 1, camH = 0;
+  let W = 1, H = 1, camH = 0, lastT = 0;
   api.resize = (w, h) => { W = w; H = h; renderer.setSize(w, h, false); renderer.domElement.style.width = w + 'px'; renderer.domElement.style.height = h + 'px'; camera.aspect = w / h; camera.updateProjectionMatrix(); };
-  function placeCamera(cx, cy, h = 0) {
-    // tilted top-down camera that follows the player; phones sit a bit farther back
-    const k = Math.max(1, Math.min(1.7, 760 / Math.min(W, H))) * (W < H ? 1.25 : 1);
-    const tx = cx * S, tz = cy * S;
-    camera.position.set(tx, 8.5 * k + h, tz + 6 * k);
-    camera.lookAt(tx, h, tz); // h: follow the player up during a jump
+  function placeCamera(cx, cy, h = 0, zoom = 1, sx = 0, sy = 0) {
+    // tilted top-down camera that follows the player; phones sit a bit farther back. zoom < 1 moves in (final kill cam)
+    const k = Math.max(1, Math.min(1.7, 760 / Math.min(W, H))) * (W < H ? 1.25 : 1) * zoom;
+    const tx = cx * S, tz = cy * S, ox = sx * S, oz = sy * S; // sx/sy: screen shake, in game px
+    camera.position.set(tx + ox, 8.5 * k + h, tz + 6 * k + oz);
+    camera.lookAt(tx + ox * .6, h, tz + oz * .6); // h: follow the player up during a jump
     camera.updateMatrixWorld();
+    // the sun's shadow box follows the camera (a directional light only cares about direction)
+    sun.position.set(tx + 5, 12, tz + 7); sun.target.position.set(tx, 0, tz); sun.target.updateMatrixWorld();
   }
-  const ray = new THREE.Raycaster(), aimPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -.55), hit = new THREE.Vector3(), tmp = new THREE.Vector3();
+  const ray = new THREE.Raycaster(), aimPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -.55), hit = new THREE.Vector3(), tmp = new THREE.Vector3(), wp = new THREE.Vector3();
   api.screenToWorld = (x, y) => {
     ray.setFromCamera({ x: x / W * 2 - 1, y: -(y / H) * 2 + 1 }, camera);
     return ray.ray.intersectPlane(aimPlane, hit) ? { x: hit.x / S, y: hit.z / S } : null;
@@ -354,20 +421,55 @@ const R3D = (() => {
     return { x: (tmp.x + 1) / 2 * W, y: (1 - tmp.y) / 2 * H, behind: tmp.z > 1 };
   };
   api.show = on => { renderer.domElement.style.display = on ? 'block' : 'none'; };
+  // 'ultra': real shadows, lights, floating dust, glows. 'high': the same scene without the costly parts (phones)
+  let qualitySet = false;
+  api.setQuality = q => {
+    q = q === 'ultra' ? 'ultra' : 'high';
+    if (qualitySet && q === quality) return;
+    qualitySet = true; quality = q;
+    const hi = ultra();
+    renderer.shadowMap.enabled = hi; sun.castShadow = hi; dust.visible = hi;
+    fxLights.forEach(l => { l.visible = hi; l.intensity = 0; });
+    renderer.setPixelRatio(Math.min(hi ? 2 : 1.5, devicePixelRatio || 1));
+    const touch = m => { m.needsUpdate = true; };
+    scene.traverse(o => { if (o.material) [].concat(o.material).forEach(touch); });
+    matCache.forEach(touch);
+    if (W > 1) api.resize(W, H);
+  };
+  function stepDust(tx, tz, T, dt) {
+    const f = dt * 60;
+    for (let i = 0; i < DUST; i++) {
+      const j = i * 3, sd = dustSeed[i];
+      let x = dustPos[j] + Math.sin(T * .3 + sd) * .004 * f, y = dustPos[j + 1] + (.002 + Math.sin(T + sd) * .0015) * f, z = dustPos[j + 2] + Math.cos(T * .25 + sd) * .004 * f;
+      x = tx + (((x - tx + 14) % 28) + 28) % 28 - 14; z = tz + (((z - tz + 14) % 28) + 28) % 28 - 14; if (y > 3.2) y = 0;
+      dustPos[j] = x; dustPos[j + 1] = y; dustPos[j + 2] = z;
+    }
+    dustGeo.attributes.position.needsUpdate = true;
+  }
+  const RARE = { Godly: 1, Ancient: 1, Chroma: 1 };
 
   // ---------------- per frame ----------------
   // V: the client's view of the round. ITEM: item table. myW: our own weapon state.
   api.draw = (V, ITEM, T, myW) => {
-    const M = V.M, s = V.snap;
+    const M = V.M, s = V.snap, hi = ultra();
+    const dt = Math.min(.05, lastT ? Math.max(0, T - lastT) : .016); lastT = T;
     // the page can change size without us hearing about it (app frames, rotation): always match the window
     if (innerWidth !== W || innerHeight !== H || renderer.domElement.width === 0) api.resize(innerWidth, innerHeight);
     if (M.idx !== mapIdx) { buildMap(M); for (const r of people.values()) scene.remove(r.root); people.clear(); }
     const fz = V.me && V.me.alive && V.disp.get(V.you) ? V.disp.get(V.you).z || 0 : 0;
-    camH += (fz * .85 - camH) * .25; placeCamera(V.cam.x, V.cam.y, camH);
+    camH += (fz * .85 - camH) * .25; placeCamera(V.cam.x, V.cam.y, camH, V.zoom || 1, V.shakeX || 0, V.shakeY || 0);
     tickChroma(T);
     pools.forEach(p => p.reset());
+    let li = 0;
+    const light = (x, y, z, color, intensity, dist = 6) => { if (!hi || li >= fxLights.length) return; const l = fxLights[li++]; l.position.set(x, y, z); l.color.set(color); l.intensity = intensity; l.distance = dist; };
+    if (hi) stepDust(V.cam.x * S, V.cam.y * S, T, dt);
+    // blood on the floor
+    (V.decals || []).forEach((dc, i) => { const m = decals.get(); m.position.set(dc.x * S, .004 + (i % 10) * .0005, dc.y * S); m.scale.set(dc.r, 1, dc.r * .75); m.rotation.y = dc.a; });
     // coins
-    for (const [x, y] of s.c) { const m = coins.get(); const b = (x * 7 + y * 13) % 6; m.position.set(x * S, .28 + Math.sin(T * 4 + b) * .04, y * S); m.rotation.y = T * 3 + b; }
+    for (const [x, y] of s.c) {
+      const m = coins.get(); const b = (x * 7 + y * 13) % 6, cy = .28 + Math.sin(T * 4 + b) * .04; m.position.set(x * S, cy, y * S); m.rotation.y = T * 3 + b;
+      if (hi) glow(x * S, cy, y * S, .75, '#ffcc33', .3 + Math.sin(T * 5 + b) * .1);
+    }
     // people (alive and dead)
     const seen = new Set(), bodies = new Map(s.b.map(b => [b.id, b]));
     for (const [id, d] of V.disp) {
@@ -377,8 +479,43 @@ const R3D = (() => {
       const rig = rigFor(id, r.color); seen.add(id);
       const isMe = id === V.you, w = isMe && myW !== undefined ? myW : d.w;
       const item = w === 'k' ? (ITEM[r.knife] || ITEM.k0) : (ITEM[r.gun] || ITEM.g0);
-      if (body) poseRig(rig, { x: body.x, y: body.y, a: body.a, walk: 0, sw: 0 }, 0, item, T, isMe, true);
-      else { poseRig(rig, d, w, item, T, isMe, false); const sh = shadows.get(); sh.position.set(d.x * S, .01, d.y * S); sh.scale.setScalar(1 / (1 + (d.z || 0) * .35)); }
+      if (body) {
+        if (!rig.deadAt) rig.deadAt = T;
+        const g = T - rig.deadAt;
+        poseRig(rig, { x: body.x, y: body.y, a: body.a, walk: 0, sw: 0 }, 0, item, T, isMe, Math.min(1, g / .55));
+        if (g < 1.8) { // their soul drifts up and fades out
+          const k = g / 1.8, f = ghosts.get();
+          f.position.set(body.x * S + Math.sin(g * 6) * .08, .15 + k * 2.4, body.y * S); f.rotation.set(0, -body.a, 0);
+          f.userData.m.color.set('#dff3ff'); f.userData.m.opacity = .5 * (1 - k);
+          if (hi && g < .5) glow(body.x * S, .5 + k * 2.4, body.y * S, 1.4, '#9fd8ff', .5 * (1 - g * 2));
+        }
+        rig.trail.length = 0;
+        continue;
+      }
+      rig.deadAt = 0;
+      poseRig(rig, d, w, item, T, isMe, false);
+      const sh = shadows.get(); sh.position.set(d.x * S, .01, d.y * S); sh.scale.setScalar(1 / (1 + (d.z || 0) * .35));
+      // after-images while juking
+      if (d.dashT > 0) rig.trail.push({ x: d.x, y: d.y, z: d.z || 0, a: d.a, t: T });
+      while (rig.trail.length && (T - rig.trail[0].t > .26 || rig.trail.length > 16)) rig.trail.shift();
+      for (const e of rig.trail) {
+        const k = (T - e.t) / .26, f = echoes.get();
+        f.position.set(e.x * S, e.z, e.y * S); f.rotation.set(0, -e.a, 0); f.userData.m.color.set(r.color); f.userData.m.opacity = .4 * (1 - k);
+      }
+      // knife slash
+      const swinging = w === 'k' && d.sw > 0;
+      if (swinging && !rig.swung) rig.slashAt = T;
+      rig.swung = swinging;
+      if (w === 'k' && rig.slashAt && T - rig.slashAt < .22) {
+        const k = (T - rig.slashAt) / .22, m = slashes.get();
+        m.position.set(d.x * S + Math.cos(d.a) * .18, .62 + (d.z || 0), d.y * S + Math.sin(d.a) * .18); m.rotation.set(0, -d.a + (k - .5) * .6, 0);
+        m.scale.setScalar(1 + k * .35); m.material.color.copy(colorOf(item, T)); m.material.opacity = .85 * (1 - k);
+      }
+      // rare weapons glow in your hand
+      if (hi && w && (RARE[item.r] || item.sound === 'ray')) {
+        (w === 'k' ? rig.knife : rig.gun).getWorldPosition(wp);
+        glow(wp.x, wp.y, wp.z, .95, colorOf(item, T), .5 + Math.sin(T * 6) * .12);
+      }
     }
     for (const [id, r] of people) if (!seen.has(id)) r.root.visible = false;
     // dropped gun
@@ -386,26 +523,40 @@ const R3D = (() => {
     if (s.g) {
       dropGun.position.set(s.g.x * S, .35 + Math.sin(T * 3) * .06, s.g.y * S); dropGun.rotation.y = T * 1.5; styleGun(dropGun, ITEM.g0, T);
       dropRing.position.set(s.g.x * S, .05, s.g.y * S); dropRing.scale.setScalar(1 + Math.sin(T * 5) * .12);
+      glow(s.g.x * S, .4, s.g.y * S, 1.6 + Math.sin(T * 5) * .2, '#4da3ff', .55);
+      light(s.g.x * S, .8, s.g.y * S, '#4da3ff', 1.3 + Math.sin(T * 5) * .3, 4);
     }
     // projectiles (extrapolated from the last snapshot)
     const age = Math.min(.1, (performance.now() - V.snapT) / 1000);
     for (const [k, x, y, vx, vy, skin] of s.p) {
       const px = (x + vx * age) * S, pz = (y + vy * age) * S;
-      if (k === 'k') { const m = knifeMeshes.get(); styleKnife(m, ITEM[skin] || ITEM.k0, T); m.position.set(px, .6, pz); m.rotation.set(0, T * 25, 0); }
-      else {
-        const m = bullets.get(), ray = ITEM[skin] && ITEM[skin].sound === 'ray';
-        m.material.color.copy(ray ? colorOf(ITEM[skin], T) : new THREE.Color('#fff6a0')); m.scale.set(ray ? 1.4 : 1, ray ? 2 : 1, ray ? 2 : 1);
-        m.position.set(px, .6, pz); m.rotation.set(0, -Math.atan2(vy, vx), 0);
-      }
+      if (k === 'k') { const m = knifeMeshes.get(); styleKnife(m, ITEM[skin] || ITEM.k0, T); m.position.set(px, .6, pz); m.rotation.set(0, T * 25, 0); continue; }
+      const it = ITEM[skin], rayGun = it && it.sound === 'ray', col = rayGun ? colorOf(it, T) : new THREE.Color('#ffe98a');
+      const m = bullets.get(); m.material.color.copy(rayGun ? col : new THREE.Color('#fff6a0')); m.scale.set(rayGun ? 1.4 : 1, rayGun ? 2 : 1, rayGun ? 2 : 1);
+      const a = Math.atan2(vy, vx); m.position.set(px, .6, pz); m.rotation.set(0, -a, 0);
+      const len = rayGun ? 1.7 : 1.3, t = tracers.get();
+      t.position.set(px - Math.cos(a) * len / 2, .6, pz - Math.sin(a) * len / 2); t.rotation.set(0, -a, 0); t.scale.set(len, 1, rayGun ? .16 : .08);
+      t.material.color.copy(col); t.material.opacity = .9;
+      glow(px, .6, pz, rayGun ? 1 : .6, col, .9);
+      light(px, .7, pz, col, 1.2, 4);
     }
     // effects
     for (const f of V.fx) {
       if (f.type === 'blood') { const m = blood.get(); m.position.set(f.x * S, .1 + f.t * .8, f.y * S); }
-      else if (f.type === 'boom') { const m = booms.get(), k = 1 - f.t / .45; m.position.set(f.x * S, .2, f.y * S); m.scale.setScalar(.4 + k * 2.2); m.material.opacity = .75 * (1 - k); }
-      else if (f.type === 'dash') { const k = 1 - f.t / .35; for (let i = 0; i < 5; i++) { const m = puffs.get(); m.position.set((f.x + Math.cos(i * 1.3) * k * 26) * S, .2 + k * .2, (f.y + Math.sin(i * 1.3) * k * 26) * S); m.scale.setScalar(1 - k * .6); m.material.opacity = .6 * (1 - k); } }
-      else if (f.type === 'flash') { const m = flashes.get(); m.position.set(f.x * S, .6, f.y * S); }
+      else if (f.type === 'boom') {
+        const m = booms.get(), k = 1 - f.t / .45; m.position.set(f.x * S, .2, f.y * S); m.scale.setScalar(.4 + k * 2.2); m.material.opacity = .75 * (1 - k);
+        const wv = waves.get(); wv.position.set(f.x * S, .04, f.y * S); wv.scale.setScalar(.4 + k * 2.8); wv.material.color.set('#ff9a3c'); wv.material.opacity = .9 * (1 - k);
+        glow(f.x * S, .4, f.y * S, 2.6 * (1 - k * .4), '#ff7a1a', .45 * (1 - k));
+        light(f.x * S, 1.2, f.y * S, '#ff8c1a', 2.5 * (1 - k), 6);
+      }
+      else if (f.type === 'dash') { const k = 1 - f.t / .35; for (let i = 0; i < 5; i++) { const m = puffs.get(); m.position.set((f.x + Math.cos(i * 1.3) * k * 26) * S, .2 + k * .2, (f.y + Math.sin(i * 1.3) * k * 26) * S); m.scale.setScalar(1 - k * .6); m.material.color.set('#e6ecff'); m.material.opacity = .6 * (1 - k); } }
+      else if (f.type === 'step') { const k = 1 - f.t / .4, m = puffs.get(); m.position.set(f.x * S, .06 + k * .12, f.y * S); m.scale.setScalar(.45 + k * .5); m.material.color.set('#cfc6b8'); m.material.opacity = .3 * (1 - k); }
+      else if (f.type === 'land') { const k = 1 - f.t / .35, wv = waves.get(); wv.position.set(f.x * S, .03, f.y * S); wv.scale.setScalar(.25 + k * .75); wv.material.color.set('#ffffff'); wv.material.opacity = .5 * (1 - k); }
+      else if (f.type === 'ember') glow(f.x * S, Math.max(.05, f.z || 0), f.y * S, .3, f.c || '#ffb347', Math.min(1, f.t * 2));
+      else if (f.type === 'flash') { const m = flashes.get(); m.position.set(f.x * S, .6, f.y * S); glow(f.x * S, .6, f.y * S, 1.4, '#fff1a0', 1); light(f.x * S, .9, f.y * S, '#ffd27a', 4, 6); }
       else if (f.type === 'stuck') { const m = knifeMeshes.get(); styleKnife(m, ITEM[f.skin] || ITEM.k0, T); m.position.set(f.x * S, .6, f.y * S); m.rotation.set(0, -f.ang, 0); }
     }
+    for (let i = li; i < fxLights.length; i++) fxLights[i].intensity = 0;
     pools.forEach(p => p.hideRest());
     renderer.render(scene, camera);
   };

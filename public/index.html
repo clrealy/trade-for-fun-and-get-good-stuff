@@ -15,7 +15,9 @@
 <div id="hud" class="hide">
   <div id="timer">3:00</div>
   <div id="alive"></div>
+  <div id="feed" aria-live="polite"></div>
   <div id="msgs"></div>
+  <div id="banner"></div>
   <div id="roleBadge"></div>
   <div id="bag">💰 0/40</div>
   <div id="cools"></div>
@@ -46,6 +48,7 @@
 </div>
 
 <div id="endScreen" class="hide">
+  <div id="confetti" aria-hidden="true"></div>
   <div class="panel">
     <div id="endTitle"></div>
     <div id="endRoles"></div>
@@ -100,7 +103,7 @@
 <!-- Lobby -->
 <div id="lobby" class="hide">
   <header>
-    <div class="logo">MURDER <span>MYSTERY</span></div>
+    <div class="logo shine">MURDER <span>MYSTERY</span></div>
     <div class="stats">
       <div class="pill" id="namePill"></div>
       <div class="pill" id="coinPill">💰 0</div>
@@ -145,7 +148,8 @@
         </div>
         <div id="viewRow" class="row">
           <label for="viewSel" class="inlinelabel">Graphics</label>
-          <select id="viewSel"><option value="3d">3D</option><option value="2d">2D (faster on old phones)</option></select>
+          <select id="viewSel"><option value="ultra">3D Ultra ✨</option><option value="3d">3D</option><option value="2d">2D (faster on old phones)</option></select>
+          <label class="inlinelabel musicsw"><input type="checkbox" id="musicChk"> 🎵 Music</label>
         </div>
       </div>
       <div class="card">

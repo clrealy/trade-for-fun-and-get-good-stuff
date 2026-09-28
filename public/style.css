@@ -356,3 +356,68 @@ body.touch #mbThrow{grid-column:2}
   body.touch #bag{left:auto;right:calc(16px + env(safe-area-inset-right, 0px));transform:none;bottom:auto;top:calc(80px + env(safe-area-inset-top, 0px))}
   body.touch #cools{bottom:calc(76px + env(safe-area-inset-bottom, 0px))}
 }
+
+/* ===== glow-up: kill feed, banners, role roulette, final kill, confetti ===== */
+#feed{position:absolute;top:60px;right:16px;display:flex;flex-direction:column;align-items:flex-end;gap:5px;max-width:min(46vw,300px)}
+#feed div{background:linear-gradient(90deg,rgba(0,0,0,.25),rgba(0,0,0,.7));padding:4px 10px;border-radius:8px;font-size:14px;font-weight:600;animation:feedIn .3s cubic-bezier(.2,1.4,.4,1);transition:opacity .5s,transform .5s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+#feed div.out{opacity:0;transform:translateX(20px)}
+#feed .ic{display:inline-block;margin-right:2px}
+#feed b.me{color:var(--gold)}
+@keyframes feedIn{from{transform:translateX(40px);opacity:0}to{transform:none;opacity:1}}
+body.touch #feed{top:calc(96px + env(safe-area-inset-top, 0px));max-width:min(52vw,240px)}
+body.touch #feed div{font-size:12px;padding:3px 8px}
+
+#banner{position:absolute;top:26%;left:50%;transform:translateX(-50%);text-align:center;pointer-events:none;opacity:0;white-space:nowrap}
+#banner.show{animation:bannerIn 1.7s ease-out forwards}
+#banner.show.big{animation:bannerIn 2.6s ease-out forwards}
+#banner .b1{font-size:clamp(30px,6vw,64px);font-weight:700;letter-spacing:3px;text-shadow:0 0 24px currentColor,0 4px 0 #000;font-style:italic}
+#banner.big .b1{font-size:clamp(38px,8.5vw,92px)}
+#banner .b2{font-size:clamp(14px,2.4vw,22px);font-weight:600;color:#fff;text-shadow:0 2px 0 #000;margin-top:2px}
+@keyframes bannerIn{0%{opacity:0;transform:translateX(-50%) scale(2.4)}10%{opacity:1;transform:translateX(-50%) scale(.94)}16%{transform:translateX(-50%) scale(1.03)}22%{transform:translateX(-50%) scale(1)}82%{opacity:1}100%{opacity:0;transform:translateX(-50%) scale(1.06) translateY(-10px)}}
+
+#timer.low{color:var(--red);animation:lowtime 1s infinite}
+@keyframes lowtime{0%,100%{transform:translateX(-50%) scale(1)}12%{transform:translateX(-50%) scale(1.14)}}
+
+/* role roulette */
+#intro{--rc:#fff;background:radial-gradient(circle at 50% 50%,color-mix(in srgb,var(--rc) 22%,transparent),rgba(0,0,0,.72) 60%);transition:background .3s}
+#intro.spin #introRole{animation:none;filter:blur(.6px)}
+#intro.landed #introRole{animation:slam .55s cubic-bezier(.2,1.6,.4,1);text-shadow:0 0 30px var(--rc),0 6px 0 rgba(0,0,0,.6)}
+#intro.landed.murderer #introRole{animation:slam .55s cubic-bezier(.2,1.6,.4,1),menace 1.2s .55s infinite}
+#intro.landed #introSub{animation:fade .5s}
+@keyframes slam{0%{transform:scale(2.6);opacity:0}55%{transform:scale(.92);opacity:1}100%{transform:scale(1)}}
+@keyframes menace{0%,100%{text-shadow:0 0 30px var(--rc),0 6px 0 rgba(0,0,0,.6)}50%{text-shadow:0 0 60px var(--rc),0 0 12px #000,0 6px 0 rgba(0,0,0,.6)}}
+
+/* dead: the world loses its color while you spectate (Ultra only) */
+body.dead #game3d,body.dead #game{filter:saturate(.3) brightness(.9);transition:filter 1.2s}
+
+#endTitle.slam{animation:slam .6s cubic-bezier(.2,1.6,.4,1)}
+#endScreen .panel{position:relative;z-index:1;box-shadow:0 0 60px rgba(179,107,255,.35)}
+#confetti{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+#confetti i{position:absolute;top:-20px;width:9px;height:14px;border-radius:2px;animation:confetti linear forwards}
+@keyframes confetti{to{transform:translate(var(--dx),110vh) rotate(var(--r));opacity:.9}}
+
+/* lobby shine */
+.logo.shine{background:linear-gradient(100deg,#fff 40%,#ffe7ff 48%,#fff 56%) 0 0/300% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:shine 5s linear infinite;text-shadow:none;filter:drop-shadow(0 4px 0 #000)}
+.logo.shine span{color:var(--red);-webkit-text-fill-color:var(--red);animation:flicker 4s infinite;text-shadow:0 0 18px rgba(255,77,94,.7)}
+@keyframes shine{from{background-position:100% 0}to{background-position:-200% 0}}
+@keyframes flicker{0%,90%,94%,100%{opacity:1}92%{opacity:.35}}
+#lobby::before{content:"";position:fixed;inset:-20%;pointer-events:none;z-index:-1;background:radial-gradient(circle at 20% 30%,rgba(179,107,255,.18),transparent 30%),radial-gradient(circle at 80% 70%,rgba(255,77,94,.14),transparent 30%);animation:drift 18s ease-in-out infinite alternate}
+@keyframes drift{to{transform:translate(6%,-4%) rotate(8deg)}}
+#lobby{isolation:isolate}
+#quickBtn{position:relative;overflow:hidden}
+#quickBtn::after{content:"";position:absolute;top:0;bottom:0;width:40%;left:-60%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.35),transparent);animation:sweep 3.2s ease-in-out infinite}
+@keyframes sweep{0%,55%{left:-60%}100%{left:130%}}
+.card{transition:transform .15s,box-shadow .15s}
+@media (hover:hover){.playgrid .card:hover{transform:translateY(-2px);box-shadow:0 10px 30px rgba(0,0,0,.35)}}
+.musicsw{gap:6px;margin-left:10px;cursor:pointer}
+.musicsw input{width:18px;height:18px;accent-color:var(--accent)}
+@media (prefers-reduced-motion: reduce){#lobby::before,.logo.shine,.logo.shine span,#quickBtn::after,#timer.low,#confetti i{animation:none!important}}
+/* phones: cooldown bars bottom-left (the right side is all buttons now), big banners below the middle so they don't sit on the messages */
+body.touch #cools{left:calc(16px + env(safe-area-inset-left, 0px));right:auto;bottom:calc(16px + env(safe-area-inset-bottom, 0px));align-items:flex-start}
+body.touch .cool{width:118px;height:20px;font-size:12px}
+body.touch .cool span{line-height:20px}
+body.touch #banner{top:34%}
+@media (orientation: landscape) and (max-height: 520px){
+  body.touch #feed{top:calc(118px + env(safe-area-inset-top, 0px))}
+  body.touch #banner{top:40%}
+}
