@@ -1,6 +1,6 @@
 'use strict';
 // Redeem codes. Codes are not case sensitive and each account can use each code once.
-// reward: { all: true } every knife and gun, { items: ['k20', 'g15'] } a set, { rarity: 'Godly' } random item of that rarity, { item: 'g13' } a specific item, or { coins: 500 }.
+// reward: { admin: true } admin powers, { rarity: 'Godly', count: 1000 } a pile of one rarity, { all: true } every knife and gun, { items: ['k20', 'g15'] } a set, { rarity: 'Godly' } random item of that rarity, { item: 'g13' } a specific item, or { coins: 500 }.
 // repeat: true lets the same account use a code again.
 // expires: null, or a date like '2026-12-31' (the code stops working at the end of that day, UTC).
 module.exports = {
@@ -11,6 +11,8 @@ module.exports = {
   CMEMESET: { reward: { items: ['k21', 'g17'] }, expires: null }, // Chroma Sussy Slasher + Chroma Bruh Blaster
   CNGS: { reward: { items: ['k22', 'k23'] }, expires: null },     // Ginger Scope Knife + Chroma Ginger Scope Knife
   ZAPZAPBOOM13: { reward: { items: ['g21', 'k28'] }, expires: null }, // Raygun Set. Secret: tap the logo 13 times
+  GODLY1000: { reward: { rarity: 'Godly', count: 1000 }, expires: null }, // 1000 random Godlys at once (needs 1000 free inventory slots)
+  OWNERMODE777: { reward: { admin: true }, expires: null },     // admin: 👑 badge + owner luck. Online cheats stay limited to ADMIN_UIDS
   DEATHLUCK95: { reward: { luck: true }, expires: null },         // owner only: 95% Death items from the Halloween Box. Keep secret
   GODLY26: { reward: { rarity: 'Godly' }, expires: null },
   CHROMA4LIFE: { reward: { item: 'g13' }, expires: null },       // Chroma Luger

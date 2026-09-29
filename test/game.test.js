@@ -356,3 +356,20 @@ test('a round saved by an older version still restores and runs', () => {
   for (let i = 0; i < 200; i++) { Sim.step(R2, 1 / 30); Sim.snapshotFor(R2, R2.ents[0].id); }
   assert.equal(R2.ents[0].z, 0);
 });
+
+test('GODLY1000 gives 1000 Godlys once, and only with room for them', () => {
+  const p = defaultProfile('a');
+  const r = Eco.redeem(p, 'godly1000');
+  assert.equal(r.bulk, 1000);
+  assert.equal(p.inv.filter(i => Sim.ITEM[i.id].r === 'Godly').length, 1000);
+  assert.throws(() => Eco.redeem(p, 'GODLY1000'), /already used/);
+  const full = defaultProfile('b'); for (let i = 0; i < 1500; i++) full.inv.push({ u: i + 1, id: 'k1' });
+  assert.throws(() => Eco.redeem(full, 'GODLY1000'), /free slots/);
+  assert.equal(full.inv.length, 1500);
+});
+
+test('the admin code turns on admin and owner luck', () => {
+  const p = defaultProfile('a');
+  assert.deepEqual(Eco.redeemMsg(Eco.redeem(p, 'OWNERMODE777')), { t: 'codeAdmin' });
+  assert.ok(p.admin && p.luck && Eco.publicProfile(p).admin);
+});

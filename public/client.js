@@ -222,6 +222,8 @@ function onMsg(m) {
     case 'codeAll': unboxPending = false; SFX.win(); toast(`Code redeemed: +${m.count} knives and guns you were missing 🔪🔫 You have every one now`, true); if (screen === 'lobby') renderLobby(); break;
     case 'codeItems': unboxPending = false; SFX.win(); toast(`${m.from === 'event' ? 'Unlocked' : m.from === 'bundle' ? 'Bought' : 'Code redeemed'}: ${m.items.map(id => ITEM[id].name).join(' + ')} 🔥`, true); if (screen === 'lobby') renderLobby(); break;
     case 'chat': addChat(m.name, m.text, m.sys); break;
+    case 'codeAdmin': unboxPending = false; SFX.win(); toast('👑 You\'re an admin now: crown on your name and owner luck is on', true); if (screen === 'lobby') renderLobby(); break;
+    case 'codeBulk': unboxPending = false; SFX.win(); toast(`Code redeemed: +${m.count.toLocaleString()} ${m.rarity}s 🔥🔥🔥`, true); if (screen === 'lobby') renderLobby(); break;
     case 'codeLuck': unboxPending = false; SFX.win(); toast('🍀 Owner luck on: 95% Death items from the Halloween Box 💀', true); if (screen === 'lobby') renderLobby(); break;
     case 'codeCoins': unboxPending = false; SFX.win(); toast(`Code redeemed: +${shortNum(m.coins)} coins 💰`, true); break;
     case 'traders': traders = m.traders; if (screen === 'lobby') renderLobby(); break;
@@ -1115,7 +1117,7 @@ $('#invShopBtn').onclick = () => document.querySelector('.tab[data-tab="shop"]')
 function sortedInv() { return P.inv.slice().sort((a, b) => ITEM[b.id].val - ITEM[a.id].val); }
 function renderLobby() {
   if (!P) return;
-  $('#namePill').textContent = P.name;
+  $('#namePill').textContent = (P.admin ? '👑 ' : '') + P.name;
   $('#coinPill').textContent = `💰 ${shortNum(P.coins)}`;
   $('#coinPill').title = `${P.coins.toLocaleString()} coins`;
   $('#lvlPill').textContent = `Lv ${P.level}`;

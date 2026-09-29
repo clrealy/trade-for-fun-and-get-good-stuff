@@ -18,7 +18,7 @@ function claimEvent(p, id = EVENTS[0].id) {
   const ev = eventState(p, id);
   if (ev.claimed) throw new Error(`You already claimed the ${E.name} rewards`);
   if (ev.kills < E.goal) throw new Error(`You need ${E.goal - ev.kills} more kills`);
-  if (p.inv.length + E.rewards.length > MAX_INV) throw new Error('Inventory full (500 items)');
+  if (p.inv.length + E.rewards.length > MAX_INV) throw new Error(`Inventory full (${MAX_INV} items)`);
   ev.claimed = true;
   return E.rewards.map(id => addItem(p, id).id);
 }
@@ -31,14 +31,14 @@ function buyBundle(p, id) {
   const b = BUNDLES.find(x => x.id === id); if (!b) throw new Error('Unknown bundle');
   if (b.items.every(i => p.inv.some(x => x.id === i))) throw new Error(`You already have the ${b.name}`);
   if (p.coins < b.price) throw new Error('Not enough coins');
-  if (p.inv.length + b.items.length > MAX_INV) throw new Error('Inventory full (500 items)');
+  if (p.inv.length + b.items.length > MAX_INV) throw new Error(`Inventory full (${MAX_INV} items)`);
   p.coins -= b.price;
   return b.items.map(i => addItem(p, i).id);
 }
-const MAX_INV = 500;
+const MAX_INV = 2000;
 
 function publicProfile(p) {
-  return { name: p.name, coins: p.coins, xp: p.xp, level: p.level, xpNeed: xpNeed(p.level), inv: p.inv, equip: p.equip, mT: p.mT, sT: p.sT, stats: p.stats, luck: !!p.luck,
+  return { name: p.name, coins: p.coins, xp: p.xp, level: p.level, xpNeed: xpNeed(p.level), inv: p.inv, equip: p.equip, mT: p.mT, sT: p.sT, stats: p.stats, luck: !!p.luck, admin: !!p.admin,
     trophies: TROPHIES.map(t => ({ id: t.id, icon: t.icon, name: t.name, desc: t.desc, goal: t.goal, reward: t.reward, item: t.item, value: Math.min(t.get(p), t.goal), done: (p.trophies || []).includes(t.id) })),
     events: EVENTS.map(E => { const ev = (p.events && p.events[E.id]) || { kills: 0, claimed: false }; return { ...E, kills: Math.min(ev.kills, E.goal), claimed: ev.claimed }; }),
     bundles: BUNDLES.map(b => ({ ...b, owned: b.items.every(i => p.inv.some(x => x.id === i)) })) };
@@ -48,7 +48,7 @@ function equippedId(p, type) {
   return inst ? inst.id : (type === 'knife' ? 'k0' : 'g0');
 }
 function addItem(p, id) {
-  if (p.inv.length >= MAX_INV) throw new Error('Inventory full (500 items)');
+  if (p.inv.length >= MAX_INV) throw new Error(`Inventory full (${MAX_INV} items)`);
   const inst = { u: p.nextUid++, id }; p.inv.push(inst); return inst;
 }
 function removeInst(p, u) {
@@ -77,18 +77,28 @@ function redeem(p, rawCode) {
   p.redeemed = p.redeemed || [];
   if (p.redeemed.includes(code) && !c.repeat) throw new Error('You already used that code');
   let out;
-  if (c.reward.luck) {
+  if (c.reward.admin) {
+    if (p.admin) throw new Error('You\'re already an admin 👑');
+    p.admin = true; p.luck = true; out = { admin: true };
+  } else if (c.reward.luck) {
     if (p.luck) throw new Error('Your luck is already on 🍀');
     p.luck = true; out = { luck: true };
+  } else if (c.reward.count) {
+    // a big pile of random items of one rarity
+    const n = c.reward.count;
+    if (p.inv.length + n > MAX_INV) throw new Error(`Not enough room: this code needs ${n} free slots (you have ${MAX_INV - p.inv.length})`);
+    const pool = Sim.ITEMS.filter(i => !i.nodrop && !i.exclusive && i.r === c.reward.rarity);
+    for (let i = 0; i < n; i++) addItem(p, pool[Math.floor(Math.random() * pool.length)].id);
+    out = { bulk: n, rarity: c.reward.rarity };
   } else if (c.reward.all) {
     // only what you don't own yet, so it can be used again whenever new items come out
     const owned = new Set(p.inv.map(i => i.id));
     const missing = Sim.ITEMS.filter(i => !i.nodrop && !owned.has(i.id));
     if (!missing.length) throw new Error('You already have every knife and gun 😎');
-    if (p.inv.length + missing.length > MAX_INV) throw new Error('Inventory full (500 items)');
+    if (p.inv.length + missing.length > MAX_INV) throw new Error(`Inventory full (${MAX_INV} items)`);
     out = { all: missing.map(i => addItem(p, i.id).id) };
   } else if (c.reward.items) {
-    if (p.inv.length + c.reward.items.length > MAX_INV) throw new Error('Inventory full (500 items)');
+    if (p.inv.length + c.reward.items.length > MAX_INV) throw new Error(`Inventory full (${MAX_INV} items)`);
     out = { items: c.reward.items.map(id => addItem(p, id).id) };
   } else if (c.reward.coins) { p.coins += c.reward.coins; out = { coins: c.reward.coins }; }
   else {
@@ -97,6 +107,12 @@ function redeem(p, rawCode) {
   }
   p.redeemed.push(code);
   return out;
+}
+// what to tell the player after a code works (shared by the server and the solo build)
+function redeemMsg(r) {
+  return r.inst ? { t: 'unboxed', item: r.inst.id, crate: 'mystery' } : r.admin ? { t: 'codeAdmin' } : r.luck ? { t: 'codeLuck' }
+    : r.bulk ? { t: 'codeBulk', count: r.bulk, rarity: r.rarity } : r.all ? { t: 'codeAll', count: r.all.length }
+    : r.items ? { t: 'codeItems', items: r.items } : { t: 'codeCoins', coins: r.coins };
 }
 function equip(p, u) {
   if (u === null || u === undefined) return;
@@ -195,7 +211,7 @@ function trade(p, trader, mineU, theirsU) {
   else if (mv >= tv * trader.greed) { ok = true; line = pick(LINES.accept); }
   else line = pick(LINES.decline);
   if (ok) {
-    if (p.inv.length - mine.length + theirs.length > MAX_INV) throw new Error('Inventory full (500 items)');
+    if (p.inv.length - mine.length + theirs.length > MAX_INV) throw new Error(`Inventory full (${MAX_INV} items)`);
     for (const i of mine) { removeInst(p, i.u); trader.inv.push({ u: trader.nextU++, id: i.id }); }
     for (const i of theirs) { trader.inv.splice(trader.inv.indexOf(i), 1); addItem(p, i.id); }
     p.stats.trades++;
@@ -203,4 +219,4 @@ function trade(p, trader, mineU, theirsU) {
   return { ok, line };
 }
 
-module.exports = { TROPHIES, checkTrophies, EVENTS, BUNDLES, claimEvent, buyBundle, publicProfile, equippedId, openCrate, redeem, equip, applyRoundResult, genTraders, tradersView, trade, xpNeed };
+module.exports = { TROPHIES, checkTrophies, EVENTS, BUNDLES, claimEvent, buyBundle, publicProfile, equippedId, openCrate, redeem, redeemMsg, equip, applyRoundResult, genTraders, tradersView, trade, xpNeed };
