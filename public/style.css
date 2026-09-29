@@ -421,3 +421,19 @@ body.touch #banner{top:34%}
   body.touch #feed{top:calc(118px + env(safe-area-inset-top, 0px))}
   body.touch #banner{top:40%}
 }
+
+/* accounts (solo build on claude.ai) */
+.pill.acct{cursor:pointer;display:flex;align-items:center;gap:6px}
+.pill.acct img{width:20px;height:20px;border-radius:50%;object-fit:cover}
+.pill.acct.cloud{background:rgba(91,212,106,.18);color:#bff5c6}
+.pill.acct.guest,.pill.acct.local{background:rgba(255,194,51,.15);color:#ffe3a0}
+#namePill.click{cursor:pointer}
+#namePill.click::after{content:" ✏️";font-size:.8em}
+.board{display:flex;flex-direction:column;gap:4px}
+.brow{display:grid;grid-template-columns:42px minmax(0,1fr) 70px 60px 44px;gap:8px;align-items:center;padding:7px 10px;border-radius:10px;background:var(--panel2);font-weight:600}
+.brow span:not(.bn){text-align:right}
+.brow span:first-child{text-align:center}
+.brow .bn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.brow.head{background:none;color:var(--muted);font-size:.85em;padding-top:0;padding-bottom:0}
+.brow.me{background:rgba(179,107,255,.3);box-shadow:inset 0 0 0 2px var(--accent)}
+@media (max-width:480px){.brow{grid-template-columns:32px minmax(0,1fr) 54px 44px 34px;font-size:14px;padding:6px 8px}}

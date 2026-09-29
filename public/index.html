@@ -94,6 +94,7 @@
       <label>Username <input id="nameInput" maxlength="16" autocomplete="username"></label>
       <button class="btn big" type="submit">Save</button>
     </form>
+    <button id="nameCancel" class="linkbtn hide" type="button">Cancel</button>
     <div id="nameErr" class="err"></div>
   </div>
 </div>
@@ -105,6 +106,7 @@
   <header>
     <div class="logo shine">MURDER <span>MYSTERY</span></div>
     <div class="stats">
+      <div class="pill hide" id="acctPill"></div>
       <div class="pill" id="namePill"></div>
       <div class="pill" id="coinPill">💰 0</div>
       <div class="pill" id="lvlPill">Lv 1</div>
@@ -216,6 +218,11 @@
       <h2>🏆 Trophies <span class="muted" id="trophyCount"></span></h2>
       <p class="muted small">Grind to unlock them. Each one gives an exclusive knife or gun you can't get anywhere else, plus coins.</p>
       <div id="trophyGrid" class="trophygrid"></div>
+    </div>
+    <div class="card hide" id="boardCard">
+      <h2>🏅 Leaderboard</h2>
+      <p class="muted small">Everyone playing this game with an account, ranked by kills.</p>
+      <div id="board" class="board"></div>
     </div>
   </section>
 

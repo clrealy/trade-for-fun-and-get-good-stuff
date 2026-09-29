@@ -97,6 +97,17 @@ Cheats always work in Practice and on a dev server. Online, only accounts listed
 
 The solo build is obfuscated with `javascript-obfuscator`: strings (including the redeem codes) are encoded and names are scrambled, so view-source shows gibberish. That slows down curious players but doesn't stop a determined one. The real protection is the online server, which never sends codes to players. Use `--plain` for a readable build.
 
+### Accounts in the solo build
+
+When the solo build is published as a claude.ai Artifact, players sign in with their claude.ai account. There's no extra password.
+- **Saving:** each player's profile (coins, items, trophies, stats) is saved to the artifact's database in a private folder only they can read. It follows them to any device.
+- **First sign-in:** anything they earned as a guest in that browser comes along.
+- **Names:** players pick a game name (tap it in the lobby to change it). The game suggests one from their claude.ai name.
+- **Leaderboard:** the 🏅 Leaderboard under Trophies ranks everyone by kills.
+- **Guests:** anyone signed out, or opening the file directly, plays as a guest saved in their browser.
+- **View-only shares:** people shared as Viewer can play but their progress stays on their device. Share the artifact as **Contributor** so friends can save to their accounts.
+- **Not cheat-proof:** like the rest of the solo build, the game runs in the player's browser, so a determined player could edit their own save. The online server is the cheat-proof version.
+
 ## 3D
 
 Rounds render in 3D with three.js (`public/render3d.js`): blocky characters, real walls and a tilted camera that follows you. The menus, HUD and controls are the same as in 2D. The online server hosts three.js itself (`/vendor/three.min.js`, from the `three` npm package), and the solo build loads it from cdnjs. Players can switch to 2D under **Play → Graphics**, and the game uses 2D automatically if WebGL isn't available.

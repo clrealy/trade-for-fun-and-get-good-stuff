@@ -190,7 +190,15 @@ function net(m) { if (window.LocalServer) window.LocalServer.send(m); else if (w
 function onMsg(m) {
   switch (m.t) {
     case 'hello': P = m.p; traders = m.traders; if (!V) setScreen('lobby'); break;
-    case 'needName': setScreen('name'); $('#nameInput').focus(); break;
+    case 'needName': if (!V) openNameScreen(false); break;
+    case 'account': {
+      const a = $('#acctPill'); show('#acctPill');
+      a.className = 'pill acct ' + m.state; a.title = m.note;
+      a.innerHTML = m.state === 'cloud' ? `${m.avatar ? `<img src="${esc(m.avatar)}" alt="">` : ''}☁️ Saved` : m.state === 'local' ? '💾 This device' : '👤 Guest';
+      if (m.state === 'cloud') { accountOn = true; toast(m.note, true); } else if (m.state === 'local') toast(m.note);
+      break;
+    }
+    case 'board': boardRows = m.rows; if (screen === 'lobby' && curTab === 'trophies') renderBoard(); break;
     case 'profile': {
       const before = P && P.trophies ? new Set(P.trophies.filter(t => t.done).map(t => t.id)) : null;
       P = m.p;
@@ -262,6 +270,23 @@ $('#forgotBtn').onclick = async () => {
   catch (ex) { $('#authErr').textContent = FB_ERR[ex.code] || 'Could not send the reset email.'; }
 };
 $('#devForm').onsubmit = e => { e.preventDefault(); lsSet('mm_dev_name', $('#devName').value.trim()); $('#authErr').textContent = ''; wantOnline = true; connect(); };
+let accountOn = false, boardRows = null;
+// solo build only: rename yourself from the lobby (the online server sets the name once at sign-up)
+function openNameScreen(cancel) {
+  setScreen('name'); show('#nameCancel', cancel);
+  $('#nameInput').value = P && P.name !== 'You' ? P.name : ''; $('#nameErr').textContent = ''; $('#nameInput').focus();
+}
+$('#nameCancel').onclick = () => setScreen('lobby');
+$('#namePill').onclick = () => { if (window.LocalServer && !V) openNameScreen(true); };
+if (window.LocalServer) { $('#namePill').title = 'Change your name'; $('#namePill').classList.add('click'); }
+$('#acctPill').onclick = () => toast($('#acctPill').title);
+function renderBoard() {
+  show('#boardCard', !!boardRows);
+  if (!boardRows) return;
+  $('#board').innerHTML = boardRows.length ? `<div class="brow head"><span>#</span><span>Player</span><span>Kills</span><span>Wins</span><span>Lv</span></div>` + boardRows.map((r, i) =>
+    `<div class="brow${r.me ? ' me' : ''}"><span>${i < 3 ? ['🥇', '🥈', '🥉'][i] : i + 1}</span><span class="bn">${esc(r.name || '???')}${r.me ? ' (you)' : ''}</span><span>${(r.kills | 0).toLocaleString()}</span><span>${(r.wins | 0).toLocaleString()}</span><span>${r.level | 0}</span></div>`).join('')
+    : '<p class="muted">Nobody yet. Play a round to get on the board!</p>';
+}
 $('#nameForm').onsubmit = e => { e.preventDefault(); $('#nameErr').textContent = ''; net({ t: 'setName', name: $('#nameInput').value.trim() }); };
 $('#logoutBtn').onclick = () => { wantOnline = false; disconnect(); P = null; if (fbAuth) fbAuth.signOut(); else setScreen('auth'); };
 
@@ -1127,7 +1152,7 @@ function renderLobby() {
     $('#trophyGrid').innerHTML = T.map(t => `<div class="trophy ${t.done ? 'done' : ''}"><div class="ti">${t.icon}</div><b>${esc(t.name)}</b>
       <div class="td">${esc(t.desc)}</div><div class="tbar"><i style="width:${t.value / t.goal * 100}%"></i></div>
       <div class="tr">${t.done ? '✅ Unlocked' : `${shortNum(t.value)} / ${shortNum(t.goal)}`} · 💰 ${t.reward.toLocaleString()}</div>
-      ${ITEM[t.item] ? `<div class="treward" style="border-color:${rarColor(ITEM[t.item].r)}">${ITEM[t.item].type === 'knife' ? '🔪' : '🔫'} <i class="tdot ${ITEM[t.item].col === 'chroma' ? 'chroma' : ''}" style="background:${ITEM[t.item].col === 'chroma' ? '' : ITEM[t.item].col}"></i><b>${esc(ITEM[t.item].name)}</b> <span style="color:${rarColor(ITEM[t.item].r)}">${ITEM[t.item].r}</span></div>` : ''}</div>`).join('');
+      ${ITEM[t.item] ? `<div class="treward" style="border-color:${rarColor(ITEM[t.item].r)}">${ITEM[t.item].type === 'knife' ? '🔪' : '🔫'} <i class="tdot ${ITEM[t.item].col === 'chroma' ? 'chroma' : ''}" style="background:${ITEM[t.item].col === 'chroma' ? '' : ITEM[t.item].col}"></i><b>${esc(ITEM[t.item].name)}</b> <span style="color:${rarColor(ITEM[t.item].r)}">${ITEM[t.item].r}</span></div>` : ''}</div>`).join('');    renderBoard();
   }
 }
 
