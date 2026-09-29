@@ -63,12 +63,16 @@
     I('g17', 'gun', 'Chroma Bruh Blaster', 'Chroma', 'chroma', 1, { val: 69420, exclusive: true, noCooldown: true }),
     I('k22', 'knife', 'Ginger Scope Knife', 'Ancient', '#c9743a', 1, { val: 10000000000000, exclusive: true, noCooldown: true, long: true }),
     I('k23', 'knife', 'Chroma Ginger Scope Knife', 'Chroma', 'chroma', 1, { val: 1e48, exclusive: true, noCooldown: true, long: true }),
-    // Summer Event rewards (50 kills)
-    I('k24', 'knife', 'Sunburn', 'Godly', '#ff9f1c', 1, { val: 5000, exclusive: true }),
-    I('g18', 'gun', 'Splash Blaster', 'Godly', '#2ec4f1', 1, { val: 5000, exclusive: true }),
-    // only from the Sum Box
-    I('k25', 'knife', 'Chroma Sunburn', 'Chroma', 'chroma', 1, { val: 8000, exclusive: true }),
-    I('g19', 'gun', 'Chroma Splash Blaster', 'Chroma', 'chroma', 1, { val: 8000, exclusive: true }),
+    // old Summer Event items: not obtainable anymore, but anyone who has them keeps them
+    I('k24', 'knife', 'Sunburn', 'Godly', '#ff9f1c', 1, { val: 5000, exclusive: true, retired: true }),
+    I('g18', 'gun', 'Splash Blaster', 'Godly', '#2ec4f1', 1, { val: 5000, exclusive: true, retired: true }),
+    I('k25', 'knife', 'Chroma Sunburn', 'Chroma', 'chroma', 1, { val: 8000, exclusive: true, retired: true }),
+    I('g19', 'gun', 'Chroma Splash Blaster', 'Chroma', 'chroma', 1, { val: 8000, exclusive: true, retired: true }),
+    // Halloween Void update: the Void Event gives the Void Knife + Void Gun. The Void Gun is an Evo:
+    // use it to fill its Evo bar, then evolve it into the Void Scope (void laser, fast reload)
+    I('k30', 'knife', 'Void Knife', 'Godly', '#6a2cff', 1, { val: 7000, exclusive: true }),
+    I('g24', 'gun', 'Void Gun', 'Godly', '#6a2cff', 1, { val: 7000, exclusive: true, evo: 'g25' }),
+    I('g25', 'gun', 'Void Scope', 'Ancient', '#9d4dff', 1, { val: 40000, exclusive: true, long: true, sound: 'void', reload: 1.2, evolved: true }),
     // Halloween: Death Set (gun from the Halloween Event, knives from the Halloween Box)
     I('g20', 'gun', 'Death Gun', 'Ancient', '#7b2cbf', 1, { val: 6000, exclusive: true }),
     I('k26', 'knife', 'Death Knife', 'Ancient', '#9d4edd', 1, { val: 3000, exclusive: true }),
@@ -113,7 +117,6 @@
   const CRATES = [
     { id: 'knifebox', name: 'Knife Box', icon: '🗡️', price: 60, type: 'knife', desc: 'A random knife skin.', w: { Common: 45, Uncommon: 28, Rare: 16, Legendary: 8, Godly: 2.5, Ancient: 0.4, Chroma: 0.1 } },
     { id: 'gunbox', name: 'Gun Box', icon: '🔫', price: 60, type: 'gun', desc: 'A random gun skin.', w: { Common: 45, Uncommon: 28, Rare: 16, Legendary: 8, Godly: 2.5, Ancient: 0.4, Chroma: 0.1 } },
-    { id: 'sumbox', name: 'Sum Box', icon: '☀️', price: 200, type: null, desc: '5% chance at a Chroma Sunburn or Chroma Splash Blaster 🌈', specials: [{ id: 'k25', chance: .025 }, { id: 'g19', chance: .025 }], w: { Common: 18, Uncommon: 30, Rare: 26, Legendary: 16, Godly: 7.5, Ancient: 2, Chroma: 0.5 } },
     { id: 'halloween', name: 'Halloween Box', icon: '🎃', price: 250, type: null, desc: 'Death Set + Chroma Death Set inside 💀 10% Death Knife, 5% Death Gun, 2% Chroma Death Knife, 1% Chroma Death Gun', specials: [{ id: 'k26', chance: .10 }, { id: 'g20', chance: .05 }, { id: 'k27', chance: .02 }, { id: 'g22', chance: .01 }],
       // owner luck: 95% for a Death item
       luckySpecials: [{ id: 'k26', chance: .30 }, { id: 'g20', chance: .30 }, { id: 'k27', chance: .175 }, { id: 'g22', chance: .175 }], w: { Common: 18, Uncommon: 30, Rare: 26, Legendary: 16, Godly: 7.5, Ancient: 2, Chroma: 0.5 } },
@@ -461,7 +464,7 @@
   const BOT_NAMES = ['xX_Slayer_Xx', 'noob_123', 'BaconHair', 'Guest_1337', 'coolkid2009', 'pizzalover', 'ItsYaBoi', 'sussybaka', 'MM2Pro', 'KnifeKing', 'ChillGamer', 'OofMaster', 'godly_hunter', 'tradeMeHarv', 'lil_ninja', 'JustVibin', 'BloxBurger', 'nikilis_fan', 'GamerGrl', 'sheriffOrElse'];
   const COLORS = ['#ff6b6b', '#ffa94d', '#ffd43b', '#69db7c', '#38d9a9', '#4dabf7', '#748ffc', '#da77f2', '#f783ac', '#e8e8e8', '#a9744f', '#63e6be'];
 
-  function botSkin(type) { return Math.random() < .5 ? (type === 'knife' ? 'k0' : 'g0') : rollItem(CRATES[2].w, type).id; }
+  function botSkin(type) { return Math.random() < .5 ? (type === 'knife' ? 'k0' : 'g0') : rollItem(CRATES.find(c => c.id === 'mystery').w, type).id; }
 
   function mkEnt(id, o) {
     return {
@@ -557,12 +560,14 @@
   }
   function tryShoot(R, e) {
     if (!e.hasGun || !e.alive || e.atkCd > 0) return;
-    e.weaponOut = true; e.atkCd = fast(e.gun) ? .12 : 2.2;
+    const gi = ITEM[e.gun] || {};
+    e.weaponOut = true; e.atkCd = fast(e.gun) ? .12 : gi.reload || 2.2;
     const sp = 1600;
     const muzzle = ITEM[e.gun] && ITEM[e.gun].long ? 52 : 22;
     R.proj.push({ type: 'bullet', skin: e.gun, x: e.x + Math.cos(e.ang) * muzzle, y: e.y + Math.sin(e.ang) * muzzle, vx: Math.cos(e.ang) * sp, vy: Math.sin(e.ang) * sp, owner: e, life: ITEM[e.gun] && ITEM[e.gun].long ? 1.1 : .55 }); // scoped guns shoot twice as far
     emit(R, { t: 'fx', k: 'flash', x: e.x + Math.cos(e.ang) * (muzzle + 6), y: e.y + Math.sin(e.ang) * (muzzle + 6) });
-    emit(R, { t: 'sfx', s: ITEM[e.gun] && ITEM[e.gun].sound === 'ray' ? 'ray' : 'shoot', x: e.x, y: e.y });
+    emit(R, { t: 'sfx', s: gi.sound === 'ray' || gi.sound === 'void' ? gi.sound : 'shoot', x: e.x, y: e.y });
+    if (gi.sound === 'void') emit(R, { t: 'sfx', s: 'voidReload', to: e.id, x: e.x, y: e.y }); // only the shooter hears the reload
   }
   function dropGun(R, x, y) {
     R.gunDrop = { x: Math.round(x), y: Math.round(y) };

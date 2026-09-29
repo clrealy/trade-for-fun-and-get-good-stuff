@@ -65,11 +65,12 @@ The last argument is a rarity (Common … Chroma) or an item id like `g13`. It o
 
 Players type codes in **Inventory → Add code**. Codes ignore caps and spaces, and each account can use each code once. Add or remove codes in `server/codes.js` and redeploy. `GODLY26` gives a random Godly.
 
-## Summer Event
-
-The Play tab tracks kills. At 50 kills a player can claim the summer set (Sunburn + Splash Blaster). The Chroma versions only drop from the ☀️ Sum Box in the Shop (5% chance). Change the goal or rewards in `EVENT` in `server/economy.js`.
-
 ## Halloween
+
+- **🌌 Void Event** (Play tab): 100 kills unlocks the **Void Knife** and the **Void Gun**.
+- **Void Gun Evo:** the Void Gun is an Evo weapon. Equip it and play to fill its Evo bar: +2 per round, +5 per kill, +5 for a win, 60 to fill. Then hit **EVOLVE** on the Play tab. It turns into the **Void Scope** (Ancient), stays equipped, and the bar resets.
+- **Void Scope:** a long-range scoped gun that fires a purple void laser with its own sound. Its reload is 1.2 s instead of 2.2 s, and you hear it: a click, a charge-up whine, a clack and a ready ping. Only the shooter hears the reload.
+- **Summer items are retired:** the Summer Event and the Sum Box are gone and nothing gives the summer items anymore. Anyone who already has them keeps them.
 
 - **Halloween Event** (Play tab): 150 kills unlocks the **Death Gun**.
 - **🎃 Halloween Box** (250 coins): the Death Set and Chroma Death Set. 10% **Death Knife**, 5% **Death Gun**, 2% **Chroma Death Knife**, 1% **Chroma Death Gun**. The Knives and the Chroma Death Gun drop nowhere else.

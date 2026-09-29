@@ -59,7 +59,7 @@ test('codes give their reward once per account', () => {
   assert.strictEqual(Eco.redeem(p, 'CHROMA4LIFE').inst.id, 'g13');
   const c1 = p.coins; assert.deepStrictEqual(Eco.redeem(p, 'millionaire'), { coins: 1000000 }); assert.strictEqual(p.coins, c1 + 1000000);
   assert.throws(() => Eco.redeem(p, 'GODLY26'), /already used/);
-  const n0 = Sim.ITEMS.filter(i => !i.nodrop && !p.inv.some(x => x.id === i.id)).length;
+  const n0 = Sim.ITEMS.filter(i => !i.nodrop && !i.retired && !p.inv.some(x => x.id === i.id)).length;
   assert.strictEqual(Eco.redeem(p, 'gimmeall').all.length, n0);
   assert.throws(() => Eco.redeem(p, 'gimmeall'), /already have every/);
   p.inv = p.inv.filter(i => i.id !== 'g13');
@@ -93,7 +93,7 @@ test('/sheffeme gives the gun, but not to the murderer', () => {
   const sher = inn;
   assert.match(Sim.cheat(R, m.id, '/SheffEme'), /knife is gone/);
   assert.ok(m.hasGun); assert.strictEqual(m.role, 'sheriff');
-  assert.ok(!sher.hasGun, 'old gun holder lost the gun'); assert.strictEqual(sher.role, 'innocent');
+  assert.ok(!sher.hasGun, 'old gun holder lost the gun'); assert.notStrictEqual(sher.role, 'sheriff'); // back to innocent, or picked as the new murderer
   assert.notStrictEqual(R.murderer, m); assert.strictEqual(R.murderer.role, 'murderer');
   assert.strictEqual(R.ents.filter(e => e.hasGun).length, 1); assert.strictEqual(R.gunDrop, null);
   assert.match(Sim.cheat(R, inn.id, '/nope'), /Unknown/);
@@ -157,35 +157,57 @@ test('/god stops you from dying', () => {
   assert.ok(!me.alive, 'without god mode the stab lands');
 });
 
-test('summer event unlocks at 50 kills', () => {
+test('void event unlocks at 100 kills, and the summer stuff is gone', () => {
   const p = defaultProfile('t');
-  assert.throws(() => Eco.claimEvent(p), /50 more kills/);
-  Eco.applyRoundResult(p, { role: 'murderer', won: true, alive: true, bag: 0, kills: 11 });
-  assert.strictEqual(Eco.publicProfile(p).events[0].kills, 11);
-  assert.throws(() => Eco.claimEvent(p), /39 more kills/);
-  for (let i = 0; i < 4; i++) Eco.applyRoundResult(p, { role: 'murderer', won: true, alive: true, bag: 0, kills: 11 });
-  assert.deepStrictEqual(Eco.claimEvent(p), ['k24', 'g18']);
+  assert.throws(() => Eco.claimEvent(p), /100 more kills/);
+  Eco.applyRoundResult(p, { role: 'murderer', won: true, alive: true, bag: 0, kills: 20 });
+  assert.strictEqual(Eco.publicProfile(p).events[0].kills, 20);
+  assert.throws(() => Eco.claimEvent(p), /80 more kills/);
+  for (let i = 0; i < 4; i++) Eco.applyRoundResult(p, { role: 'murderer', won: true, alive: true, bag: 0, kills: 20 });
+  assert.deepStrictEqual(Eco.claimEvent(p), ['k30', 'g24']);
   assert.throws(() => Eco.claimEvent(p), /already claimed/);
-  assert.ok(Eco.publicProfile(p).events[0].claimed);
+  assert.ok(!Eco.publicProfile(p).events.some(e => e.id === 'summer26'));
+  assert.ok(!Sim.CRATES.some(c => c.id === 'sumbox'));
+  assert.throws(() => Eco.claimEvent(p, 'summer26'), /Unknown event/);
+  // nobody gets summer items from boxes or GIMMEALL anymore, but old ones still work
+  for (let i = 0; i < 5000; i++) for (const c of Sim.CRATES) assert.ok(!['k24', 'g18', 'k25', 'g19'].includes(Sim.rollCrate(c).id));
+  const q = defaultProfile('q'); Eco.redeem(q, 'GIMMEALL');
+  assert.ok(!q.inv.some(i => Sim.ITEM[i.id].retired));
+  assert.ok(Sim.ITEM.k24 && Sim.ITEM.g19);
 });
 
-test('the Sum Box is the only place the Chroma summer items drop', () => {
-  const sum = Sim.CRATES.find(c => c.id === 'sumbox');
-  let special = 0, elsewhere = 0;
-  for (let i = 0; i < 20000; i++) {
-    if (['k25', 'g19'].includes(Sim.rollCrate(sum).id)) special++;
-    for (const c of Sim.CRATES) if (c !== sum && ['k25', 'g19'].includes(Sim.rollCrate(c).id)) elsewhere++;
-  }
-  assert.ok(special > 700 && special < 1300, `sum box specials ${special}/20000`);
-  assert.strictEqual(elsewhere, 0);
-  const p = defaultProfile('t'); p.coins = 200; Eco.openCrate(p, 'sumbox'); assert.strictEqual(p.coins, 0);
+test('Void Gun evolves into the Void Scope once its Evo bar is full', () => {
+  const p = defaultProfile('t');
+  const inst = { u: p.nextUid++, id: 'g24' }; p.inv.push(inst); Eco.equip(p, inst.u);
+  // without it equipped, no Evo points
+  const q = defaultProfile('q'); assert.strictEqual(Eco.applyRoundResult(q, { role: 'innocent', won: false, alive: false, bag: 0, kills: 0 }).evo, 0);
+  assert.throws(() => Eco.evolve(p, inst.u), /0 \/ 60/);
+  const r = Eco.applyRoundResult(p, { role: 'sheriff', won: true, alive: true, bag: 0, kills: 1 });
+  assert.strictEqual(r.evo, 12); // 2 for the round, 5 for the kill, 5 for the win
+  for (let i = 0; i < 20; i++) Eco.applyRoundResult(p, { role: 'murderer', won: true, alive: true, bag: 0, kills: 3 });
+  assert.strictEqual(Eco.publicProfile(p).evo.xp, 60); // capped at the goal
+  assert.strictEqual(Eco.evolve(p, inst.u), 'g25');
+  assert.strictEqual(Eco.equippedId(p, 'gun'), 'g25', 'still equipped after evolving');
+  assert.strictEqual(Eco.publicProfile(p).evo.xp, 0);
+  assert.throws(() => Eco.evolve(p, inst.u), /can't evolve/);
+  const k = { u: p.nextUid++, id: 'k30' }; p.inv.push(k); assert.throws(() => Eco.evolve(p, k.u), /can't evolve/);
+});
+
+test('the Void Scope shoots a void laser with a 1.2 s reload only its owner hears', () => {
+  const R = Sim.createRound({ mapIdx: 0, players: [{ pid: 'a', name: 'a', gun: 'g25' }, { pid: 'b', name: 'b' }], fillBots: false });
+  R.phase = 'play';
+  const e = R.ents[0]; e.hasGun = true; e.role = 'sheriff';
+  Sim.setInput(R, e.id, { x: e.x, y: e.y, a: 0, atk: true }); Sim.step(R, 1 / 30);
+  const ev = Sim.drain(R);
+  assert.ok(ev.some(x => x.t === 'sfx' && x.s === 'void'));
+  const rl = ev.find(x => x.s === 'voidReload'); assert.ok(rl && rl.to === e.id);
+  assert.ok(e.atkCd > 1 && e.atkCd <= 1.2, `reload ${e.atkCd}`);
 });
 
 test('halloween: Death Gun at 150 kills, knives only from the Halloween Box', () => {
   const p = defaultProfile('t');
   for (let i = 0; i < 13; i++) Eco.applyRoundResult(p, { role: 'murderer', won: true, alive: true, bag: 0, kills: 11 });
   assert.throws(() => Eco.claimEvent(p, 'halloween26'), /7 more kills/);
-  assert.deepStrictEqual(Eco.claimEvent(p, 'summer26'), ['k24', 'g18']);
   Eco.applyRoundResult(p, { role: 'murderer', won: true, alive: true, bag: 0, kills: 11 });
   assert.deepStrictEqual(Eco.claimEvent(p, 'halloween26'), ['g20']);
   const box = Sim.CRATES.find(c => c.id === 'halloween');

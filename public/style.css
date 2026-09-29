@@ -437,3 +437,12 @@ body.touch #banner{top:34%}
 .brow.head{background:none;color:var(--muted);font-size:.85em;padding-top:0;padding-bottom:0}
 .brow.me{background:rgba(179,107,255,.3);box-shadow:inset 0 0 0 2px var(--accent)}
 @media (max-width:480px){.brow{grid-template-columns:32px minmax(0,1fr) 54px 44px 34px;font-size:14px;padding:6px 8px}}
+
+/* Void Event + Evo */
+.eventcard.void26{background:linear-gradient(135deg,#1a0b33,#2c0f55 60%,#0b0614)}
+.evocard{background:radial-gradient(circle at 80% 20%,rgba(157,77,255,.35),transparent 55%),linear-gradient(135deg,#120824,#241046);box-shadow:inset 0 0 0 2px rgba(157,77,255,.35)}
+.evocard .evfill{background:linear-gradient(90deg,#6a2cff,#c38bff)}
+.evocard.ready{animation:evoglow 1.4s ease-in-out infinite}
+.evocard.ready #evolveBtn{background:linear-gradient(90deg,#6a2cff,#b27bff);box-shadow:0 4px 0 #3b128f,0 0 24px rgba(178,123,255,.6)}
+.evoarrow{align-self:center;font-size:28px;color:#c38bff;text-shadow:0 0 12px #9d4dff}
+@keyframes evoglow{50%{box-shadow:inset 0 0 0 2px #c38bff,0 0 36px rgba(157,77,255,.55)}}

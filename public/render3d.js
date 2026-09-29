@@ -189,6 +189,7 @@ const R3D = (() => {
   }
   function knifeStyle(item) {
     const n = item.name.toLowerCase();
+    if (/void/.test(n)) return 'void';
     if (/scythe|harvester|batwing/.test(n)) return 'scythe';
     if (/ray blade|galaxy|nebula|neon|sussy|chroma fang|icewing|star blade|saber|no life|death itself/.test(n)) return 'energy';
     if (/butter|kitchen|rusty|sunburn|machete|box cutter/.test(n)) return 'cleaver';
@@ -206,6 +207,14 @@ const R3D = (() => {
       mesh(new THREE.SphereGeometry(.03, 8, 6), skinMat(item, { glow: true }), .4, .02, 0, g);
       return g;
     }
+    if (style === 'void') {
+      // black blade with a glowing purple edge and a rift down the middle
+      mesh(blades.serrated(L), new THREE.MeshStandardMaterial({ color: '#0b0614', metalness: .8, roughness: .2 }), .02, 0, 0, g);
+      mesh(blades.dagger(L * .92), skinMat(item, { glow: true, alpha: .55 }), .03, .004, 0, g);
+      mesh(box(L * .7, .006, .01), new THREE.MeshBasicMaterial({ color: '#e0c8ff' }), .04 + L * .35, .012, 0, g);
+      hilt(g, item, true);
+      return g;
+    }
     if (style === 'energy') {
       mesh(blades.dagger(L), skinMat(item, { glow: true, alpha: .9 }), .03, 0, 0, g);
       mesh(blades.dagger(L * .8), new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: .55 }), .05, .006, 0, g); // bright core
@@ -219,6 +228,8 @@ const R3D = (() => {
   }
   function gunStyle(item) {
     const n = item.name.toLowerCase();
+    if (/void scope/.test(n)) return 'voidscope';
+    if (/void/.test(n)) return 'void';
     if (item.long) return 'sniper';
     if (/water|splash/.test(n)) return 'water';
     if (/revolver|golden six|luger|death gun/.test(n)) return 'revolver';
@@ -295,6 +306,28 @@ const R3D = (() => {
       mesh(new THREE.SphereGeometry(.03, 10, 8), glow, .28, .02, 0, g); // muzzle orb
       for (const z of [-.06, .06]) { const f = mesh(box(.08, .01, .05), main, -.03, .06, z, g); f.rotation.x = z > 0 ? .5 : -.5; } // fins
       grip(-.02, darkMetal); trigger(.03);
+    } else if (style === 'void' || style === 'voidscope') {
+      // void weapons: black body cracked with glowing purple rifts, a void orb hovering in a ring
+      const dark = new THREE.MeshStandardMaterial({ color: '#0c0716', metalness: .75, roughness: .25 });
+      const rift = new THREE.MeshBasicMaterial({ color: '#b27bff' });
+      const long = style === 'voidscope';
+      mesh(box(long ? .36 : .26, .075, .065), dark, .07, .015, 0, g);                       // body
+      if (long) {
+        mesh(cyl(.022, .42), dark, .44, .02, 0, g);                                          // long barrel
+        for (const x of [.3, .42, .54]) { const rr = new THREE.TorusGeometry(.04, .007, 6, 16); rr.rotateY(Math.PI / 2); mesh(rr, glow, x, .02, 0, g); } // charge rings
+        mesh(box(.2, .06, .05), dark, -.18, -.02, 0, g).rotation.z = .12;                    // stock
+        mesh(cyl(.026, .22), black, .08, .085, 0, g);                                        // scope
+        mesh(new THREE.CircleGeometry(.024, 14).rotateY(Math.PI / 2), rift, .195, .085, 0, g); // purple lens
+        mesh(new THREE.SphereGeometry(.03, 12, 10), glow, .67, .02, 0, g);                   // muzzle orb
+      } else {
+        mesh(cyl(.024, .14), dark, .25, .02, 0, g);                                          // barrel
+        mesh(new THREE.SphereGeometry(.026, 12, 10), glow, .33, .02, 0, g);                  // muzzle orb
+      }
+      for (let k = 0; k < 4; k++) mesh(box(.05, .006, .068), rift, -.03 + k * .07, .02 + (k % 2 ? .02 : -.015), 0, g).rotation.z = k % 2 ? .6 : -.6; // rifts
+      const orb = mesh(new THREE.SphereGeometry(.035, 14, 10), new THREE.MeshBasicMaterial({ color: '#05020a' }), .05, .11, 0, g); // the void itself
+      const halo = new THREE.TorusGeometry(.05, .008, 6, 20); halo.rotateX(Math.PI / 2); mesh(halo, glow, .05, .11, 0, g);
+      orb.scale.setScalar(1);
+      grip(-.02, dark); trigger(.03);
     } else if (style === 'sniper') {
       mesh(cyl(.02, .44), darkMetal, .38, .02, 0, g);                   // barrel
       mesh(cyl(.03, .05), black, .6, .02, 0, g);                        // muzzle brake
@@ -512,7 +545,7 @@ const R3D = (() => {
         m.scale.setScalar(1 + k * .35); m.material.color.copy(colorOf(item, T)); m.material.opacity = .85 * (1 - k);
       }
       // rare weapons glow in your hand
-      if (hi && w && (RARE[item.r] || item.sound === 'ray')) {
+      if (hi && w && (RARE[item.r] || item.sound)) {
         (w === 'k' ? rig.knife : rig.gun).getWorldPosition(wp);
         glow(wp.x, wp.y, wp.z, .95, colorOf(item, T), .5 + Math.sin(T * 6) * .12);
       }
@@ -531,7 +564,7 @@ const R3D = (() => {
     for (const [k, x, y, vx, vy, skin] of s.p) {
       const px = (x + vx * age) * S, pz = (y + vy * age) * S;
       if (k === 'k') { const m = knifeMeshes.get(); styleKnife(m, ITEM[skin] || ITEM.k0, T); m.position.set(px, .6, pz); m.rotation.set(0, T * 25, 0); continue; }
-      const it = ITEM[skin], rayGun = it && it.sound === 'ray', col = rayGun ? colorOf(it, T) : new THREE.Color('#ffe98a');
+      const it = ITEM[skin], rayGun = it && (it.sound === 'ray' || it.sound === 'void'), col = rayGun ? colorOf(it, T) : new THREE.Color('#ffe98a');
       const m = bullets.get(); m.material.color.copy(rayGun ? col : new THREE.Color('#fff6a0')); m.scale.set(rayGun ? 1.4 : 1, rayGun ? 2 : 1, rayGun ? 2 : 1);
       const a = Math.atan2(vy, vx); m.position.set(px, .6, pz); m.rotation.set(0, -a, 0);
       const len = rayGun ? 1.7 : 1.3, t = tracers.get();

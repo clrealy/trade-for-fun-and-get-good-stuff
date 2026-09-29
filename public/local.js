@@ -103,6 +103,7 @@
           case 'claimEvent': { const items = mutate(p => Eco.claimEvent(p, m.id)); emit({ t: 'codeItems', items, from: 'event' }); break; }
           case 'buyBundle': { const items = mutate(p => Eco.buyBundle(p, m.id)); emit({ t: 'codeItems', items, from: 'bundle' }); break; }
           case 'equip': mutate(p => Eco.equip(p, m.u)); break;
+          case 'evolve': { const id = mutate(p => Eco.evolve(p, m.u)); emit({ t: 'evolved', item: id }); break; }
           case 'setName': {
             const name = String(m.name || '').trim();
             if (!NAME_RE.test(name)) throw new Error('Use 3–16 letters, numbers or _');

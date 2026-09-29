@@ -26,6 +26,7 @@ const { ITEM, RAR, RORDER, CRATES, TILE, BAG_MAX } = Sim;
 const rand = (a, b) => a + Math.random() * (b - a);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const isLaser = it => !!it && (it.sound === 'ray' || it.sound === 'void');
 const itemColor = (it, t = performance.now() / 1000) => it.col === 'chroma' ? `hsl(${(t * 140) % 360},95%,62%)` : it.col;
 const rarColor = r => r === 'Chroma' ? '#fff' : RAR[r].c;
 const show = (sel, on = true) => $(sel).classList.toggle('hide', !on);
@@ -75,6 +76,11 @@ const SFX = {
   shoot: () => { noise(.25, .3); tone(160, .15, 'square', .05, -100); tone(60, .22, 'sine', .12, -30); noise(.4, .05, .06, null, 2000); },
   // Raygun: sci-fi pew (fast downward sweep + a sparkly overtone)
   ray: () => { tone(1800, .22, 'sawtooth', .045, -1500); tone(2600, .12, 'sine', .03, -2000); tone(900, .08, 'square', .02, 400, .06); },
+  // Void Scope: a deep warping laser with a sub-bass thump and a sparkly tail
+  void: () => { tone(1500, .3, 'sawtooth', .04, -1250); tone(95, .38, 'sine', .15, -45); tone(3000, .16, 'triangle', .02, -2600, .02); noise(.22, .07, 0, null, 3500); tone(220, .25, 'square', .018, 440, .08); },
+  // its reload (1.2 s): click, charge-up whine, clack, ready ping. Quick, but you hear every step
+  voidReload: () => { noise(.03, .14, .3, null, 2500); tone(1800, .03, 'square', .03, 0, .3); tone(260, .32, 'sawtooth', .025, 900, .45); noise(.04, .16, .85, null, 1800); tone(950, .05, 'square', .04, 0, .85); tone(1650, .09, 'sine', .035, 0, .98); },
+  evolve: () => { [262, 330, 392, 523, 659, 784].forEach((f, i) => tone(f, .25, 'sawtooth', .035, 0, i * .08)); tone(60, 1, 'sine', .15, 60, .45); noise(.6, .12, .45, null, 1200); },
   throw: () => tone(700, .2, 'triangle', .05, -500),
   die: () => tone(400, .4, 'sawtooth', .05, -330),
   // murderer kill: blade swish + thud + a short scream-y drop
@@ -224,6 +230,7 @@ function onMsg(m) {
     case 'chat': addChat(m.name, m.text, m.sys); break;
     case 'codeAdmin': unboxPending = false; SFX.win(); toast('👑 You\'re an admin now: crown on your name and owner luck is on', true); if (screen === 'lobby') renderLobby(); break;
     case 'codeBulk': unboxPending = false; SFX.win(); toast(`Code redeemed: +${m.count.toLocaleString()} ${m.rarity}s 🔥🔥🔥`, true); if (screen === 'lobby') renderLobby(); break;
+    case 'evolved': SFX.evolve(); toast(`🌌 EVOLVED! Your Void Gun is now the ${ITEM[m.item].name} 🔥`, true); if (screen === 'lobby') renderLobby(); break;
     case 'codeLuck': unboxPending = false; SFX.win(); toast('🍀 Owner luck on: 95% Death items from the Halloween Box 💀', true); if (screen === 'lobby') renderLobby(); break;
     case 'codeCoins': unboxPending = false; SFX.win(); toast(`Code redeemed: +${shortNum(m.coins)} coins 💰`, true); break;
     case 'traders': traders = m.traders; if (screen === 'lobby') renderLobby(); break;
@@ -536,7 +543,8 @@ function confetti() {
 function showReward(r) {
   if (!V) return;
   V.reward = r;
-  $('#endRewards').innerHTML = `${r.won ? '<b style="color:#5bd46a">You won!</b>' : '<b style="color:#ff4d5e">You lost</b>'}<br>💰 +${r.coins} coins · ⭐ +${r.xp} XP` + (r.kills ? ` · ☠️ ${r.kills} kill${r.kills > 1 ? 's' : ''}` : '') + (r.levelUps ? `<br><b style="color:#ffc233">LEVEL UP! You're level ${P ? P.level : ''} 🎉</b>` : '') + (P && P.events ? P.events.filter(e => !e.claimed).map(e => `<br>${e.icon} ${esc(e.name)}: ${e.kills} / ${e.goal} kills`).join('') : '');
+  const evoLine = r.evo ? `<br><b style="color:#b388ff">🌌 Void Gun Evo +${r.evo}</b>` : '';
+  $('#endRewards').innerHTML = evoLine + `${r.won ? '<b style="color:#5bd46a">You won!</b>' : '<b style="color:#ff4d5e">You lost</b>'}<br>💰 +${r.coins} coins · ⭐ +${r.xp} XP` + (r.kills ? ` · ☠️ ${r.kills} kill${r.kills > 1 ? 's' : ''}` : '') + (r.levelUps ? `<br><b style="color:#ffc233">LEVEL UP! You're level ${P ? P.level : ''} 🎉</b>` : '') + (P && P.events ? P.events.filter(e => !e.claimed).map(e => `<br>${e.icon} ${esc(e.name)}: ${e.kills} / ${e.goal} kills`).join('') : '');
 }
 $('#endBtn').onclick = () => {
   if (V && V.offline) { endGameView(); setScreen('lobby'); return; }
@@ -665,7 +673,7 @@ function updateHUD() {
   }
   let cools = '';
   if (me && me.alive && me.role === 'murderer') cools = coolBar('Stab', 1 - me.atk / .5) + coolBar(isTouch ? 'Throw' : 'Throw (Q)', 1 - me.thr / 3);
-  else if (me && me.alive && me.gun) cools = coolBar('Gun', 1 - me.atk / 2.2);
+  else if (me && me.alive && me.gun) { const gi = ITEM[(V.roster.get(V.you) || {}).gun] || {}; cools = coolBar(gi.sound === 'void' ? 'Reload' : 'Gun', 1 - me.atk / (gi.noCooldown ? .12 : gi.reload || 2.2)); }
   if (me && me.alive) cools += coolBar(isTouch ? '💨 Juke' : '💨 Juke (Shift)', 1 - Math.max(me.dash || 0, dashCd) / Sim.DASH_CD) + coolBar(isTouch ? '💣 Bomb' : '💣 Bomb (B)', 1 - (me.bomb || 0) / 5);
   setHTML('cools', cools);
   const hint = !me ? 'Spectating · click to switch' : !me.alive ? 'Click to switch spectate' : me.role === 'murderer' ? 'Click stab · Q/Right-click throw · E hide knife' : me.gun ? 'Click shoot · E put away gun' : 'Collect coins · Stay alive · Grab the gun if it drops';
@@ -757,7 +765,7 @@ function render() {
   for (const [k, x, y, vx, vy, skin] of s.p) {
     const px = x + vx * age, py = y + vy * age;
     if (k === 'k') drawKnife(px, py, T * 25, ITEM[skin] || ITEM.k0, T);
-    else if (ITEM[skin] && ITEM[skin].sound === 'ray') { const lc = itemColor(ITEM[skin], T); ctx.strokeStyle = lc; ctx.shadowColor = lc; ctx.shadowBlur = 12; ctx.lineWidth = 5; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(px - vx * .035, py - vy * .035); ctx.lineTo(px, py); ctx.stroke(); ctx.shadowBlur = 0; }
+    else if (isLaser(ITEM[skin])) { const lc = itemColor(ITEM[skin], T); ctx.strokeStyle = lc; ctx.shadowColor = lc; ctx.shadowBlur = 12; ctx.lineWidth = 5; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(px - vx * .035, py - vy * .035); ctx.lineTo(px, py); ctx.stroke(); ctx.shadowBlur = 0; }
     else { ctx.strokeStyle = '#fff6a0'; ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(px - vx * .02, py - vy * .02); ctx.lineTo(px, py); ctx.stroke(); }
   }
   for (const f of V.fx) {
@@ -1075,7 +1083,7 @@ function renderInventory() {
       <button class="star ${favs.has(g.id) ? 'on' : ''}" data-fav="${esc(g.id)}" aria-label="Favorite" type="button">★</button>
       ${eq ? '<span class="eqtag">Equipped <i>✓</i></span>' : g.uids.length > 1 ? `<span class="cnt">x${g.uids.length}</span>` : ''}
       <div class="wimg">${itemIcon(it)}</div>
-      <div class="wname">${esc(it.name)}</div><div class="wrar" style="color:${rc}">${it.r}${it.noCooldown ? ' · ⚡' : ''}</div></div>`;
+      <div class="wname">${esc(it.name)}</div><div class="wrar" style="color:${rc}">${it.r}${it.noCooldown ? ' · ⚡' : ''}${it.evo ? ' · 🌌 EVO' : it.evolved ? ' · 🌌 EVOLVED' : ''}</div></div>`;
   }).join('') : `<div class="invempty">${q ? 'Nothing matches that search.' : invCat === 'fav' ? 'Tap the ☆ on an item to favorite it.' : 'Nothing here yet. Open some boxes in the Shop 📦'}</div>`;
   $('#invGrid').querySelectorAll('.wcard').forEach(el => {
     const equip = () => {
@@ -1129,6 +1137,17 @@ function renderLobby() {
       <div class="evbar"><div class="evfill" style="width:${ev.kills / ev.goal * 100}%"></div><span class="evtext">${ev.claimed ? 'Claimed ✅' : `${ev.kills} / ${ev.goal} kills`}</span></div>
       <button class="btn" data-ev="${esc(ev.id)}" ${ev.claimed || ev.kills < ev.goal ? 'disabled' : ''}>${ev.claimed ? 'Claimed' : ev.kills >= ev.goal ? 'Claim rewards 🎁' : `${ev.goal - ev.kills} more kills`}</button></div>`).join('');
     $('#events').querySelectorAll('button[data-ev]').forEach(b => b.onclick = () => net({ t: 'claimEvent', id: b.dataset.ev }));
+    // Evo: shows up once you own a Void Gun
+    const evoInst = P.inv.find(i => ITEM[i.id] && ITEM[i.id].evo);
+    if (evoInst && P.evo) {
+      const from = ITEM[evoInst.id], to = ITEM[from.evo], ready = P.evo.xp >= P.evo.goal;
+      $('#events').insertAdjacentHTML('afterbegin', `<div class="card eventcard evocard ${ready ? 'ready' : ''}">
+        <div class="eventhead"><div><h2>🌌 ${esc(from.name)} Evo</h2><p class="muted small">Equip it and play: +2 per round, +5 per kill, +5 for a win. Fill the bar to evolve it into the <b>${esc(to.name)}</b>: void laser + a fast reload.</p></div>
+        <div class="evrewards">${itemCard(from, { noval: true })}<div class="evoarrow">➜</div>${itemCard(to, { noval: true })}</div></div>
+        <div class="evbar"><div class="evfill" style="width:${P.evo.xp / P.evo.goal * 100}%"></div><span class="evtext">${P.evo.xp} / ${P.evo.goal} Evo</span></div>
+        <button class="btn" id="evolveBtn" ${ready ? '' : 'disabled'}>${ready ? 'EVOLVE 🌌' : `${P.evo.goal - P.evo.xp} more Evo points`}</button></div>`);
+      $('#evolveBtn').onclick = () => net({ t: 'evolve', u: evoInst.u });
+    }
     const n = Sim.MAX_PLAYERS, pm = P.mT / (P.mT + n - 1), ps = (1 - pm) * (P.sT / (P.sT + n - 2));
     $('#mChance').textContent = Math.round(pm * 100) + '%';
     $('#sChance').textContent = Math.round(ps * 100) + '%';

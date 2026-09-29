@@ -6,7 +6,7 @@ const CODES = require('./codes.js');
 const xpNeed = lvl => 100 + lvl * 60;
 // Events: get `goal` kills (counted from when the event starts) to claim the rewards.
 const EVENTS = [
-  { id: 'summer26', name: 'Summer Event', icon: '☀️', goal: 50, rewards: ['k24', 'g18'], desc: 'Want the Chroma versions? Try the ☀️ Sum Box in the Shop.' },
+  { id: 'void26', name: 'Void Event', icon: '🌌', goal: 100, rewards: ['k30', 'g24'], desc: 'The Void Gun is an Evo: use it to evolve it into the Void Scope.' },
   { id: 'halloween26', name: 'Halloween Event', icon: '🎃', goal: 150, rewards: ['g20'], desc: 'Unlock the Death Gun. The Death Knives are in the 🎃 Halloween Box.' },
 ];
 function eventState(p, id) {
@@ -21,6 +21,20 @@ function claimEvent(p, id = EVENTS[0].id) {
   if (p.inv.length + E.rewards.length > MAX_INV) throw new Error(`Inventory full (${MAX_INV} items)`);
   ev.claimed = true;
   return E.rewards.map(id => addItem(p, id).id);
+}
+// Evo weapons: play rounds with one equipped to fill its Evo bar, then evolve it into its next form.
+// Points: +2 for each round with it equipped, +5 for each kill in that round, +5 more for a win.
+const EVO_GOAL = 60;
+function evoState(p) { return (p.evo = p.evo || { xp: 0 }); }
+function evolve(p, u) {
+  const inst = p.inv.find(i => i.u === u);
+  const it = inst && Sim.ITEM[inst.id];
+  if (!it || !it.evo) throw new Error('That item can\'t evolve');
+  const ev = evoState(p);
+  if (ev.xp < EVO_GOAL) throw new Error(`Not ready yet: ${ev.xp} / ${EVO_GOAL} Evo points`);
+  ev.xp = 0;
+  inst.id = it.evo; // same slot, so it stays equipped
+  return inst.id;
 }
 // Bundles: buy a whole set for coins, once
 const BUNDLES = [
@@ -38,7 +52,7 @@ function buyBundle(p, id) {
 const MAX_INV = 2000;
 
 function publicProfile(p) {
-  return { name: p.name, coins: p.coins, xp: p.xp, level: p.level, xpNeed: xpNeed(p.level), inv: p.inv, equip: p.equip, mT: p.mT, sT: p.sT, stats: p.stats, luck: !!p.luck, admin: !!p.admin,
+  return { name: p.name, coins: p.coins, xp: p.xp, level: p.level, xpNeed: xpNeed(p.level), inv: p.inv, equip: p.equip, mT: p.mT, sT: p.sT, stats: p.stats, luck: !!p.luck, admin: !!p.admin, evo: { xp: Math.min(EVO_GOAL, (p.evo && p.evo.xp) || 0), goal: EVO_GOAL },
     trophies: TROPHIES.map(t => ({ id: t.id, icon: t.icon, name: t.name, desc: t.desc, goal: t.goal, reward: t.reward, item: t.item, value: Math.min(t.get(p), t.goal), done: (p.trophies || []).includes(t.id) })),
     events: EVENTS.map(E => { const ev = (p.events && p.events[E.id]) || { kills: 0, claimed: false }; return { ...E, kills: Math.min(ev.kills, E.goal), claimed: ev.claimed }; }),
     bundles: BUNDLES.map(b => ({ ...b, owned: b.items.every(i => p.inv.some(x => x.id === i)) })) };
@@ -93,7 +107,7 @@ function redeem(p, rawCode) {
   } else if (c.reward.all) {
     // only what you don't own yet, so it can be used again whenever new items come out
     const owned = new Set(p.inv.map(i => i.id));
-    const missing = Sim.ITEMS.filter(i => !i.nodrop && !owned.has(i.id));
+    const missing = Sim.ITEMS.filter(i => !i.nodrop && !i.retired && !owned.has(i.id));
     if (!missing.length) throw new Error('You already have every knife and gun 😎');
     if (p.inv.length + missing.length > MAX_INV) throw new Error(`Inventory full (${MAX_INV} items)`);
     out = { all: missing.map(i => addItem(p, i.id).id) };
@@ -129,11 +143,13 @@ function applyRoundResult(p, res) {
   if (res.hero) st.heroes = (st.heroes || 0) + 1;
   if (res.won && res.mode === '1v1') st.duelWins = (st.duelWins || 0) + 1;
   if (res.alive && res.role !== 'murderer') st.survived = (st.survived || 0) + 1;
+  let evo = 0;
+  if (Sim.ITEM[equippedId(p, 'gun')].evo) { const ev = evoState(p); evo = Math.min(EVO_GOAL - ev.xp, 2 + res.kills * 5 + (res.won ? 5 : 0)); ev.xp += Math.max(0, evo); }
   p.stats.rounds++; p.stats.kills += res.kills; for (const E of EVENTS) eventState(p, E.id).kills += res.kills; if (res.won) p.stats.wins++; if (!res.alive) p.stats.deaths++;
   let lv = 0; while (p.xp >= xpNeed(p.level)) { p.xp -= xpNeed(p.level); p.level++; lv++; }
   p.mT = res.role === 'murderer' ? 1 : Math.min(50, p.mT + 1);
   p.sT = res.role === 'sheriff' ? 1 : Math.min(50, p.sT + 1);
-  return { ...r, levelUps: lv, won: res.won, kills: res.kills };
+  return { ...r, levelUps: lv, won: res.won, kills: res.kills, evo: evo > 0 ? evo : 0 };
 }
 
 // ---------- trophies ----------
@@ -191,7 +207,7 @@ function genTraders() {
   let n = 1;
   return names.map(name => {
     const inv = []; const k = 5 + Math.floor(Math.random() * 4);
-    for (let i = 0; i < k; i++) inv.push({ u: n++, id: Sim.rollItem(Sim.CRATES[2].w).id });
+    for (let i = 0; i < k; i++) inv.push({ u: n++, id: Sim.rollItem(Sim.CRATES.find(c => c.id === 'mystery').w).id });
     return { name, inv, greed: 1 + Math.random() * .25, nextU: 1000 };
   });
 }
@@ -219,4 +235,4 @@ function trade(p, trader, mineU, theirsU) {
   return { ok, line };
 }
 
-module.exports = { TROPHIES, checkTrophies, EVENTS, BUNDLES, claimEvent, buyBundle, publicProfile, equippedId, openCrate, redeem, redeemMsg, equip, applyRoundResult, genTraders, tradersView, trade, xpNeed };
+module.exports = { TROPHIES, checkTrophies, EVENTS, BUNDLES, claimEvent, buyBundle, publicProfile, equippedId, openCrate, redeem, redeemMsg, equip, evolve, EVO_GOAL, applyRoundResult, genTraders, tradersView, trade, xpNeed };

@@ -245,6 +245,7 @@ const HANDLERS = {
   async claimEvent(c, m) { const items = await mutate(c, p => Eco.claimEvent(p, m.id)); sendMsg(c, { t: 'codeItems', items, from: 'event' }); },
   async buyBundle(c, m) { const items = await mutate(c, p => Eco.buyBundle(p, m.id)); sendMsg(c, { t: 'codeItems', items, from: 'bundle' }); },
   async equip(c, m) { await mutate(c, p => Eco.equip(p, m.u)); },
+  async evolve(c, m) { const id = await mutate(c, p => Eco.evolve(p, m.u)); sendMsg(c, { t: 'evolved', item: id }); },
   traders(c, m) { if (m.refresh) c.traders = Eco.genTraders(); sendMsg(c, { t: 'traders', traders: Eco.tradersView(c.traders) }); },
   async trade(c, m) {
     const trader = c.traders[m.trader | 0]; if (!trader) throw new Error('Pick a trader');
