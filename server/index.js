@@ -99,7 +99,7 @@ function leaveRoom(c) {
   if (!r.clients.size) rooms.delete(r.code); else broadcast(r, roomInfo(r));
 }
 function startRound(r) {
-  const players = [...r.clients].map(c => ({ pid: c.uid, name: c.profile.name, knife: Eco.equippedId(c.profile, 'knife'), gun: Eco.equippedId(c.profile, 'gun'), mT: c.profile.mT, sT: c.profile.sT }));
+  const players = [...r.clients].map(c => ({ pid: c.uid, name: c.profile.name, knife: Eco.equippedId(c.profile, 'knife'), gun: Eco.equippedId(c.profile, 'gun'), pet: Eco.equippedId(c.profile, 'pet'), mT: c.profile.mT, sT: c.profile.sT }));
   r.R = Sim.createRound({ players, mode: r.mode });
   r.state = 'round'; r.rewarded = false;
   const roster = Sim.roster(r.R);

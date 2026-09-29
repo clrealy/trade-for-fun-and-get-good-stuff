@@ -395,3 +395,52 @@ test('the admin code turns on admin and owner luck', () => {
   assert.deepEqual(Eco.redeemMsg(Eco.redeem(p, 'OWNERMODE777')), { t: 'codeAdmin' });
   assert.ok(p.admin && p.luck && Eco.publicProfile(p).admin);
 });
+
+test('pets: only from the Pet Box, equip into their own slot, and follow you into rounds', () => {
+  const box = Sim.CRATES.find(c => c.id === 'petbox');
+  for (let i = 0; i < 3000; i++) {
+    assert.strictEqual(Sim.rollCrate(box).type, 'pet');
+    for (const c of Sim.CRATES) if (c !== box) assert.notStrictEqual(Sim.rollCrate(c).type, 'pet', c.id);
+  }
+  // rarity codes never hand out pets
+  for (let i = 0; i < 200; i++) { const p = defaultProfile('c'); assert.notStrictEqual(Sim.ITEM[Eco.redeem(p, 'GODLY26').inst.id].type, 'pet'); }
+  const p = defaultProfile('t'); p.coins = 1000;
+  assert.strictEqual(Eco.equippedId(p, 'pet'), null);
+  const inst = Eco.openCrate(p, 'petbox'); assert.strictEqual(p.coins, 880);
+  Eco.equip(p, inst.u);
+  assert.strictEqual(Eco.equippedId(p, 'pet'), inst.id);
+  assert.strictEqual(Eco.equippedId(p, 'knife'), 'k0', 'weapons untouched');
+  Eco.equip(p, inst.u); assert.strictEqual(Eco.equippedId(p, 'pet'), null, 'tapping it again puts it away');
+  Eco.equip(p, inst.u);
+  // trading it away unequips it
+  const tr = { name: 'x', inv: [], greed: 1, nextU: 1000 };
+  Eco.trade(p, tr, [inst.u], []);
+  assert.strictEqual(p.equip.pet, null);
+  const R = Sim.createRound({ players: [{ pid: 'a', name: 'a', pet: 'p9' }, { pid: 'b', name: 'b', pet: 'k1' }] });
+  const ro = Sim.roster(R);
+  assert.strictEqual(ro[0].pet, 'p9');
+  assert.strictEqual(ro[1].pet, null, 'a knife is not a pet');
+  assert.ok(ro.every(r => r.pet === null || Sim.ITEM[r.pet].type === 'pet'));
+});
+
+test('cheating onto the other team counts as that team for win/lose', () => {
+  const R = Sim.createRound({ players: [{ pid: 'a', name: 'a' }], fillBots: true });
+  R.phase = 'play';
+  const me = R.ents[0];
+  if (me.role === 'murderer') Sim.cheat(R, me.id, '/sheffeme'); else Sim.cheat(R, me.id, '/murdme');
+  const myTeamMurderer = me.role === 'murderer';
+  for (const e of R.ents) if (e !== me && e.role !== 'murderer') e.alive = false;
+  if (!myTeamMurderer) R.murderer.alive = false;
+  for (let i = 0; i < 5 && R.phase !== 'end'; i++) Sim.step(R, 1 / 30);
+  assert.strictEqual(R.phase, 'end');
+  assert.strictEqual(R.results[0].won, (R.winner === 'murderer') === myTeamMurderer);
+  assert.strictEqual(R.results[0].won, true, 'my team won, so I won');
+});
+
+test('Haunted Manor is fully connected', () => {
+  const i = Sim.MAPS.findIndex(m => m.name === 'Haunted Manor'); assert.ok(i >= 0);
+  const M = Sim.buildMap(i); let walk = 0;
+  for (let y = 0; y < M.H; y++) for (let x = 0; x < M.W; x++) if (!'#TPB'.includes(M.grid[y][x])) walk++;
+  assert.strictEqual(M.reach.length, walk);
+  assert.strictEqual(M.theme, 'haunted');
+});

@@ -43,6 +43,7 @@
 
   // leaderboard: one small public doc per player, written only when it changes
   async function postScore() {
+    if (P.name === 'You') return; // wait until they've picked a name
     const row = { name: P.name, level: P.level, kills: P.stats.kills, wins: P.stats.wins, rounds: P.stats.rounds };
     const k = JSON.stringify(row); if (k === lastBoard) return;
     try { await cloud.db.doc('leaderboard/' + cloud.uid).set(row); lastBoard = k; } catch (e) { }

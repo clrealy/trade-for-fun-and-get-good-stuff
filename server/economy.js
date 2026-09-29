@@ -59,7 +59,7 @@ function publicProfile(p) {
 }
 function equippedId(p, type) {
   const inst = p.inv.find(i => i.u === p.equip[type]);
-  return inst ? inst.id : (type === 'knife' ? 'k0' : 'g0');
+  return inst ? inst.id : type === 'knife' ? 'k0' : type === 'gun' ? 'g0' : null; // no pet = null
 }
 function addItem(p, id) {
   if (p.inv.length >= MAX_INV) throw new Error(`Inventory full (${MAX_INV} items)`);
@@ -70,6 +70,7 @@ function removeInst(p, u) {
   const [inst] = p.inv.splice(k, 1);
   if (p.equip.knife === u) p.equip.knife = null;
   if (p.equip.gun === u) p.equip.gun = null;
+  if (p.equip.pet === u) p.equip.pet = null;
   return inst;
 }
 
@@ -101,14 +102,14 @@ function redeem(p, rawCode) {
     // a big pile of random items of one rarity
     const n = c.reward.count;
     if (p.inv.length + n > MAX_INV) throw new Error(`Not enough room: this code needs ${n} free slots (you have ${MAX_INV - p.inv.length})`);
-    const pool = Sim.ITEMS.filter(i => !i.nodrop && !i.exclusive && i.r === c.reward.rarity);
+    const pool = Sim.ITEMS.filter(i => !i.nodrop && !i.exclusive && i.type !== 'pet' && i.r === c.reward.rarity);
     for (let i = 0; i < n; i++) addItem(p, pool[Math.floor(Math.random() * pool.length)].id);
     out = { bulk: n, rarity: c.reward.rarity };
   } else if (c.reward.all) {
     // only what you don't own yet, so it can be used again whenever new items come out
     const owned = new Set(p.inv.map(i => i.id));
     const missing = Sim.ITEMS.filter(i => !i.nodrop && !i.retired && !owned.has(i.id));
-    if (!missing.length) throw new Error('You already have every knife and gun 😎');
+    if (!missing.length) throw new Error('You already have every item 😎');
     if (p.inv.length + missing.length > MAX_INV) throw new Error(`Inventory full (${MAX_INV} items)`);
     out = { all: missing.map(i => addItem(p, i.id).id) };
   } else if (c.reward.items) {
@@ -116,7 +117,7 @@ function redeem(p, rawCode) {
     out = { items: c.reward.items.map(id => addItem(p, id).id) };
   } else if (c.reward.coins) { p.coins += c.reward.coins; out = { coins: c.reward.coins }; }
   else {
-    const pool = c.reward.item ? [Sim.ITEM[c.reward.item]] : Sim.ITEMS.filter(i => !i.nodrop && !i.exclusive && i.r === c.reward.rarity);
+    const pool = c.reward.item ? [Sim.ITEM[c.reward.item]] : Sim.ITEMS.filter(i => !i.nodrop && !i.exclusive && i.type !== 'pet' && i.r === c.reward.rarity);
     out = { inst: addItem(p, pool[Math.floor(Math.random() * pool.length)].id) };
   }
   p.redeemed.push(code);

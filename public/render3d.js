@@ -25,8 +25,14 @@ const R3D = (() => {
     g.fillStyle = gr; g.fillRect(0, 0, 4, 256); return new THREE.CanvasTexture(c);
   })();
   scene.fog = new THREE.Fog('#0e0a18', 17, 36);
+  const skies = { normal: scene.background, haunted: (() => {
+    const c = document.createElement('canvas'); c.width = 4; c.height = 256; const g = c.getContext('2d');
+    const gr = g.createLinearGradient(0, 0, 0, 256); gr.addColorStop(0, '#1a0f2e'); gr.addColorStop(.5, '#0b0814'); gr.addColorStop(1, '#030205');
+    g.fillStyle = gr; g.fillRect(0, 0, 4, 256); return new THREE.CanvasTexture(c);
+  })() };
+  let candles = []; // [x, z] of candles on the haunted map's tables
   const camera = new THREE.PerspectiveCamera(45, 1, .1, 200);
-  scene.add(new THREE.HemisphereLight(0xfff4ea, 0x3c3458, .5));
+  const hemi = new THREE.HemisphereLight(0xfff4ea, 0x3c3458, .5); scene.add(hemi);
   const sun = new THREE.DirectionalLight(0xfff0dc, .62); sun.position.set(4, 10, 6); scene.add(sun, sun.target);
   sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -.0005; sun.shadow.normalBias = .02;
   Object.assign(sun.shadow.camera, { left: -13, right: 13, top: 13, bottom: -13, near: .5, far: 40 });
@@ -65,6 +71,9 @@ const R3D = (() => {
   function buildMap(M) {
     if (mapGroup) { scene.remove(mapGroup); mapGroup.traverse(o => { if (o.geometry && o.geometry !== G.unit) o.geometry.dispose(); }); }
     mapGroup = new THREE.Group(); mapIdx = M.idx;
+    const haunted = M.theme === 'haunted';
+    scene.background = haunted ? skies.haunted : skies.normal;
+    scene.fog.color.set(haunted ? '#120b1f' : '#0e0a18'); scene.fog.near = haunted ? 11 : 17; scene.fog.far = haunted ? 28 : 36;
     // floor: one plane with a checker texture
     const floorTex = canvasTex(M.W * 8, M.H * 8, g => { for (let y = 0; y < M.H; y++) for (let x = 0; x < M.W; x++) { g.fillStyle = M.floor[(x + y) & 1]; g.fillRect(x * 8, y * 8, 8, 8); } });
     const floor = new THREE.Mesh(new THREE.PlaneGeometry(M.W, M.H), new THREE.MeshPhongMaterial({ map: floorTex, shininess: 30, specular: 0x1a1822 }));
@@ -84,7 +93,13 @@ const R3D = (() => {
     mapGroup.add(instanced(G.unit, mat('#6e4526'), cells.T, (o, x, y) => { o.position.set(x + .5, .19, y + .5); o.scale.set(.8, .38, .8); }));
     mapGroup.add(instanced(G.unit, new THREE.MeshLambertMaterial({ map: bookTex }), cells.B, (o, x, y) => { o.position.set(x + .5, .6, y + .5); o.scale.set(.96, 1.2, .96); }));
     mapGroup.add(instanced(new THREE.CylinderGeometry(.16, .12, .3, 10), mat('#8b4a2b'), cells.P, (o, x, y) => { o.position.set(x + .5, .15, y + .5); }));
-    mapGroup.add(instanced(new THREE.IcosahedronGeometry(.3, 1), mat('#2f9e44'), cells.P, (o, x, y) => { o.position.set(x + .5, .55, y + .5); }));
+    mapGroup.add(instanced(new THREE.IcosahedronGeometry(.3, 1), mat(M.plant || '#2f9e44'), cells.P, (o, x, y) => { o.position.set(x + .5, .55, y + .5); }));
+    // haunted: a candle on every table
+    candles = haunted ? cells.T.map(([x, y]) => [x + .5 + ((x * 7 + y * 3) % 3 - 1) * .2, y + .5 + ((x * 5 + y) % 3 - 1) * .2]) : [];
+    if (candles.length) {
+      mapGroup.add(instanced(new THREE.CylinderGeometry(.035, .04, .14, 8), mat('#efe6d2'), candles, (o, x, y) => { o.position.set(x, .53, y); }));
+      mapGroup.add(instanced(new THREE.SphereGeometry(.025, 6, 5), new THREE.MeshBasicMaterial({ color: '#ffcc66' }), candles, (o, x, y) => { o.position.set(x, .62, y); o.scale.set(1, 1.6, 1); }));
+    }
     mapGroup.traverse(o => { if (o.isMesh && o !== floor) { o.castShadow = true; o.receiveShadow = true; } });
     scene.add(mapGroup);
   }
@@ -349,10 +364,88 @@ const R3D = (() => {
     }
     return g;
   }
+  // ---------------- pet models ----------------
+  // Blocky pets about knee high, facing +X. Parts named 'wing' flap, and 'squish' parts squash, while they move.
+  function buildPet(item) {
+    const g = new THREE.Group(), main = skinMat(item, { metal: .1, rough: .6 }), glow = skinMat(item, { glow: true });
+    const dark = mat('#1b1b22'), white = mat('#ffffff'), pink = mat('#ff9fb3');
+    const eyes = (x, y, z, sz = .03, m = dark) => { for (const s of [-1, 1]) mesh(box(sz * .6, sz, sz), m, x, y, s * z, g); };
+    const wing = (x, y, len, w, m) => { for (const s of [-1, 1]) { const wg = new THREE.Group(); wg.name = 'wing'; wg.userData.side = s; wg.position.set(x, y, s * .06); mesh(box(w, .015, len), m, 0, 0, s * len / 2, wg); g.add(wg); } };
+    const legs = (m, y = .05) => { for (const [x, z] of [[.08, .05], [.08, -.05], [-.08, .05], [-.08, -.05]]) mesh(box(.045, .1, .045), m, x, y, z, g); };
+    switch (item.pet) {
+      case 'dog':
+        mesh(box(.28, .14, .15), main, 0, .16, 0, g); legs(main); mesh(box(.15, .14, .15), main, .17, .26, 0, g);
+        mesh(box(.07, .06, .08), mat('#e8c9a0'), .26, .23, 0, g); mesh(box(.03, .03, .04), dark, .3, .25, 0, g); // snout + nose
+        for (const s of [-1, 1]) mesh(box(.05, .09, .03), mat('#5a3a1e'), .15, .33, s * .08, g).rotation.x = s * .3; // floppy ears
+        eyes(.245, .29, .04); mesh(box(.12, .03, .03), main, -.18, .22, 0, g).rotation.z = .7; // tail up
+        break;
+      case 'cat':
+        mesh(box(.26, .12, .13), main, 0, .15, 0, g); legs(main); mesh(box(.14, .13, .15), main, .16, .25, 0, g);
+        for (const s of [-1, 1]) { const e = mesh(new THREE.ConeGeometry(.035, .07, 4), main, .15, .345, s * .05, g); e.rotation.y = Math.PI / 4; }
+        eyes(.235, .27, .04, .03, mat('#7bd88f')); mesh(box(.02, .02, .03), pink, .24, .23, 0, g);
+        mesh(box(.03, .18, .03), main, -.15, .25, 0, g).rotation.z = -.35; // tail
+        break;
+      case 'bunny':
+        mesh(box(.2, .16, .16), main, 0, .12, 0, g).name = 'squish'; mesh(box(.15, .14, .14), main, .12, .24, 0, g);
+        for (const s of [-1, 1]) { mesh(box(.04, .17, .05), main, .1, .39, s * .04, g); mesh(box(.02, .12, .03), pink, .115, .39, s * .04, g); }
+        eyes(.2, .26, .04); mesh(box(.02, .02, .03), pink, .2, .22, 0, g); mesh(new THREE.SphereGeometry(.05, 8, 6), white, -.12, .16, 0, g); // tail puff
+        break;
+      case 'slime': {
+        const body = mesh(box(.24, .2, .24), skinMat(item, { alpha: .75, rough: .1 }), 0, .1, 0, g); body.name = 'squish';
+        mesh(box(.12, .1, .12), glow, 0, .09, 0, g); eyes(.12, .15, .05, .04);
+        break;
+      }
+      case 'pumpkin': {
+        const pk = mesh(new THREE.SphereGeometry(.15, 14, 10), main, 0, .15, 0, g); pk.scale.set(1, .82, 1); pk.name = 'squish';
+        for (let k = 0; k < 6; k++) { const rib = mesh(new THREE.TorusGeometry(.15, .012, 4, 18, Math.PI), mat('#d96b00'), 0, .15, 0, g); rib.rotation.set(Math.PI / 2, 0, k * Math.PI / 6); rib.scale.set(1, 1, .82); }
+        mesh(cyl(.02, .07), mat('#3d6b22'), 0, .29, 0, g).rotation.z = Math.PI / 2; // stem
+        const face = new THREE.MeshBasicMaterial({ color: '#ffe066' });
+        for (const s of [-1, 1]) mesh(new THREE.ConeGeometry(.03, .04, 3), face, .135, .19, s * .05, g).rotation.z = -Math.PI / 2;
+        mesh(box(.02, .03, .1), face, .14, .1, 0, g); // grin
+        break;
+      }
+      case 'bat':
+        mesh(new THREE.SphereGeometry(.07, 10, 8), main, 0, .1, 0, g);
+        for (const s of [-1, 1]) mesh(new THREE.ConeGeometry(.025, .06, 4), main, .02, .19, s * .035, g);
+        wing(0, .11, .2, .12, mat('#2a2038')); eyes(.06, .12, .025, .025, mat('#ff4d5e'));
+        break;
+      case 'ghost': {
+        const gm = new THREE.MeshStandardMaterial({ color: '#eef6ff', emissive: '#6d8bb0', emissiveIntensity: .4, transparent: true, opacity: .82, roughness: .4 });
+        mesh(new THREE.SphereGeometry(.13, 14, 10), gm, 0, .2, 0, g).scale.set(1, 1.15, 1);
+        mesh(new THREE.ConeGeometry(.13, .2, 10, 1, true), gm, 0, .05, 0, g).rotation.x = Math.PI; // wavy bottom
+        eyes(.11, .24, .045, .045); mesh(box(.02, .05, .04), dark, .12, .16, 0, g); // "o" mouth
+        for (const s of [-1, 1]) mesh(box(.05, .03, .1), gm, 0, .17, s * .15, g).name = 'wing';
+        break;
+      }
+      case 'bird':
+        mesh(box(.2, .12, .12), main, 0, .12, 0, g); mesh(box(.1, .1, .1), main, .13, .19, 0, g);
+        mesh(new THREE.ConeGeometry(.025, .07, 4), mat('#ffd23f'), .21, .19, 0, g).rotation.z = -Math.PI / 2; // beak
+        wing(0, .15, .2, .12, glow); eyes(.17, .22, .035);
+        for (let k = 0; k < 3; k++) mesh(box(.16, .012, .04), glow, -.17, .12 + k * .02, (k - 1) * .035, g).rotation.z = .3; // flame tail
+        mesh(box(.04, .08, .02), glow, .12, .27, 0, g); // crest
+        break;
+      case 'wisp': {
+        mesh(new THREE.SphereGeometry(.07, 14, 10), new THREE.MeshBasicMaterial({ color: '#05020a' }), 0, .18, 0, g);
+        mesh(new THREE.SphereGeometry(.11, 14, 10), new THREE.MeshBasicMaterial({ color: '#9d4dff', transparent: true, opacity: .25, depthWrite: false }), 0, .18, 0, g);
+        for (const [rx, rz] of [[Math.PI / 2, 0], [Math.PI / 2.6, .9], [Math.PI / 1.7, -.9]]) { const ring = mesh(new THREE.TorusGeometry(.14, .008, 6, 28), glow, 0, .18, 0, g); ring.rotation.set(rx, 0, rz); ring.name = 'spin'; }
+        eyes(.065, .2, .025, .025, mat('#e0c8ff'));
+        break;
+      }
+      default: { // dragon
+        mesh(box(.26, .13, .13), main, 0, .14, 0, g); mesh(box(.13, .11, .11), main, .18, .22, 0, g);
+        mesh(box(.08, .05, .08), main, .27, .2, 0, g); // snout
+        for (const s of [-1, 1]) mesh(new THREE.ConeGeometry(.018, .08, 4), mat('#f2ead0'), .15, .3, s * .04, g).rotation.z = -.4; // horns
+        wing(-.02, .2, .22, .14, glow); eyes(.23, .25, .04, .03, mat('#ffe066'));
+        for (let k = 0; k < 3; k++) mesh(box(.08, .06 - k * .015, .06 - k * .015), main, -.17 - k * .07, .13 - k * .01, 0, g); // tail
+        legs(main, .06);
+      }
+    }
+    return g;
+  }
   const templates = new Map();
   function modelFor(item, type) {
     const k = type + item.id;
-    if (!templates.has(k)) templates.set(k, type === 'knife' ? buildKnife(item) : buildGun(item));
+    if (!templates.has(k)) templates.set(k, type === 'knife' ? buildKnife(item) : type === 'pet' ? buildPet(item) : buildGun(item));
     return templates.get(k).clone();
   }
   function colorOf(item, T) { return item.col === 'chroma' ? new THREE.Color().setHSL(((T * 140) % 360) / 360, .95, .62) : new THREE.Color(item.col); }
@@ -364,6 +457,8 @@ const R3D = (() => {
     while (h.children.length) h.remove(h.children[0]);
     const m = modelFor(item, type); m.traverse(o => { if (o.isMesh) o.castShadow = true; });
     h.add(m); h.userData.id = item.id;
+    h.userData.anim = { wings: [], squish: [], spin: [] };
+    m.traverse(o => { if (o.name === 'wing') h.userData.anim.wings.push(o); else if (o.name === 'squish') h.userData.anim.squish.push(o); else if (o.name === 'spin') h.userData.anim.spin.push(o); });
   }
   const makeKnife = holder, makeGun = holder;
   const styleKnife = (h, item) => setModel(h, item, 'knife');
@@ -390,11 +485,12 @@ const R3D = (() => {
     root.scale.setScalar(1.1);
     root.traverse(o => { if (o.isMesh && o !== ring) o.castShadow = true; });
     scene.add(root);
-    return { root, body, legL, legR, armL, armR, knife, knifeGrip, gun, ring, color, deadAt: 0, trail: [] };
+    const pet = holder(); pet.scale.setScalar(1.25); pet.visible = false; scene.add(pet); // follows its owner, positioned separately
+    return { root, body, legL, legR, armL, armR, knife, knifeGrip, gun, ring, color, deadAt: 0, trail: [], pet };
   }
   function rigFor(id, color) {
     let r = people.get(id);
-    if (!r || r.color !== color) { if (r) scene.remove(r.root); r = makeRig(color); people.set(id, r); }
+    if (!r || r.color !== color) { if (r) scene.remove(r.root, r.pet); r = makeRig(color); people.set(id, r); }
     return r;
   }
   function poseRig(r, d, w, item, T, isMe, dead) {
@@ -480,6 +576,21 @@ const R3D = (() => {
     dustGeo.attributes.position.needsUpdate = true;
   }
   const RARE = { Godly: 1, Ancient: 1, Chroma: 1 };
+  // rain: short falling streaks around the camera (haunted map, Ultra only)
+  const DROPS = 420, rainPos = new Float32Array(DROPS * 6);
+  for (let i = 0; i < DROPS; i++) { const x = Math.random() * 26 - 13, y = Math.random() * 7, z = Math.random() * 26 - 13; rainPos.set([x, y, z, x - .03, y + .35, z - .02], i * 6); }
+  const rainGeo = new THREE.BufferGeometry(); rainGeo.setAttribute('position', new THREE.BufferAttribute(rainPos, 3));
+  const rain = new THREE.LineSegments(rainGeo, new THREE.LineBasicMaterial({ color: '#9fb0d9', transparent: true, opacity: .35, depthWrite: false }));
+  rain.frustumCulled = false; rain.visible = false; scene.add(rain);
+  function stepRain(tx, tz, dt) {
+    for (let i = 0; i < DROPS; i++) {
+      const j = i * 6; let x = rainPos[j], y = rainPos[j + 1] - dt * 14, z = rainPos[j + 2];
+      if (y < 0) { y += 7; x = tx + Math.random() * 26 - 13; z = tz + Math.random() * 26 - 13; }
+      x = tx + (((x - tx + 13) % 26) + 26) % 26 - 13; z = tz + (((z - tz + 13) % 26) + 26) % 26 - 13;
+      rainPos[j] = x; rainPos[j + 1] = y; rainPos[j + 2] = z; rainPos[j + 3] = x - .03; rainPos[j + 4] = y + .35; rainPos[j + 5] = z - .02;
+    }
+    rainGeo.attributes.position.needsUpdate = true;
+  }
 
   // ---------------- per frame ----------------
   // V: the client's view of the round. ITEM: item table. myW: our own weapon state.
@@ -488,7 +599,7 @@ const R3D = (() => {
     const dt = Math.min(.05, lastT ? Math.max(0, T - lastT) : .016); lastT = T;
     // the page can change size without us hearing about it (app frames, rotation): always match the window
     if (innerWidth !== W || innerHeight !== H || renderer.domElement.width === 0) api.resize(innerWidth, innerHeight);
-    if (M.idx !== mapIdx) { buildMap(M); for (const r of people.values()) scene.remove(r.root); people.clear(); }
+    if (M.idx !== mapIdx) { buildMap(M); for (const r of people.values()) scene.remove(r.root, r.pet); people.clear(); }
     const fz = V.me && V.me.alive && V.disp.get(V.you) ? V.disp.get(V.you).z || 0 : 0;
     camH += (fz * .85 - camH) * .25; placeCamera(V.cam.x, V.cam.y, camH, V.zoom || 1, V.shakeX || 0, V.shakeY || 0);
     tickChroma(T);
@@ -522,11 +633,25 @@ const R3D = (() => {
           f.userData.m.color.set('#dff3ff'); f.userData.m.opacity = .5 * (1 - k);
           if (hi && g < .5) glow(body.x * S, .5 + k * 2.4, body.y * S, 1.4, '#9fd8ff', .5 * (1 - g * 2));
         }
-        rig.trail.length = 0;
+        rig.trail.length = 0; rig.pet.visible = false;
         continue;
       }
       rig.deadAt = 0;
       poseRig(rig, d, w, item, T, isMe, false);
+      // pet
+      const petItem = r.pet && ITEM[r.pet];
+      rig.pet.visible = !!petItem && d.petX !== undefined;
+      if (rig.pet.visible) {
+        setModel(rig.pet, petItem, 'pet');
+        const moving = d.petMv > 20, an = rig.pet.userData.anim, ph = T + id * .7;
+        const py = petItem.fly ? .7 + Math.sin(ph * 3) * .08 + (d.z || 0) * .5 : moving ? Math.abs(Math.sin(ph * 9)) * .07 : 0;
+        rig.pet.position.set(d.petX * S, py, d.petY * S); rig.pet.rotation.set(0, -(d.petA === undefined ? d.a : d.petA), 0);
+        for (const wg of an.wings) wg.rotation.x = (wg.userData.side || (wg.position.z > 0 ? 1 : -1)) * Math.sin(ph * (petItem.fly ? 14 : 6)) * .55;
+        for (const o of an.squish) { if (o.userData.sy === undefined) o.userData.sy = o.scale.y; o.scale.y = o.userData.sy * (1 - (moving ? Math.abs(Math.sin(ph * 9)) * .16 : (Math.sin(ph * 2) + 1) * .03)); }
+        for (const o of an.spin) o.rotation.z += dt * 2.2;
+        const psh = shadows.get(); psh.position.set(d.petX * S, .012, d.petY * S); psh.scale.setScalar(petItem.fly ? .45 : .65);
+        if (hi && (RARE[petItem.r] || petItem.pet === 'wisp' || petItem.pet === 'ghost')) glow(d.petX * S, py + .25, d.petY * S, .9, colorOf(petItem, T), .35 + Math.sin(ph * 4) * .1);
+      }
       const sh = shadows.get(); sh.position.set(d.x * S, .01, d.y * S); sh.scale.setScalar(1 / (1 + (d.z || 0) * .35));
       // after-images while juking
       if (d.dashT > 0) rig.trail.push({ x: d.x, y: d.y, z: d.z || 0, a: d.a, t: T });
@@ -550,7 +675,13 @@ const R3D = (() => {
         glow(wp.x, wp.y, wp.z, .95, colorOf(item, T), .5 + Math.sin(T * 6) * .12);
       }
     }
-    for (const [id, r] of people) if (!seen.has(id)) r.root.visible = false;
+    for (const [id, r] of people) if (!seen.has(id)) r.root.visible = r.pet.visible = false;
+    // haunted map: candle flames flicker, rain falls, lightning lights everything up
+    const haunted = M.theme === 'haunted', flash = V.flash || 0;
+    hemi.intensity = (haunted ? (hi ? .36 : .52) : .5) + flash * 1.5; sun.intensity = (haunted ? (hi ? .42 : .55) : .62) + flash * .8; // no candle glow on phones, so less dark there
+    if (hi) for (const [cx, cz] of candles) glow(cx, .64, cz, .5 + Math.sin(T * 13 + cx * 3) * .06 + Math.sin(T * 7.3 + cz) * .05, '#ffb347', .55);
+    rain.visible = hi && haunted;
+    if (rain.visible) stepRain(V.cam.x * S, V.cam.y * S, dt);
     // dropped gun
     dropGun.visible = dropRing.visible = !!s.g;
     if (s.g) {
@@ -614,6 +745,7 @@ const R3D = (() => {
       tickChroma(1.1); // chroma skins get a fixed pink for the picture (the menu animates the hue)
       const g = new THREE.Group(), m = modelFor(item, item.type);
       if (item.type === 'knife') { m.rotation.x = Math.PI / 2; g.rotation.set(0, -.25, Math.PI / 4); } // blade face to camera, tip up-right
+      else if (item.type === 'pet') { g.rotation.set(.2, -.75, 0); }                                  // pet: 3/4 view, facing the camera
       else { g.rotation.set(0, -.45, .12); }                                                              // gun side-on, slight turn
       g.add(m); thumbScene.add(g); g.updateMatrixWorld(true);
       const box = new THREE.Box3().setFromObject(g), size = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3());

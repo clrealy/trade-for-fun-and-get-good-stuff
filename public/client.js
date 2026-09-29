@@ -91,6 +91,18 @@ const SFX = {
   win: () => [523, 659, 784, 1046].forEach((f, i) => { tone(f, .18, 'square', .05, 0, i * .12); tone(f / 2, .22, 'triangle', .05, 0, i * .12); }),
   lose: () => [400, 330, 260].forEach((f, i) => tone(f, .25, 'triangle', .06, 0, i * .18)),
   roll: () => tone(900, .03, 'square', .02),
+  // distant thunder: low rumble that rolls in after the flash
+  thunder: (at = .4) => {
+    try {
+      ac();
+      const d = 2.6, n = AC.sampleRate * d, b = AC.createBuffer(1, n, AC.sampleRate), ch = b.getChannelData(0);
+      let v = 0; for (let i = 0; i < n; i++) { v = v * .985 + (Math.random() * 2 - 1) * .15; const t = i / n; ch[i] = v * Math.min(1, t * 12) * (1 - t) ** 1.6; }
+      const src = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain();
+      f.type = 'lowpass'; f.frequency.value = 380; g.gain.value = .9; src.buffer = b;
+      src.connect(f).connect(g).connect(bus || AC.destination); src.start(AC.currentTime + at);
+      tone(48, 1.4, 'sine', .12, -12, at);
+    } catch (e) { }
+  },
   heart: k => { tone(62, .12, 'sine', .16 + k * .12, -18); tone(56, .14, 'sine', .12 + k * .1, -16, .16); },
   tick: () => tone(1500, .04, 'square', .025),
   spin: i => tone(500 + i * 40, .04, 'square', .025),
@@ -225,7 +237,7 @@ function onMsg(m) {
     case 's': if (V && !V.offline) { if (m.s) applySnap(m.s); if (m.ev) m.ev.forEach(handleEvent); } break;
     case 'reward': showReward(m.r); break;
     case 'unboxed': playUnbox(m.crate, m.item); break;
-    case 'codeAll': unboxPending = false; SFX.win(); toast(`Code redeemed: +${m.count} knives and guns you were missing 🔪🔫 You have every one now`, true); if (screen === 'lobby') renderLobby(); break;
+    case 'codeAll': unboxPending = false; SFX.win(); toast(`Code redeemed: +${m.count} items you were missing 🔪🔫🐾 You have every one now`, true); if (screen === 'lobby') renderLobby(); break;
     case 'codeItems': unboxPending = false; SFX.win(); toast(`${m.from === 'event' ? 'Unlocked' : m.from === 'bundle' ? 'Bought' : 'Code redeemed'}: ${m.items.map(id => ITEM[id].name).join(' + ')} 🔥`, true); if (screen === 'lobby') renderLobby(); break;
     case 'chat': addChat(m.name, m.text, m.sys); break;
     case 'codeAdmin': unboxPending = false; SFX.win(); toast('👑 You\'re an admin now: crown on your name and owner luck is on', true); if (screen === 'lobby') renderLobby(); break;
@@ -333,7 +345,7 @@ function newView(mapIdx, roster, you, offline) {
     disp: new Map(), snap: null, snapT: 0, lp: null, fx: [], cam: { x: 0, y: 0 }, spec: null, phase: 'intro',
     me: null, endInfo: null, endShownAt: 0, reward: null, introShown: false, R: null,
     // eye candy
-    shake: 0, shakeX: 0, shakeY: 0, zoom: 1, decals: [], pops: [], danger: 0, hbT: 0, hurt: 0, hitT: 0, streak: 0, streakT: 0, cine: null, lastBlood: null, lastSec: -1, slow: 1,
+    shake: 0, shakeX: 0, shakeY: 0, zoom: 1, flash: 0, flashAt: -1e9, boltT: rand(3, 7), decals: [], pops: [], danger: 0, hbT: 0, hurt: 0, hitT: 0, streak: 0, streakT: 0, cine: null, lastBlood: null, lastSec: -1, slow: 1,
   };
   $('#msgs').innerHTML = ''; $('#chatLog').innerHTML = ''; $('#feed').innerHTML = ''; $('#banner').className = ''; closeChat(); hudCache = {};
   document.body.classList.remove('dead'); Music.level = 0; Music.start();
@@ -345,7 +357,7 @@ function startOnlineView(m) {
   if (m.you === null) msg('Round in progress. You\'ll join the next one 👀', '#fff', 5);
 }
 function startPractice(mode) {
-  const R = Sim.createRound({ mode, mapIdx: +$('#mapSel').value, players: [{ pid: 'me', name: P ? P.name : 'You', knife: equippedId('knife'), gun: equippedId('gun'), mT: 1, sT: 1 }] });
+  const R = Sim.createRound({ mode, mapIdx: +$('#mapSel').value, players: [{ pid: 'me', name: P ? P.name : 'You', knife: equippedId('knife'), gun: equippedId('gun'), pet: equippedId('pet'), mT: 1, sT: 1 }] });
   newView(R.mapIdx, Sim.roster(R), R.ents[0].id, true);
   V.R = R;
   applySnap(Sim.snapshotFor(R, V.you));
@@ -356,9 +368,8 @@ function endGameView() {
   show('#hud', false); show('#intro', false); show('#endScreen', false);
 }
 function equippedId(type) {
-  if (!P) return type === 'knife' ? 'k0' : 'g0';
-  const inst = P.inv.find(i => i.u === P.equip[type]);
-  return inst ? inst.id : (type === 'knife' ? 'k0' : 'g0');
+  const inst = P && P.inv.find(i => i.u === P.equip[type]);
+  return inst ? inst.id : type === 'knife' ? 'k0' : type === 'gun' ? 'g0' : null; // no pet = null
 }
 
 function applySnap(s) {
@@ -625,8 +636,17 @@ function juice(rdt, dt) {
   let danger = 0;
   for (const [id, d] of V.disp) {
     if (d.dashT > 0) d.dashT -= dt;
-    if (!d.alive) { d.pz = 0; continue; }
+    if (!d.alive) { d.pz = 0; d.petX = undefined; continue; }
     const z = d.z || 0;
+    // pets trot along behind and to the side of their owner
+    const ro = V.roster.get(id);
+    if (ro && ro.pet) {
+      const tx = d.x - Math.cos(d.a) * 30 - Math.sin(d.a) * 22, ty = d.y - Math.sin(d.a) * 30 + Math.cos(d.a) * 22;
+      if (d.petX === undefined || Math.hypot(tx - d.petX, ty - d.petY) > 300) { d.petX = tx; d.petY = ty; d.petA = d.a; }
+      const k = Math.min(1, dt * 6), mx = (tx - d.petX) * k, my = (ty - d.petY) * k;
+      d.petX += mx; d.petY += my; d.petMv = Math.hypot(mx, my) / Math.max(dt, 1e-3);
+      if (d.petMv > 20) d.petA = Math.atan2(my, mx);
+    }
     if ((d.pz || 0) > .3 && z === 0) { V.fx.push({ type: 'land', x: d.x, y: d.y, t: .35 }); if (id === V.you) { addShake(3); SFX.land(); } }
     d.pz = z;
     const mv = d.px !== undefined ? Math.hypot(d.x - d.px, d.y - d.py) / Math.max(dt, 1e-3) : 0; d.px = d.x; d.py = d.y;
@@ -640,6 +660,13 @@ function juice(rdt, dt) {
   V.danger += (danger - V.danger) * Math.min(1, rdt * 6);
   V.hbT -= rdt;
   if (V.danger > .08 && V.hbT <= 0 && V.phase === 'play') { SFX.heart(V.danger); V.hbT = 1 - V.danger * .55; }
+  // haunted map: lightning every so often (a double flicker), then thunder
+  if (V.M.theme === 'haunted' && V.phase !== 'end') {
+    V.boltT -= rdt;
+    if (V.boltT <= 0) { V.boltT = rand(8, 16); V.flashAt = now; SFX.thunder(rand(.3, .9)); }
+  }
+  const ft = (now - V.flashAt) / 1000;
+  V.flash = (ft < .07 ? 1 : ft < .15 ? .15 : ft < .24 ? .75 : Math.max(0, .75 * Math.exp(-(ft - .24) * 6))) * (calm ? .35 : 1);
   // last 15 seconds: tick every second
   const s = V.snap, sec = s ? Math.ceil(s.tm) : -1;
   if (s && s.ph === 'play' && sec <= 15 && sec > 0 && sec !== V.lastSec) { V.lastSec = sec; SFX.tick(); }
@@ -710,7 +737,7 @@ function render() {
   for (let y = ty0; y <= ty1; y++) for (let x = tx0; x <= tx1; x++) {
     const c = M.grid[y][x], X = x * TILE, Y = y * TILE;
     if (c === 'T') { ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.fillRect(X + 3, Y + 7, TILE - 2, TILE - 4); ctx.fillStyle = '#8a5a34'; ctx.fillRect(X + 1, Y + 1, TILE - 2, TILE - 4); ctx.fillStyle = '#a06b40'; ctx.fillRect(X + 3, Y + 3, TILE - 6, TILE - 10); }
-    else if (c === 'P') { ctx.fillStyle = '#8b4a2b'; ctx.fillRect(X + 16, Y + 26, 16, 16); ctx.fillStyle = '#2f9e44'; for (let k = 0; k < 5; k++) { ctx.beginPath(); ctx.arc(X + 24 + Math.cos(k * 1.3) * 9, Y + 20 + Math.sin(k * 1.3) * 8, 9, 0, 7); ctx.fill(); } }
+    else if (c === 'P') { ctx.fillStyle = '#8b4a2b'; ctx.fillRect(X + 16, Y + 26, 16, 16); ctx.fillStyle = M.plant || '#2f9e44'; for (let k = 0; k < 5; k++) { ctx.beginPath(); ctx.arc(X + 24 + Math.cos(k * 1.3) * 9, Y + 20 + Math.sin(k * 1.3) * 8, 9, 0, 7); ctx.fill(); } }
     else if (c === 'B') { ctx.fillStyle = '#3b2616'; ctx.fillRect(X, Y, TILE, TILE); const bc = ['#c92a2a', '#1971c2', '#e67700', '#2b8a3e', '#862e9c']; for (let k = 0; k < 6; k++) { ctx.fillStyle = bc[(x * 3 + y + k) % 5]; ctx.fillRect(X + 4 + k * 7, Y + 6, 5, 16); ctx.fillStyle = bc[(x + y * 2 + k) % 5]; ctx.fillRect(X + 4 + k * 7, Y + 26, 5, 16); } }
   }
   for (let y = ty0; y <= ty1; y++) for (let x = tx0; x <= tx1; x++) {
@@ -750,6 +777,7 @@ function render() {
   }
   const al = [...V.disp.entries()].filter(([, d]) => d.alive).sort((a, b) => a[1].y - b[1].y);
   for (const [id, d] of al) drawEnt(id, d, T);
+  for (const [id, d] of al) drawPet(id, d, T);
   ctx.font = '600 12px Fredoka, sans-serif'; ctx.textAlign = 'center';
   const endRoles = V.endInfo ? new Map(V.endInfo.roles) : null;
   for (const [id, d] of al) {
@@ -818,6 +846,7 @@ function drawScreenOverlay(me, s, toScreen) {
     dv.addColorStop(0, 'rgba(255,0,30,0)'); dv.addColorStop(1, `rgba(200,0,30,${(.25 + beat * .35) * V.danger})`); ctx.fillStyle = dv; ctx.fillRect(0, 0, W, H);
   }
   if (V.hurt > 0) { ctx.fillStyle = `rgba(220,0,30,${V.hurt * .45})`; ctx.fillRect(0, 0, W, H); }
+  if (V.flash > .01 && !use3D()) { ctx.fillStyle = `rgba(210,220,255,${V.flash * .35})`; ctx.fillRect(0, 0, W, H); } // 3D lights the scene instead
   // floating +1s
   ctx.textAlign = 'center';
   for (const p of V.pops) {
@@ -867,6 +896,16 @@ function drawEnt(id, d, T) {
   ctx.fillStyle = '#222'; ctx.beginPath(); ctx.arc(6, -4, 1.8, 0, 7); ctx.arc(6, 4, 1.8, 0, 7); ctx.fill();
   ctx.restore();
   if (isMe) { ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(d.x, d.y, 22, 0, 7); ctx.stroke(); }
+}
+function drawPet(id, d, T) {
+  const r = V.roster.get(id), it = r && r.pet && ITEM[r.pet];
+  if (!it || d.petX === undefined) return;
+  const lift = it.fly ? 14 + Math.sin(T * 3 + id) * 3 : Math.abs(Math.sin(T * 9)) * (d.petMv > 20 ? 4 : 0);
+  ctx.fillStyle = 'rgba(0,0,0,.2)'; ctx.beginPath(); ctx.ellipse(d.petX, d.petY + 8, 8, 3, 0, 0, 7); ctx.fill();
+  if (it.col === 'chroma' || it.r === 'Godly' || it.r === 'Ancient') { ctx.shadowColor = itemColor(it, T); ctx.shadowBlur = 14; }
+  ctx.font = '18px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(it.emoji || '🐾', d.petX, d.petY - lift);
+  ctx.shadowBlur = 0; ctx.textBaseline = 'alphabetic';
 }
 function drawKnifeLocal(x, y, a, skin, T) {
   ctx.save(); ctx.translate(x, y); ctx.rotate(a);
@@ -1007,7 +1046,7 @@ tapBtn('#mbCrouch', () => { crouchTouch = !crouchTouch; $('#mbCrouch').classList
 function itemIcon(it) {
   const url = R3.ok && R3.thumbCached ? R3.thumbCached(it.id) : null;
   if (url) return `<img class="thumb${it.col === 'chroma' ? ' chroma' : ''}" src="${url}" alt="">`;
-  return `<span class="ic-emoji" ${R3.ok && R3.thumb && url === undefined ? `data-thumb="${esc(it.id)}"` : ''}>${it.type === 'knife' ? '🔪' : '🔫'}</span>`;
+  return `<span class="ic-emoji" ${R3.ok && R3.thumb && url === undefined ? `data-thumb="${esc(it.id)}"` : ''}>${it.type === 'pet' ? it.emoji || '🐾' : it.type === 'knife' ? '🔪' : '🔫'}</span>`;
 }
 let thumbJob = 0;
 function hydrateThumbs() {
@@ -1071,10 +1110,10 @@ function renderInventory() {
   const groups = new Map();
   for (const d of ['k0', 'g0']) groups.set(d, { id: d, uids: [] });
   for (const i of P.inv) { if (!groups.has(i.id)) groups.set(i.id, { id: i.id, uids: [] }); groups.get(i.id).uids.push(i.u); }
-  const eqId = { knife: equippedId('knife'), gun: equippedId('gun') };
+  const eqId = { knife: equippedId('knife'), gun: equippedId('gun'), pet: equippedId('pet') };
   const q = $('#invSearch').value.trim().toLowerCase();
   const list = [...groups.values()].map(g => ({ ...g, it: ITEM[g.id] })).filter(g => g.it && (
-    invCat === 'all' || (invCat === 'fav' ? favs.has(g.id) : invCat === 'chroma' ? g.it.r === 'Chroma' : invCat === 'trophy' ? g.it.trophy : g.it.type === invCat)
+    (invCat === 'all' ? g.it.type !== 'pet' : invCat === 'fav' ? favs.has(g.id) : invCat === 'chroma' ? g.it.r === 'Chroma' : invCat === 'trophy' ? g.it.trophy : g.it.type === invCat)
   ) && (!q || g.it.name.toLowerCase().includes(q)));
   list.sort((a, b) => (eqId[b.it.type] === b.id) - (eqId[a.it.type] === a.id) || favs.has(b.id) - favs.has(a.id) || b.it.val - a.it.val);
   $('#invGrid').innerHTML = list.length ? list.map(g => {
@@ -1089,7 +1128,9 @@ function renderInventory() {
     const equip = () => {
       const id = el.dataset.id, it = ITEM[id]; tone(800, .06);
       if (id === 'k0' || id === 'g0') { if (P.equip[it.type] != null) net({ t: 'equip', u: P.equip[it.type] }); return; } // equipping the default = unequip the skin
-      const g = groups.get(id); if (eqId[it.type] !== id) net({ t: 'equip', u: g.uids[0] });
+      const g = groups.get(id);
+      if (eqId[it.type] !== id) net({ t: 'equip', u: g.uids[0] });
+      else if (it.type === 'pet') net({ t: 'equip', u: P.equip.pet }); // tap your pet again to put it away
     };
     el.onclick = e => { if (!e.target.closest('.star')) equip(); };
     el.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); equip(); } };
@@ -1220,7 +1261,8 @@ function renderTrade() {
   $('#traderTabs').querySelectorAll('button').forEach(b => b.onclick = () => { curTrader = +b.dataset.i; offMine = []; offTheirs = []; $('#tradeChat').textContent = ''; renderTrade(); });
   $('#traderName').textContent = `${tr.name}'s items`;
   const mine = sortedInv(), selM = new Set(offMine.map(i => i.u)), selT = new Set(offTheirs.map(i => i.u));
-  $('#trMine').innerHTML = mine.length ? mine.map(i => itemCard(ITEM[i.id], { sel: selM.has(i.u), attr: `data-u="${i.u}"` })).join('') : '<div class="muted">Nothing to trade yet</div>';
+  const SHOW = 200; // huge inventories (GODLY1000) would make this list crawl, so show the most valuable ones
+  $('#trMine').innerHTML = mine.length ? mine.slice(0, SHOW).map(i => itemCard(ITEM[i.id], { sel: selM.has(i.u), attr: `data-u="${i.u}"` })).join('') + (mine.length > SHOW ? `<div class="muted small">…and ${(mine.length - SHOW).toLocaleString()} more (showing your ${SHOW} best)</div>` : '') : '<div class="muted">Nothing to trade yet</div>';
   $('#trTheirs').innerHTML = tr.inv.map(i => itemCard(ITEM[i.id], { sel: selT.has(i.u), attr: `data-u="${i.u}"` })).join('');
   $('#offMine').innerHTML = offMine.map(i => itemCard(ITEM[i.id], { attr: `data-u="${i.u}"` })).join('');
   $('#offTheirs').innerHTML = offTheirs.map(i => itemCard(ITEM[i.id], { attr: `data-u="${i.u}"` })).join('');

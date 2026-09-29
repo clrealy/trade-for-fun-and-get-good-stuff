@@ -112,6 +112,17 @@
     I('t_chroma', 'gun', 'Chroma Hunter', 'Chroma', 'chroma', 1, { exclusive: true, trophy: true }),
     I('g16', 'gun', 'Chroma Ginger Scope', 'Chroma', 'chroma', 1, { val: 1e48, exclusive: true, noCooldown: true, long: true }),
     I('g14', 'gun', 'Ginger Scope', 'Ancient', '#c9743a', 1, { val: 10000000000000, exclusive: true, noCooldown: true, long: true }),
+    // Pets: they follow you around in rounds. Only from the 🐾 Pet Box (never from knife/gun boxes)
+    I('p1', 'pet', 'Doggo', 'Common', '#c68642', 1, { pet: 'dog', emoji: '🐶' }),
+    I('p2', 'pet', 'Kitty', 'Common', '#a8a8b3', 1, { pet: 'cat', emoji: '🐱' }),
+    I('p3', 'pet', 'Bunny', 'Uncommon', '#f4f1ec', 1, { pet: 'bunny', emoji: '🐰' }),
+    I('p4', 'pet', 'Slime', 'Uncommon', '#5bd46a', 1, { pet: 'slime', emoji: '🟢' }),
+    I('p5', 'pet', 'Bat', 'Rare', '#4b3a63', 1, { pet: 'bat', emoji: '🦇', fly: true }),
+    I('p6', 'pet', 'Pumpkin', 'Rare', '#ff8c1a', 1, { pet: 'pumpkin', emoji: '🎃' }),
+    I('p7', 'pet', 'Ghosty', 'Legendary', '#e8f4ff', 1, { pet: 'ghost', emoji: '👻', fly: true }),
+    I('p8', 'pet', 'Phoenix', 'Godly', '#ff6a1a', 1, { pet: 'bird', emoji: '🐦‍🔥', fly: true }),
+    I('p9', 'pet', 'Void Wisp', 'Ancient', '#9d4dff', 1, { pet: 'wisp', emoji: '🌌', fly: true }),
+    I('p10', 'pet', 'Chroma Dragon', 'Chroma', 'chroma', 1, { pet: 'dragon', emoji: '🐉', fly: true }),
   ];
   const ITEM = Object.fromEntries(ITEMS.map(i => [i.id, i]));
   const CRATES = [
@@ -120,6 +131,7 @@
     { id: 'halloween', name: 'Halloween Box', icon: '🎃', price: 250, type: null, desc: 'Death Set + Chroma Death Set inside 💀 10% Death Knife, 5% Death Gun, 2% Chroma Death Knife, 1% Chroma Death Gun', specials: [{ id: 'k26', chance: .10 }, { id: 'g20', chance: .05 }, { id: 'k27', chance: .02 }, { id: 'g22', chance: .01 }],
       // owner luck: 95% for a Death item
       luckySpecials: [{ id: 'k26', chance: .30 }, { id: 'g20', chance: .30 }, { id: 'k27', chance: .175 }, { id: 'g22', chance: .175 }], w: { Common: 18, Uncommon: 30, Rare: 26, Legendary: 16, Godly: 7.5, Ancient: 2, Chroma: 0.5 } },
+    { id: 'petbox', name: 'Pet Box', icon: '🐾', price: 120, type: 'pet', desc: 'A pet that follows you around in rounds 🐾', w: { Common: 40, Uncommon: 28, Rare: 18, Legendary: 9, Godly: 4, Ancient: 0.8, Chroma: 0.2 } },
     { id: 'mystery', name: 'Mystery Box', icon: '🎁', price: 175, type: null, desc: 'Way better odds. Godly hunting 👀', w: { Common: 18, Uncommon: 30, Rare: 26, Legendary: 16, Godly: 7.5, Ancient: 2, Chroma: 0.5 } },
   ];
   // a crate roll: its special items first (if it has any), otherwise by rarity
@@ -132,8 +144,9 @@
     let tot = 0; for (const r in weights) tot += weights[r];
     let x = Math.random() * tot, rar = 'Common';
     for (const r in weights) { x -= weights[r]; if (x <= 0) { rar = r; break; } }
-    let pool = ITEMS.filter(i => !i.nodrop && !i.exclusive && i.r === rar && (!type || i.type === type));
-    if (!pool.length) pool = ITEMS.filter(i => !i.nodrop && !i.exclusive && (!type || i.type === type));
+    const kind = i => type ? i.type === type : i.type !== 'pet'; // pets only come from the Pet Box
+    let pool = ITEMS.filter(i => !i.nodrop && !i.exclusive && i.r === rar && kind(i));
+    if (!pool.length) pool = ITEMS.filter(i => !i.nodrop && !i.exclusive && kind(i));
     return pick(pool);
   }
 
@@ -339,6 +352,34 @@
         '####################################',
       ]
     },
+    {
+      // spooky: rain, lightning and candles in 3D, purple trees
+      name: 'Haunted Manor', theme: 'haunted', plant: '#5a2d82', floor: ['#3b3346', '#352d40'], wall: '#1d1726', wallTop: '#3a2f4d', rows: [
+        '####################################',
+        '#......#.......#....#.......#......#',
+        '#.BB...#..T.T..#....#..T.T..#...BB.#',
+        '#......D.......D....D.......D......#',
+        '#..P...#..T.T..#....#..T.T..#...P..#',
+        '#......#.......#....#.......#......#',
+        '###D######D#####....#####D######D###',
+        '#..................................#',
+        '#..P.....P.....P....P.....P.....P..#',
+        '#..................................#',
+        '#.....######......##......######...#',
+        '#.....#BB..D......##......D..BB#...#',
+        '#.....#....#..............#....#...#',
+        '#.....##D###......##......###D##...#',
+        '#..................................#',
+        '#..P.....P.....P....P.....P.....P..#',
+        '#..................................#',
+        '###D######D#####....#####D######D###',
+        '#......#.......#....#.......#......#',
+        '#.TT...#..BBB..D....D..BBB..#...TT.#',
+        '#......D.......#....#.......D......#',
+        '#..P...#.......#.PP.#.......#...P..#',
+        '####################################',
+      ]
+    },
   ];
   const TILE = 48;
   const SOLID_MOVE = new Set(['#', 'T', 'P', 'B']);
@@ -358,7 +399,7 @@
       }
       grid.push(row);
     }
-    const M = { idx, name: m.name, floor: m.floor, wall: m.wall, wallTop: m.wallTop, W, H, grid, reach: [] };
+    const M = { idx, name: m.name, theme: m.theme || null, plant: m.plant || null, floor: m.floor, wall: m.wall, wallTop: m.wallTop, W, H, grid, reach: [] };
     // largest connected walkable region = where people spawn & coins drop
     const seen = new Uint8Array(W * H); let best = [];
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
@@ -472,6 +513,7 @@
       role: 'innocent', startRole: 'innocent', alive: true, hasGun: false, weaponOut: false, atkCd: 0, throwCd: 0, swing: 0, bag: 0, kills: 0,
       speed: o.human ? PLAYER_SPEED : BOT_SPEED, walk: 0, budget: 0,
       knife: ITEM[o.knife] && ITEM[o.knife].type === 'knife' ? o.knife : 'k0', gun: ITEM[o.gun] && ITEM[o.gun].type === 'gun' ? o.gun : 'g0',
+      pet: ITEM[o.pet] && ITEM[o.pet].type === 'pet' ? o.pet : null,
       mT: Math.max(1, num(o.mT, 1)), sT: Math.max(1, num(o.sT, 1)),
       inp: null, lastThr: 0, lastTog: 0, lastBj: 0,
       z: 0, vz: 0, crouch: false, bombCd: 0, lastJp: 0, dashT: 0, dashCd: 0, lastDj: 0,
@@ -499,7 +541,7 @@
     const taken = new Set(humans.map(h => h.name.toLowerCase()));
     const names = shuffle(BOT_NAMES).filter(n => !taken.has(n.toLowerCase()));
     const fill = opts.fillBots === false ? 0 : cap - R.ents.length;
-    for (let i = 0; i < fill; i++) R.ents.push(mkEnt(R.nextId++, { name: names[i % names.length], color: cols[(humans.length + i) % cols.length], knife: botSkin('knife'), gun: botSkin('gun') }));
+    for (let i = 0; i < fill; i++) R.ents.push(mkEnt(R.nextId++, { name: names[i % names.length], color: cols[(humans.length + i) % cols.length], knife: botSkin('knife'), gun: botSkin('gun'), pet: Math.random() < .35 ? rollItem(CRATES.find(c => c.id === 'petbox').w, 'pet').id : null }));
     // spread-out spawns
     const spots = shuffle(M.reach), used = [];
     for (const e of R.ents) {
@@ -837,11 +879,12 @@
         const pool = R.ents.filter(o => o !== e && o.alive);
         if (!pool.length) return 'Nobody left to be the murderer';
         const m = pool[Math.floor(Math.random() * pool.length)];
-        m.role = 'murderer'; m.hasGun = false; m.ai.grace = rand(4, 8); m.ai.target = null; R.murderer = m;
+        m.role = 'murderer'; m.startRole = 'murderer'; m.hasGun = false; m.ai.grace = rand(4, 8); m.ai.target = null; R.murderer = m;
+        e.startRole = 'sheriff'; // switched teams, so win/lose is judged on the new side
         for (const b of R.ents) if (b.ai.know === e) { b.ai.know = null; b.ai.lastSeen = null; }
         extra = ' Your knife is gone and someone else is the murderer now 👀';
       }
-      e.weaponOut = false; e.hasGun = true; e.role = 'sheriff';
+      e.weaponOut = false; e.hasGun = true; e.role = 'sheriff'; R.sheriffName = e.name;
       emit(R, { t: 'sfx', s: 'gun', x: e.x, y: e.y });
       return 'You got the gun 🔫 You\'re the sheriff now.' + extra;
     }
@@ -849,11 +892,11 @@
       if (e.role === 'murderer') return 'You\'re already the murderer 😈';
       // the old murderer's knife goes bye bye
       const old = R.murderer;
-      old.role = 'innocent'; old.weaponOut = false; old.ai.target = null;
+      old.role = 'innocent'; old.startRole = 'innocent'; old.weaponOut = false; old.ai.target = null;
       for (const b of R.ents) if (b.ai.know === old) { b.ai.know = null; b.ai.lastSeen = null; }
       let extra = '';
       if (e.hasGun) { e.hasGun = false; extra = ' Your gun is gone.'; }
-      e.weaponOut = false; e.role = 'murderer'; R.murderer = e;
+      e.weaponOut = false; e.role = 'murderer'; e.startRole = 'murderer'; R.murderer = e; // on the murderer's team for win/lose now
       return 'You\'re the murderer now 🔪 Click to stab, Q to throw.' + extra;
     }
     if (cmd === 'speed') {
@@ -966,7 +1009,7 @@
     if (R.phase === 'end') s.end = R.endInfo;
     return s;
   }
-  function roster(R) { return R.ents.map(e => ({ id: e.id, name: e.name, color: e.color, knife: e.knife, gun: e.gun, human: e.human })); }
+  function roster(R) { return R.ents.map(e => ({ id: e.id, name: e.name, color: e.color, knife: e.knife, gun: e.gun, pet: e.pet || null, human: e.human })); }
   function eventsFor(evs, viewerId) { return evs.filter(ev => (ev.to === undefined || ev.to === viewerId) && ev.except !== viewerId); }
   function drain(R) { const e = R.events; R.events = []; return e; }
 

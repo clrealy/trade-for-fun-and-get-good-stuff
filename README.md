@@ -78,6 +78,14 @@ Players type codes in **Inventory → Add code**. Codes ignore caps and spaces, 
 - **Raygun Set** (Raygun + Ray Blade, the Raygun fires a green laser with its own sound): 3,999 coins in the Shop, or the secret code `ZAPZAPBOOM13`. The game reveals it when you tap the lobby logo 13 times fast.
 - **Chroma Raygun Set** (Chroma Raygun + Chroma Ray Blade): 93,000 coins in the Shop. The Chroma Raygun fires rainbow lasers with no reload.
 
+## Pets
+
+The **🐾 Pet Box** in the Shop (120 coins) gives a pet that follows you around in every round, trotting behind you or flying next to you. There are 10 pets: Doggo and Kitty (Common), Bunny and Slime (Uncommon), Bat and Pumpkin (Rare), Ghosty (Legendary), Phoenix (Godly), Void Wisp (Ancient) and Chroma Dragon (Chroma). Equip one under **Inventory → Pets**, and tap it again to put it away. Pets only come from the Pet Box, never from knife or gun boxes or rarity codes, and some bots bring their own.
+
+## Haunted Manor
+
+A new map with rain, candles on every table, purple trees and lightning that lights up the whole map every 8 to 16 seconds, followed by thunder. The rain and candle glow are 3D Ultra only. If your device asks for reduced motion, the lightning is dimmer.
+
 ## 1v1
 
 **Play → ⚔️ 1v1 vs bot** (solo) or **⚔️ Create 1v1 room** (online, share the code with one friend). It's one Murderer against one Sheriff with a 2-minute timer. Players start far apart, and the Sheriff wins if time runs out. Murderer kills play a kill sound, and the killer hears an extra sting.
