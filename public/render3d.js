@@ -464,6 +464,14 @@ const R3D = (() => {
   const styleKnife = (h, item) => setModel(h, item, 'knife');
   const styleGun = (h, item) => setModel(h, item, 'gun');
   const people = new Map(); // ent id → rig
+  // /esp colors: red murderer, green innocent, blue sheriff, gold hero. No depth test, so they show through walls
+  const espMats = Object.fromEntries(Object.entries({ murderer: '#ff2a3d', innocent: '#2fe04a', sheriff: '#2f8cff', hero: '#ffc233' })
+    .map(([k, c]) => [k, new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: .6, depthTest: false, depthWrite: false })]));
+  function setEsp(rig, role) {
+    if (rig.espRole === role) return;
+    rig.espRole = role;
+    for (const o of rig.esp) { o.visible = !!role; if (role) o.material = espMats[role] || espMats.innocent; }
+  }
   // the classic Roblox face: two oval eyes and a smile, drawn onto the head's front
   const faceMat = new THREE.MeshLambertMaterial({ map: (() => {
     const t = canvasTex(64, 64, g => {
@@ -476,7 +484,8 @@ const R3D = (() => {
   function makeRig(color) {
     const root = new THREE.Group(), body = new THREE.Group(); root.add(body);
     const shirt = mat(color), skin = mat('#f7d154'), pants = mat('#34304a');
-    const part = (w, h, d, m, x, y, z, parent = body) => { const p = new THREE.Mesh(box(w, h, d), m); p.position.set(x, y, z); parent.add(p); return p; };
+    const parts = [];
+    const part = (w, h, d, m, x, y, z, parent = body) => { const p = new THREE.Mesh(box(w, h, d), m); p.position.set(x, y, z); parent.add(p); parts.push(p); return p; };
     const legL = new THREE.Group(), legR = new THREE.Group(); legL.position.set(0, .36, -.08); legR.position.set(0, .36, .08); body.add(legL, legR);
     part(.14, .36, .13, pants, 0, -.18, 0, legL); part(.14, .36, .13, pants, 0, -.18, 0, legR);
     part(.2, .38, .34, shirt, 0, .55, 0);
@@ -492,9 +501,11 @@ const R3D = (() => {
     ring.rotation.x = -Math.PI / 2; ring.position.y = .02; ring.visible = false; root.add(ring);
     root.scale.setScalar(1.1);
     root.traverse(o => { if (o.isMesh && o !== ring) o.castShadow = true; });
+    // /esp: a see-through colored shell over every body part, drawn on top of walls (hidden until ESP is on)
+    const esp = parts.map(p => { const o = new THREE.Mesh(p.geometry, espMats.innocent); o.scale.setScalar(1.1); o.renderOrder = 10; o.visible = false; p.add(o); return o; });
     scene.add(root);
     const pet = holder(); pet.scale.setScalar(1.25); pet.visible = false; scene.add(pet); // follows its owner, positioned separately
-    return { root, body, legL, legR, armL, armR, knife, knifeGrip, gun, ring, color, deadAt: 0, trail: [], pet };
+    return { root, body, legL, legR, armL, armR, knife, knifeGrip, gun, ring, color, deadAt: 0, trail: [], pet, esp, espRole: null };
   }
   function rigFor(id, color) {
     let r = people.get(id);
@@ -645,7 +656,7 @@ const R3D = (() => {
       if (hi) glow(x * S, cy, y * S, .75, '#ffcc33', .3 + Math.sin(T * 5 + b) * .1);
     }
     // people (alive and dead)
-    const seen = new Set(), bodies = new Map(s.b.map(b => [b.id, b]));
+    const seen = new Set(), bodies = new Map(s.b.map(b => [b.id, b])), espRoles = s.esp ? new Map(s.esp) : null;
     for (const [id, d] of V.disp) {
       const r = V.roster.get(id); if (!r) continue;
       const body = !d.alive && bodies.get(id);
@@ -663,11 +674,12 @@ const R3D = (() => {
           f.userData.m.color.set('#dff3ff'); f.userData.m.opacity = .5 * (1 - k);
           if (hi && g < .5) glow(body.x * S, .5 + k * 2.4, body.y * S, 1.4, '#9fd8ff', .5 * (1 - g * 2));
         }
-        rig.trail.length = 0; rig.pet.visible = false;
+        rig.trail.length = 0; rig.pet.visible = false; setEsp(rig, null);
         continue;
       }
       rig.deadAt = 0;
       poseRig(rig, d, w, item, T, isMe, false);
+      setEsp(rig, espRoles && !isMe ? espRoles.get(id) || null : null);
       if (isMe && camDist < 2.6) rig.root.visible = false; // camera squeezed right behind you (wall at your back): hide yourself like Roblox does
       // pet
       const petItem = r.pet && ITEM[r.pet];

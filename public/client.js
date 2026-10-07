@@ -905,6 +905,12 @@ function drawEnt(id, d, T) {
   ctx.fillStyle = '#222'; ctx.beginPath(); ctx.arc(6, -4, 1.8, 0, 7); ctx.arc(6, 4, 1.8, 0, 7); ctx.fill();
   ctx.restore();
   if (isMe) { ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(d.x, d.y, 22, 0, 7); ctx.stroke(); }
+  // /esp in 2D: tint them with their role color and ring them
+  const espRole = !isMe && V.snap && V.snap.esp && (V.snap.esp.find(x => x[0] === id) || [])[1];
+  if (espRole) {
+    const c = roleColor(espRole); ctx.save(); ctx.globalAlpha = .45; ctx.fillStyle = c; ctx.beginPath(); ctx.arc(d.x, d.y - (d.z || 0) * 16, 17, 0, 7); ctx.fill();
+    ctx.globalAlpha = 1; ctx.strokeStyle = c; ctx.lineWidth = 3; ctx.shadowColor = c; ctx.shadowBlur = 10; ctx.beginPath(); ctx.arc(d.x, d.y - (d.z || 0) * 16, 22, 0, 7); ctx.stroke(); ctx.restore();
+  }
 }
 function drawPet(id, d, T) {
   const r = V.roster.get(id), it = r && r.pet && ITEM[r.pet];
