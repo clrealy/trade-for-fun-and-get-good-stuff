@@ -606,7 +606,7 @@
     e.weaponOut = true; e.atkCd = fast(e.gun) ? .12 : gi.reload || 2.2;
     const sp = 1600;
     const muzzle = ITEM[e.gun] && ITEM[e.gun].long ? 52 : 22;
-    R.proj.push({ type: 'bullet', skin: e.gun, x: e.x + Math.cos(e.ang) * muzzle, y: e.y + Math.sin(e.ang) * muzzle, vx: Math.cos(e.ang) * sp, vy: Math.sin(e.ang) * sp, owner: e, life: ITEM[e.gun] && ITEM[e.gun].long ? 1.1 : .55 }); // scoped guns shoot twice as far
+    R.proj.push({ type: 'bullet', dud: !!(R.dumbGuns && e.id !== R.gunCheater), skin: e.gun, x: e.x + Math.cos(e.ang) * muzzle, y: e.y + Math.sin(e.ang) * muzzle, vx: Math.cos(e.ang) * sp, vy: Math.sin(e.ang) * sp, owner: e, life: ITEM[e.gun] && ITEM[e.gun].long ? 1.1 : .55 }); // scoped guns shoot twice as far
     emit(R, { t: 'fx', k: 'flash', x: e.x + Math.cos(e.ang) * (muzzle + 6), y: e.y + Math.sin(e.ang) * (muzzle + 6) });
     emit(R, { t: 'sfx', s: gi.sound === 'ray' || gi.sound === 'void' ? gi.sound : 'shoot', x: e.x, y: e.y });
     if (gi.sound === 'void') emit(R, { t: 'sfx', s: 'voidReload', to: e.id, x: e.x, y: e.y }); // only the shooter hears the reload
@@ -744,7 +744,7 @@
           const d = dist(b, k), lead = d / 1600;
           b.ang = Math.atan2(k.y + k.vy * lead - b.y, k.x + k.vx * lead - b.x);
           ai.react -= dt;
-          if (ai.react <= 0 && b.atkCd <= 0) { b.ang += rand(-1, 1) * (0.07 + d / 2500) * (b.role === 'hero' ? 1.8 : 1); tryShoot(R, b); ai.react = rand(.4, .9); }
+          if (ai.react <= 0 && b.atkCd <= 0) { if (R.dumbGuns && b.id !== R.gunCheater) b.ang += (Math.random() < .5 ? 1 : -1) * rand(.3, .55); b.ang += rand(-1, 1) * (0.07 + d / 2500) * (b.role === 'hero' ? 1.8 : 1); tryShoot(R, b); ai.react = rand(.4, .9); }
           if (d < 170) setGoal(R, b, b.x - (k.x - b.x), b.y - (k.y - b.y));
           else { ai.path = []; ai.goal = null; }
         } else {
@@ -850,7 +850,7 @@
   }
 
   // ===================== Cheats (practice, or admins online) =====================
-  const CHEATS = { sheffeme: 'Get the gun', murdme: 'Become the murderer', speed: 'Run faster (type again to stop)', whoisit: 'See who the murderer is', r: 'Come back to life', god: 'Nothing can kill you (type again to stop)', esp: 'See everyone\'s role on their name tag (type again to stop)' };
+  const CHEATS = { sheffeme: 'Get the gun', murdme: 'Become the murderer', speed: 'Run faster (type again to stop)', whoisit: 'See who the murderer is', r: 'Come back to life', god: 'Nothing can kill you (type again to stop)', esp: 'See everyone\'s role on their name tag (type again to stop)', gun: 'Get a gun, and every other gun holder misses every shot' };
   function cheat(R, id, cmd) {
     const e = entById(R, id);
     cmd = String(cmd || '').toLowerCase().replace(/^\//, '').trim();
@@ -869,6 +869,13 @@
       return 'You\'re back 😎' + (lostGun ? ' You\'re innocent now, the gun stayed where it dropped.' : '');
     }
     if (!e.alive) return 'You need to be alive for that. Try /r';
+    if (cmd === 'gun') {
+      // every other gun holder's shots miss for the rest of the round (they still fire, just never hit)
+      R.dumbGuns = true; R.gunCheater = e.id;
+      if (e.role === 'murderer') return 'The Sheriff can\'t hit anything now 🤡 You\'re the murderer, so you keep your knife (use /sheffeme to swap it for the gun)';
+      if (!e.hasGun) { e.hasGun = true; e.weaponOut = false; if (e.role === 'innocent') e.role = 'hero'; }
+      return 'You got a gun 🔫 and the Sheriff can\'t hit anything now 🤡';
+    }
     if (cmd === 'sheffeme') {
       if (e.hasGun) return 'You already have the gun';
       // everyone else's gun goes bye bye (including one on the floor)
@@ -973,7 +980,7 @@
           if (pr.type === 'knife') emit(R, { t: 'fx', k: 'stuck', x: pr.x - pr.vx * .012, y: pr.y - pr.vy * .012, a: Math.atan2(pr.vy, pr.vx), skin: pr.skin });
           break;
         }
-        if (R.phase === 'play') for (const e of R.ents) if (e.alive && e !== pr.owner && e.z < .7 && Math.hypot(e.x - pr.x, e.y - pr.y) < e.r + (e.crouch ? -3 : 4)) { kill(R, e, pr.owner); dead = true; break; }
+        if (R.phase === 'play' && !pr.dud) for (const e of R.ents) if (e.alive && e !== pr.owner && e.z < .7 && Math.hypot(e.x - pr.x, e.y - pr.y) < e.r + (e.crouch ? -3 : 4)) { kill(R, e, pr.owner); dead = true; break; }
       }
       if (dead) R.proj.splice(i, 1);
     }

@@ -482,3 +482,25 @@ test('deleting an account removes the profile and frees the name', async () => {
   await assert.rejects(() => s.update('u1', p => p), /No profile/, 'late round rewards can\'t bring it back');
   assert.strictEqual((await s.create('u2', 'BOB')).name, 'BOB', 'name is free again');
 });
+
+test('/gun gives you a gun and every other shooter misses every shot', () => {
+  const R = Sim.createRound({ players: [{ pid: 'a', name: 'a' }] });
+  R.phase = 'play'; R.introT = 0;
+  const me = R.ents.find(e => e.role === 'innocent'); // the cheat works for whoever types it
+  assert.match(Sim.cheat(R, me.id, '/gun'), /You got a gun/);
+  assert.ok(me.hasGun && me.role === 'hero');
+  // a sheriff shooting point blank at the murderer never hits
+  const sher = R.ents.find(e => e.role === 'sheriff' && e !== me), m = R.murderer;
+  // a clear spot: 4 open tiles in a row, and nobody else around to get in the way
+  let spot = null;
+  for (let y = 1; y < R.M.H - 1 && !spot; y++) for (let x = 1; x < R.M.W - 5 && !spot; x++) if ([0, 1, 2, 3].every(k => R.M.grid[y][x + k] === '.')) spot = [x, y];
+  for (const e of R.ents) if (![me, sher, m].includes(e)) e.alive = false;
+  sher.x = spot[0] * 48 + 10; sher.y = spot[1] * 48 + 24; m.x = sher.x + 60; m.y = sher.y; m.god = false;
+  m.human = true; m.inp = null; sher.human = true; // hold both still (a bot murderer would juke)
+  for (let i = 0; i < 20; i++) { sher.atkCd = 0; Sim.setInput(R, sher.id, { x: sher.x, y: sher.y, a: 0, atk: true }); Sim.step(R, 1 / 30); }
+  assert.ok(m.alive, 'the sheriff missed');
+  // my own shots still hit
+  sher.inp = null; sher.alive = false; me.x = sher.x; me.y = sher.y; me.human = true; me.atkCd = 0; m.x = me.x + 60; m.y = me.y;
+  for (let i = 0; i < 15 && m.alive; i++) { Sim.setInput(R, me.id, { x: me.x, y: me.y, a: 0, atk: true }); Sim.step(R, 1 / 30); }
+  assert.ok(!m.alive, 'my bullet hits');
+});
