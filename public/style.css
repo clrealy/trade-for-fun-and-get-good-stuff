@@ -544,3 +544,4 @@ body.touch #banner{top:34%}
   .otime{position:static;grid-column:1/-1}
 }
 @media (prefers-reduced-motion: reduce){.boxart,.oname.chroma{animation:none}}
+canvas.turning,#game.turning{cursor:grabbing}

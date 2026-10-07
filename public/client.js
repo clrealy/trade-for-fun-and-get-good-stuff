@@ -593,7 +593,9 @@ function update(rdt) {
     let dx = 0, dy = 0;
     if (keys.KeyW || keys.ArrowUp) dy--; if (keys.KeyS || keys.ArrowDown) dy++;
     if (keys.KeyA || keys.ArrowLeft) dx--; if (keys.KeyD || keys.ArrowRight) dx++;
-    if (joy.id !== null && (joy.dx || joy.dy)) { dx = joy.dx; dy = joy.dy; if (aimTouch === null) touchAim = Math.atan2(dy, dx); }
+    if (joy.id !== null && (joy.dx || joy.dy)) { dx = joy.dx; dy = joy.dy; }
+    [dx, dy] = camRel(dx, dy); // W walks where the camera looks
+    if (joy.id !== null && (joy.dx || joy.dy) && aimTouch === null) touchAim = Math.atan2(dy, dx);
     const l = Math.max(1, Math.hypot(dx, dy));
     if (dashT > 0) { dashT -= dt; Sim.moveEnt(V.M, V.lp, Math.cos(dashA), Math.sin(dashA), dt, Sim.DASH_SPEED); }
     else Sim.moveEnt(V.M, V.lp, dx / l, dy / l, dt, me.spd || Sim.PLAYER_SPEED);
@@ -705,8 +707,9 @@ function updateHUD() {
   else if (me && me.alive && me.gun) { const gi = ITEM[(V.roster.get(V.you) || {}).gun] || {}; cools = coolBar(gi.sound === 'void' ? 'Reload' : 'Gun', 1 - me.atk / (gi.noCooldown ? .12 : gi.reload || 2.2)); }
   if (me && me.alive) cools += coolBar(isTouch ? '💨 Juke' : '💨 Juke (Shift)', 1 - Math.max(me.dash || 0, dashCd) / Sim.DASH_CD);
   setHTML('cools', cools);
-  const hint = !me ? 'Spectating · click to switch' : !me.alive ? 'Click to switch spectate' : me.role === 'murderer' ? 'Click stab · Q/Right-click throw · E hide knife' : me.gun ? 'Click shoot · E put away gun' : 'Collect coins · Stay alive · Grab the gun if it drops';
-  setText('hint', hint);
+  const hint = !me ? 'Spectating · click to switch' : !me.alive ? 'Click to switch spectate' : me.role === 'murderer' ? 'Click stab · Q or tap right-click to throw · E hide knife' : me.gun ? 'Click shoot · E put away gun' : 'Collect coins · Stay alive · Grab the gun if it drops';
+  const camHint = use3D() && !isTouch ? ' · Hold right mouse to turn camera, scroll to zoom' : '';
+  setText('hint', hint + camHint);
   if (isTouch) {
     const armed = me && me.alive && (me.role === 'murderer' || me.gun);
     show('#mbThrow', !!(me && me.alive && me.role === 'murderer')); show('#mbWeapon', !!armed);
@@ -783,11 +786,8 @@ function render() {
   ctx.font = '600 12px Fredoka, sans-serif'; ctx.textAlign = 'center';
   const endRoles = V.endInfo ? new Map(V.endInfo.roles) : null;
   for (const [id, d] of al) {
-    const r = V.roster.get(id) || {}, lbl = id === V.you ? 'You' : r.name;
+    const [lbl, nc] = nameTag(id, endRoles);
     const ly = d.y - (d.z || 0) * 16; ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillText(lbl, d.x + 1, ly - 25);
-    let nc = '#fff';
-    if (endRoles && endRoles.get(id) === 'murderer') nc = '#ff4d5e';
-    if (id === V.you && V.me) nc = roleColor(V.me.role);
     ctx.fillStyle = nc; ctx.fillText(lbl, d.x, ly - 26);
   }
   // projectiles, extrapolated from the last snapshot
@@ -818,11 +818,8 @@ function render3D() {
   for (const [id, d] of V.disp) {
     if (!d.alive) continue;
     const p = R3.worldToScreen(d.x, d.y, 1.3 + (d.z || 0)); if (p.behind) continue;
-    const r = V.roster.get(id) || {}, lbl = id === V.you ? 'You' : r.name;
+    const [lbl, nc] = nameTag(id, endRoles);
     ctx.fillStyle = 'rgba(0,0,0,.65)'; ctx.fillText(lbl, p.x + 1, p.y + 1);
-    let nc = '#fff';
-    if (endRoles && endRoles.get(id) === 'murderer') nc = '#ff4d5e';
-    if (id === V.you && me) nc = roleColor(me.role);
     ctx.fillStyle = nc; ctx.fillText(lbl, p.x, p.y);
   }
   drawScreenOverlay(me, s, (x, y) => R3.worldToScreen(x, y, .3));
@@ -872,6 +869,16 @@ function drawScreenOverlay(me, s, toScreen) {
       ctx.moveTo(mouse.x - k - 6, mouse.y + k + 6); ctx.lineTo(mouse.x - k, mouse.y + k); ctx.moveTo(mouse.x + k + 6, mouse.y + k + 6); ctx.lineTo(mouse.x + k, mouse.y + k); ctx.stroke();
     }
   }
+}
+// name tag text + color. With /esp on, everyone's tag shows their role
+const ROLE_ICON = { murderer: '🔪', sheriff: '🔫', hero: '🦸', innocent: '😇' };
+function nameTag(id, endRoles) {
+  const r = V.roster.get(id) || {}, lbl = id === V.you ? 'You' : r.name || '';
+  const esp = V.snap && V.snap.esp && V.snap.esp.find(x => x[0] === id);
+  if (esp && id !== V.you) return [`${ROLE_ICON[esp[1]] || ''} ${lbl}`, roleColor(esp[1])];
+  if (id === V.you && V.me) return [lbl, roleColor(V.me.role)];
+  if (endRoles && endRoles.get(id) === 'murderer') return [lbl, '#ff4d5e'];
+  return [lbl, '#fff'];
 }
 const roleColor = r => ({ murderer: '#ff4d5e', sheriff: '#4da3ff', hero: '#ffc233', innocent: '#5bd46a' })[r] || '#fff';
 function shade(hex, f) {
@@ -973,17 +980,34 @@ addEventListener('keydown', e => {
   if ((e.code === 'ShiftLeft' || e.code === 'ShiftRight') && !e.repeat) doJuke();
 });
 addEventListener('keyup', e => { keys[e.code] = false; });
-addEventListener('blur', () => { keys = {}; mouse.down = false; });
-cv.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+addEventListener('blur', () => { keys = {}; mouse.down = false; rmb = null; cv.classList.remove('turning'); });
+// Roblox camera: hold right mouse and drag to turn it, scroll to zoom. A quick right click (no drag) still throws the knife.
+// In 3D, input is relative to the camera: turn (dx, dy) from screen directions into map directions.
+function camRel(dx, dy) {
+  if (!use3D() || !R3.cam || (!dx && !dy)) return [dx, dy];
+  const c = Math.cos(R3.cam.yaw), s = Math.sin(R3.cam.yaw);
+  return [c * dx + s * dy, -s * dx + c * dy];
+}
+let rmb = null;
+cv.addEventListener('mousemove', e => {
+  mouse.x = e.clientX; mouse.y = e.clientY;
+  if (rmb && use3D()) { R3.rotateCam(e.movementX || 0, e.movementY || 0); rmb.moved += Math.abs(e.movementX || 0) + Math.abs(e.movementY || 0); }
+});
+cv.addEventListener('wheel', e => { if (V && use3D()) { e.preventDefault(); R3.zoomCam(e.deltaY * (e.deltaMode === 1 ? 30 : 1)); } }, { passive: false });
+addEventListener('mouseup', e => {
+  if (e.button !== 2 || !rmb) return;
+  const quick = rmb.moved < 6 && performance.now() - rmb.t < 300; rmb = null; cv.classList.remove('turning');
+  if (quick && V && V.phase === 'play' && V.me && V.me.alive && V.me.role === 'murderer') thrSeq++;
+});
 cv.addEventListener('mousedown', e => {
   if (!V) return;
+  if (e.button === 2) { rmb = { moved: 0, t: performance.now() }; if (use3D()) cv.classList.add('turning'); return; }
   if (!V.me || !V.me.alive) {
     const alive = [...V.disp.entries()].filter(([, d]) => d.alive).map(([id]) => id);
     if (alive.length) V.spec = alive[(alive.indexOf(V.spec) + 1) % alive.length];
     return;
   }
   if (e.button === 0) mouse.down = true;
-  if (e.button === 2 && V.phase === 'play' && V.me.role === 'murderer') thrSeq++;
 });
 addEventListener('mouseup', e => { if (e.button === 0) mouse.down = false; });
 cv.addEventListener('contextmenu', e => e.preventDefault());
@@ -1367,6 +1391,7 @@ function doJuke() {
   if (keys.KeyW || keys.ArrowUp) dy--; if (keys.KeyS || keys.ArrowDown) dy++;
   if (keys.KeyA || keys.ArrowLeft) dx--; if (keys.KeyD || keys.ArrowRight) dx++;
   if (joy.id !== null && (joy.dx || joy.dy)) { dx = joy.dx; dy = joy.dy; }
+  [dx, dy] = camRel(dx, dy);
   dashA = dx || dy ? Math.atan2(dy, dx) : myAngle();
   dashT = Sim.DASH_TIME; dashCd = Sim.DASH_CD; djSeq++;
 }

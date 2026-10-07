@@ -457,3 +457,17 @@ test('an accepted trade reports what you got, a declined one reports nothing', (
   // a code's random item says it came from a code
   assert.deepStrictEqual(Object.keys(Eco.redeemMsg({ inst: { id: 'k1' } })).sort(), ['code', 'crate', 'item', 't']);
 });
+
+test('/esp shows everyone\'s role, but only to the player who turned it on', () => {
+  const R = Sim.createRound({ players: [{ pid: 'a', name: 'a' }, { pid: 'b', name: 'b' }] });
+  R.phase = 'play';
+  const [a, b] = R.ents;
+  assert.strictEqual(Sim.snapshotFor(R, a.id).esp, undefined);
+  assert.match(Sim.cheat(R, a.id, '/ESP'), /ESP on/);
+  const esp = Sim.snapshotFor(R, a.id).esp;
+  assert.strictEqual(esp.length, R.ents.length);
+  assert.strictEqual(esp.find(x => x[0] === R.murderer.id)[1], 'murderer');
+  assert.strictEqual(Sim.snapshotFor(R, b.id).esp, undefined, 'nobody else gets the roles');
+  assert.match(Sim.cheat(R, a.id, '/esp'), /off/);
+  assert.strictEqual(Sim.snapshotFor(R, a.id).esp, undefined);
+});

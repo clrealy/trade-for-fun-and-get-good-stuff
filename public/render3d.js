@@ -35,7 +35,7 @@ const R3D = (() => {
   const hemi = new THREE.HemisphereLight(0xfff4ea, 0x3c3458, .5); scene.add(hemi);
   const sun = new THREE.DirectionalLight(0xfff0dc, .62); sun.position.set(4, 10, 6); scene.add(sun, sun.target);
   sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -.0005; sun.shadow.normalBias = .02;
-  Object.assign(sun.shadow.camera, { left: -13, right: 13, top: 13, bottom: -13, near: .5, far: 40 });
+  Object.assign(sun.shadow.camera, { left: -18, right: 18, top: 18, bottom: -18, near: .5, far: 45 }); // wide enough for a low camera
   const fill = new THREE.DirectionalLight(0x8fb4ff, .16); fill.position.set(-6, 5, -8); scene.add(fill);
   // quick flashes of light for gunshots, explosions and the dropped gun (only in Ultra: every light costs on phones)
   const fxLights = [0, 1, 2].map(() => { const l = new THREE.PointLight(0xffffff, 0, 6, 2); l.visible = false; scene.add(l); return l; });
@@ -464,6 +464,15 @@ const R3D = (() => {
   const styleKnife = (h, item) => setModel(h, item, 'knife');
   const styleGun = (h, item) => setModel(h, item, 'gun');
   const people = new Map(); // ent id → rig
+  // the classic Roblox face: two oval eyes and a smile, drawn onto the head's front
+  const faceMat = new THREE.MeshLambertMaterial({ map: (() => {
+    const t = canvasTex(64, 64, g => {
+      g.fillStyle = '#f7d154'; g.fillRect(0, 0, 64, 64); g.fillStyle = '#1b1b1b';
+      for (const x of [22, 42]) { g.beginPath(); g.ellipse(x, 24, 3.6, 7, 0, 0, 7); g.fill(); }
+      g.strokeStyle = '#1b1b1b'; g.lineWidth = 3.5; g.lineCap = 'round'; g.beginPath(); g.arc(32, 32, 15, .35, Math.PI - .35); g.stroke();
+    });
+    t.magFilter = THREE.LinearFilter; t.center.set(.5, .5); t.rotation = 0; return t;
+  })() });
   function makeRig(color) {
     const root = new THREE.Group(), body = new THREE.Group(); root.add(body);
     const shirt = mat(color), skin = mat('#f7d154'), pants = mat('#34304a');
@@ -473,9 +482,8 @@ const R3D = (() => {
     part(.2, .38, .34, shirt, 0, .55, 0);
     const armL = new THREE.Group(), armR = new THREE.Group(); armL.position.set(0, .72, -.23); armR.position.set(0, .72, .23); body.add(armL, armR);
     part(.12, .34, .12, skin, 0, -.16, 0, armL); part(.12, .34, .12, skin, 0, -.16, 0, armR);
-    part(.26, .26, .26, skin, 0, .88, 0);
+    part(.26, .26, .26, [faceMat, skin, skin, skin, skin, skin], 0, .88, 0); // classic smiley on the front (+X)
     part(.28, .08, .28, shirt, -.01, 1.03, 0); // hair/cap
-    part(.02, .05, .04, mat('#222'), .13, .9, -.06); part(.02, .05, .04, mat('#222'), .13, .9, .06);
     // knife sits in a grip at the hand; rolled so the blade's flat side faces sideways when it's held up
     const knifeGrip = new THREE.Group(); knifeGrip.position.set(0, -.34, 0); armR.add(knifeGrip);
     const knife = makeKnife(); knife.rotation.x = Math.PI / 2; knife.position.x = .06; knife.scale.setScalar(1.4); knife.visible = false; knifeGrip.add(knife);
@@ -530,12 +538,34 @@ const R3D = (() => {
   // ---------------- camera ----------------
   let W = 1, H = 1, camH = 0, lastT = 0;
   api.resize = (w, h) => { W = w; H = h; renderer.setSize(w, h, false); renderer.domElement.style.width = w + 'px'; renderer.domElement.style.height = h + 'px'; camera.aspect = w / h; camera.updateProjectionMatrix(); };
-  function placeCamera(cx, cy, h = 0, zoom = 1, sx = 0, sy = 0) {
-    // tilted top-down camera that follows the player; phones sit a bit farther back. zoom < 1 moves in (final kill cam)
+  // Roblox-style orbit camera: hold right mouse to turn it, scroll to zoom. yaw 0 = looking north (like the old view)
+  const cam = (() => { try { const c = JSON.parse(localStorage.getItem('mm_cam')); if (c && isFinite(c.yaw) && isFinite(c.pitch) && isFinite(c.dist)) return c; } catch (e) { } return { yaw: 0, pitch: .82, dist: 11 }; })();
+  let saveCamT = 0;
+  const saveCam = () => { clearTimeout(saveCamT); saveCamT = setTimeout(() => { try { localStorage.setItem('mm_cam', JSON.stringify(cam)); } catch (e) { } }, 400); };
+  api.cam = cam;
+  api.rotateCam = (dx, dy) => { cam.yaw = (cam.yaw - dx * .006) % (Math.PI * 2); cam.pitch = Math.max(.22, Math.min(1.45, cam.pitch + dy * .005)); saveCam(); };
+  api.zoomCam = d => { cam.dist = Math.max(3.5, Math.min(22, cam.dist * Math.exp(d * .0012))); saveCam(); };
+  api.resetCam = () => { cam.yaw = 0; cam.pitch = .82; cam.dist = 11; saveCam(); };
+  let camDist = 11; // the distance actually used this frame (pulled in when a wall is in the way)
+  // walk from the player toward the camera and stop in front of the first wall or bookshelf (so walls never block the view)
+  function wallClamp(M, x, y, z, dx, dy, dz, max) {
+    for (let t = .6; t < max; t += .15) {
+      const px = x + dx * t, py = y + dy * t, pz = z + dz * t, row = M.grid[Math.floor(pz)];
+      const c = row && row[Math.floor(px)];
+      if (c === undefined) break; // past the edge of the map: open sky
+      if ((c === '#' && py < 1.42) || (c === 'B' && py < 1.25)) return Math.max(1.4, t - .35);
+    }
+    return max;
+  }
+  function placeCamera(M, cx, cy, h = 0, zoom = 1, sx = 0, sy = 0, dt = .016) {
+    // phones sit a bit farther back; zoom < 1 moves in (final kill cam)
     const k = Math.max(1, Math.min(1.7, 760 / Math.min(W, H))) * (W < H ? 1.25 : 1) * zoom;
-    const tx = cx * S, tz = cy * S, ox = sx * S, oz = sy * S; // sx/sy: screen shake, in game px
-    camera.position.set(tx + ox, 8.5 * k + h, tz + 6 * k + oz);
-    camera.lookAt(tx + ox * .6, h, tz + oz * .6); // h: follow the player up during a jump
+    const tx = cx * S, tz = cy * S, ty = h + .7, ox = sx * S, oz = sy * S; // sx/sy: screen shake, in game px
+    const cp = Math.cos(cam.pitch), dx = Math.sin(cam.yaw) * cp, dy = Math.sin(cam.pitch), dz = Math.cos(cam.yaw) * cp;
+    const want = wallClamp(M, tx, ty, tz, dx, dy, dz, cam.dist * k);
+    camDist = want < camDist ? want : camDist + (want - camDist) * Math.min(1, dt * 4); // snap in, ease back out
+    camera.position.set(tx + dx * camDist + ox, ty + dy * camDist, tz + dz * camDist + oz);
+    camera.lookAt(tx + ox * .6, ty, tz + oz * .6); // h: follow the player up during a jump
     camera.updateMatrixWorld();
     // the sun's shadow box follows the camera (a directional light only cares about direction)
     sun.position.set(tx + 5, 12, tz + 7); sun.target.position.set(tx, 0, tz); sun.target.updateMatrixWorld();
@@ -601,7 +631,7 @@ const R3D = (() => {
     if (innerWidth !== W || innerHeight !== H || renderer.domElement.width === 0) api.resize(innerWidth, innerHeight);
     if (M.idx !== mapIdx) { buildMap(M); for (const r of people.values()) scene.remove(r.root, r.pet); people.clear(); }
     const fz = V.me && V.me.alive && V.disp.get(V.you) ? V.disp.get(V.you).z || 0 : 0;
-    camH += (fz * .85 - camH) * .25; placeCamera(V.cam.x, V.cam.y, camH, V.zoom || 1, V.shakeX || 0, V.shakeY || 0);
+    camH += (fz * .85 - camH) * .25; placeCamera(M, V.cam.x, V.cam.y, camH, V.zoom || 1, V.shakeX || 0, V.shakeY || 0, dt);
     tickChroma(T);
     pools.forEach(p => p.reset());
     let li = 0;
@@ -638,6 +668,7 @@ const R3D = (() => {
       }
       rig.deadAt = 0;
       poseRig(rig, d, w, item, T, isMe, false);
+      if (isMe && camDist < 2.6) rig.root.visible = false; // camera squeezed right behind you (wall at your back): hide yourself like Roblox does
       // pet
       const petItem = r.pet && ITEM[r.pet];
       rig.pet.visible = !!petItem && d.petX !== undefined;

@@ -111,7 +111,7 @@ The **🏆 Trophies** tab has 25 trophies for grinding: kills, rounds, wins, Mur
 
 ## Chat and cheats
 
-Press **Enter** (or **/**) in a round to chat. Commands start with `/`, and `/help` lists them. `/sheffeme` gives you the gun (Murderers can't use it), `/murdme` makes you the Murderer, `/speed` toggles a speed boost, `/whoisit` tells you who the Murderer is, `/r` brings you back to life, and `/god` stops you from dying.
+Press **Enter** (or **/**) in a round to chat. Commands start with `/`, and `/help` lists them. `/sheffeme` gives you the gun (Murderers can't use it), `/murdme` makes you the Murderer, `/speed` toggles a speed boost, `/whoisit` tells you who the Murderer is, `/r` brings you back to life, and `/god` stops you from dying, and `/esp` shows everyone's role on their name tag (🔪 Murderer, 🔫 Sheriff, 🦸 Hero, 😇 Innocent; only you see it).
 
 Cheats always work in Practice and on a dev server. Online, only accounts listed in `ADMIN_UIDS` can use them. That's a comma-separated list of Firebase user IDs, found under **Authentication → Users**.
 
@@ -154,8 +154,20 @@ Every setting gets the game-feel effects:
 
 **🎵 Music** (next to Graphics) is a synth loop that speeds up and gets heavier as players die, time runs out or the Murderer gets close. Sounds are panned left or right and get quieter with distance.
 
+## Roblox-style camera
+
+In 3D the camera works like Roblox:
+- **Turn:** hold the **right mouse button** and drag to orbit around your character and tilt it up or down.
+- **Zoom:** use the **scroll wheel**.
+- **Movement:** WASD moves relative to where the camera faces.
+- **Walls:** the camera slides in front of any wall that would block the view. If it ends up right behind you, your character hides so you can see.
+- **Saving:** the angle and zoom are saved in your browser.
+- **Phones:** keep the follow camera.
+
+Characters wear the classic Roblox smiley face.
+
 ## Controls
 
-WASD to move, mouse to aim, left click to stab or shoot, right click or Q to throw the knife, E to pull out or put away your weapon. **Shift** jukes (a quick dash, 1.5 s cooldown). **Space** jumps (clears tables and plants), **B** bomb jumps way up (no cooldown, works mid-jump for extra height), hold **C** to crouch (slower, smaller target). Stabs miss players in the air and bullets fly under them.
+WASD to move, mouse to aim, left click to stab or shoot, Q (or a quick tap of right click) to throw the knife, E to pull out or put away your weapon. **Shift** jukes (a quick dash, 1.5 s cooldown). **Space** jumps (clears tables and plants), **B** bomb jumps way up (no cooldown, works mid-jump for extra height), hold **C** to crouch (slower, smaller target). Stabs miss players in the air and bullets fly under them.
 
 On phones and tablets: drag on the left side to move, tap or hold anywhere else to aim and attack, and use the buttons on the right to throw, pull out your weapon, or chat. It works upright or sideways.

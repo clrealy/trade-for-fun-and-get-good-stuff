@@ -515,7 +515,7 @@
       knife: ITEM[o.knife] && ITEM[o.knife].type === 'knife' ? o.knife : 'k0', gun: ITEM[o.gun] && ITEM[o.gun].type === 'gun' ? o.gun : 'g0',
       pet: ITEM[o.pet] && ITEM[o.pet].type === 'pet' ? o.pet : null,
       mT: Math.max(1, num(o.mT, 1)), sT: Math.max(1, num(o.sT, 1)),
-      inp: null, lastThr: 0, lastTog: 0, lastBj: 0,
+      inp: null, lastThr: 0, lastTog: 0, lastBj: 0, esp: false,
       z: 0, vz: 0, crouch: false, bombCd: 0, lastJp: 0, dashT: 0, dashCd: 0, lastDj: 0,
       ai: { path: [], pathT: 0, goal: null, know: null, lastSeen: null, react: 0, grace: rand(12, 24), stuckT: 0, lx: 0, ly: 0, brave: Math.random() < .25, fleeT: 0, target: null, retarget: 0, noticeT: 0, wanderT: 0, coin: null },
     };
@@ -850,7 +850,7 @@
   }
 
   // ===================== Cheats (practice, or admins online) =====================
-  const CHEATS = { sheffeme: 'Get the gun', murdme: 'Become the murderer', speed: 'Run faster (type again to stop)', whoisit: 'See who the murderer is', r: 'Come back to life', god: 'Nothing can kill you (type again to stop)' };
+  const CHEATS = { sheffeme: 'Get the gun', murdme: 'Become the murderer', speed: 'Run faster (type again to stop)', whoisit: 'See who the murderer is', r: 'Come back to life', god: 'Nothing can kill you (type again to stop)', esp: 'See everyone\'s role on their name tag (type again to stop)' };
   function cheat(R, id, cmd) {
     const e = entById(R, id);
     cmd = String(cmd || '').toLowerCase().replace(/^\//, '').trim();
@@ -858,6 +858,7 @@
     if (!Object.hasOwn(CHEATS, cmd)) return `Unknown command /${cmd}. Type /help`;
     if (!e) return 'You\'re not in this round';
     if (R.phase === 'end') return 'The round is over';
+    if (cmd === 'esp') { e.esp = !e.esp; return e.esp ? 'ESP on 👁️ Name tags show 🔪 Murderer, 🔫 Sheriff, 🦸 Hero and 😇 Innocent' : 'ESP off'; }
     if (cmd === 'r') {
       if (e.alive) return 'You\'re already alive lol';
       e.alive = true; e.weaponOut = false; e.atkCd = 0; e.throwCd = 0;
@@ -1007,6 +1008,7 @@
     };
     if (me) s.me = { id: me.id, spd: me.crouch ? me.speed * CROUCH : me.speed, air: me.z > 0, bomb: +(me.bombCd || 0).toFixed(1), dash: +(me.dashCd || 0).toFixed(2), cr: me.crouch, role: me.role, bag: me.bag, atk: +me.atkCd.toFixed(2), thr: +me.throwCd.toFixed(2), alive: me.alive, gun: me.hasGun, wo: me.weaponOut, x: Math.round(me.x), y: Math.round(me.y) };
     if (R.phase === 'end') s.end = R.endInfo;
+    if (me && me.esp) s.esp = R.ents.map(e => [e.id, e.role]); // /esp: only the person who turned it on gets everyone's role
     return s;
   }
   function roster(R) { return R.ents.map(e => ({ id: e.id, name: e.name, color: e.color, knife: e.knife, gun: e.gun, pet: e.pet || null, human: e.human })); }
