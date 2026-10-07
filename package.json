@@ -7,7 +7,9 @@
   "scripts": {
     "start": "node server/index.js",
     "dev": "ALLOW_DEV_AUTH=1 node server/index.js",
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "build:solo": "node scripts/build-standalone.js",
+    "build:itch": "node scripts/build-itch.js"
   },
   "engines": {
     "node": ">=18"

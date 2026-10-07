@@ -4,6 +4,8 @@ const fs = require('fs'), path = require('path');
 const R = f => fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
 // tiny CommonJS shim so the server's economy code runs in the browser
 const mod = (name, file) => `<script>(function(){var module={exports:{}},exports=module.exports;var require=function(p){return window.__mods[p.split('/').pop().replace(/\\.js$/,'')]};\n${R(file)}\nwindow.__mods[${JSON.stringify(name)}]=module.exports;})();</script>`;
+// localThree: load three.js from a file next to the page (itch.io zip) instead of the cdnjs CDN
+function build({ plain = false, localThree = false } = {}) {
 let html = R('public/index.html')
   .replace(/^.*<link [^>]*data-online>\n/gm, '') // app manifest + icons only exist on the online server
   .replace('<link rel="stylesheet" href="style.css">', () => `<style>\n${R('public/style.css')}\n</style>`)
@@ -14,13 +16,13 @@ let html = R('public/index.html')
     '<script>window.MMEco=window.__mods.economy;window.MMStore=window.__mods.store;</script>',
     `<script>\n${R('public/local.js')}\n</script>`,
   ].join('\n'))
-  .replace('<script src="/vendor/three.min.js"></script>', '<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>')
+  .replace('<script src="/vendor/three.min.js"></script>', localThree ? '<script src="three.min.js"></script>' : '<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>')
   .replace('<script src="render3d.js"></script>', () => `<script>\n${R('public/render3d.js')}\n</script>`)
   .replace('<script src="client.js"></script>', () => `<script>\n${R('public/client.js')}\n</script>`);
 // Scramble every inline script so "view source" shows gibberish instead of the game code and codes.
 // It's a speed bump, not a lock: the online game keeps codes on the server, which is the real protection.
 // Pass --plain for a readable build.
-if (!process.argv.includes('--plain')) {
+if (!plain) {
   const JO = require('javascript-obfuscator');
   const base = {
     compact: true, identifierNamesGenerator: 'hexadecimal', renameGlobals: false,
@@ -39,6 +41,12 @@ if (!process.argv.includes('--plain')) {
   });
   console.log(`Obfuscated ${n} scripts`);
 }
-fs.mkdirSync(path.join(__dirname, '..', 'dist'), { recursive: true });
-fs.writeFileSync(path.join(__dirname, '..', 'dist', 'standalone.html'), html);
-console.log('Wrote dist/standalone.html', (html.length / 1024).toFixed(0) + ' KB');
+return html;
+}
+module.exports = { build };
+if (require.main === module) {
+  const html = build({ plain: process.argv.includes('--plain') });
+  fs.mkdirSync(path.join(__dirname, '..', 'dist'), { recursive: true });
+  fs.writeFileSync(path.join(__dirname, '..', 'dist', 'standalone.html'), html);
+  console.log('Wrote dist/standalone.html', (html.length / 1024).toFixed(0) + ' KB');
+}

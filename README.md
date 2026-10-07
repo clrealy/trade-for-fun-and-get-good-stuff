@@ -53,6 +53,10 @@ Firebase Hosting can't run a WebSocket game server, so deploy the server somewhe
 
 **Google Cloud Run:** `gcloud run deploy --source . --set-env-vars ...`. It supports WebSockets. On Cloud Run you can set `FIREBASE_USE_ADC=1` instead of a key file, and give the service account the *Firebase Authentication Admin* and *Cloud Datastore User* roles.
 
+## itch.io (free)
+
+`npm run build:itch` builds `dist/project-murder-mystery-itch.zip`: the solo game plus three.js in one zip, ready to upload as an HTML game. **[ITCH.md](ITCH.md)** walks through the page setup and has a description ready to paste. The cover image and screenshots are in `store/itch/`.
+
 ## Android app (Google Play)
 
 The online game is an installable web app: it has a manifest, icons, a service worker, a privacy policy at `/privacy`, in-app account deletion and an `assetlinks.json` route. **[PLAYSTORE.md](PLAYSTORE.md)** walks through turning it into an Android app and publishing it. Extra server environment variables for this:
