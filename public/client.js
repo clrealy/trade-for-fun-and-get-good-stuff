@@ -938,7 +938,7 @@ function drawPet(id, d, T) {
 function drawKnifeLocal(x, y, a, skin, T) {
   ctx.save(); ctx.translate(x, y); ctx.rotate(a);
   ctx.fillStyle = '#3b2616'; ctx.fillRect(-8, -2.5, 9, 5);
-  const L = skin.long ? 36 : 20; // long blades for the Ginger Scope knives
+  const L = skin.long ? 36 : 20; // long blades for the Cookie Cutter knives
   ctx.fillStyle = itemColor(skin, T); ctx.beginPath(); ctx.moveTo(1, -4); ctx.lineTo(L, -1); ctx.lineTo(L + 2, 1); ctx.lineTo(1, 4); ctx.closePath(); ctx.fill();
   ctx.strokeStyle = 'rgba(0,0,0,.4)'; ctx.lineWidth = 1; ctx.stroke();
   ctx.restore();

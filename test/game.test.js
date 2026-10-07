@@ -79,7 +79,7 @@ test('no-cooldown skins skip the reload timer', () => {
   for (const e of R.ents) { e.role = 'sheriff'; e.hasGun = true; Sim.setInput(R, e.id, { x: e.x, y: e.y, a: 0, atk: true }); }
   Sim.step(R, 1 / 30);
   const [fastE, slowE] = R.ents;
-  assert.ok(fastE.atkCd < 0.2, `ginger scope cooldown ${fastE.atkCd}`);
+  assert.ok(fastE.atkCd < 0.2, `cookie scope cooldown ${fastE.atkCd}`);
   assert.ok(slowE.atkCd > 2, `normal gun cooldown ${slowE.atkCd}`);
 });
 
@@ -132,7 +132,7 @@ test('/r brings you back', () => {
   assert.ok(me.alive); assert.ok(!R.bodies.some(b => b.id === me.id));
 });
 
-test('ginger scopes shoot farther', () => {
+test('cookie scopes shoot farther', () => {
   const R = Sim.createRound({ players: [{ pid: 'a', name: 'a', gun: 'g14' }, { pid: 'b', name: 'b', gun: 'g1' }], fillBots: false });
   R.phase = 'play';
   for (const e of R.ents) { e.role = 'sheriff'; e.hasGun = true; Sim.setInput(R, e.id, { x: e.x, y: e.y, a: 0, atk: true }); }
@@ -503,4 +503,10 @@ test('/gun gives you a gun and every other shooter misses every shot', () => {
   sher.inp = null; sher.alive = false; me.x = sher.x; me.y = sher.y; me.human = true; me.atkCd = 0; m.x = me.x + 60; m.y = me.y;
   for (let i = 0; i < 15 && m.alive; i++) { Sim.setInput(R, me.id, { x: me.x, y: me.y, a: 0, atk: true }); Sim.step(R, 1 / 30); }
   assert.ok(!m.alive, 'my bullet hits');
+});
+
+test('no item uses a Murder Mystery 2 item name (Play Store)', () => {
+  const mm2 = /luger|harvester|nebula|icewing|lightbringer|batwing|elderwood|chroma fang|swirly|ginger|^laser$|^heat$|^pixel/i;
+  assert.deepStrictEqual(Sim.ITEMS.filter(i => mm2.test(i.name)).map(i => i.name), []);
+  assert.strictEqual(new Set(Sim.ITEMS.map(i => i.name)).size, Sim.ITEMS.length, 'names are unique');
 });

@@ -87,6 +87,6 @@ Then open `https://YOUR-SITE/.well-known/assetlinks.json` and check that it show
 
 ## Things that get games rejected
 
-- **Copying Roblox / MM2:** Google can pull apps that use another game's name or content. Before you submit, rename the items that use MM2's names (Luger, Harvester, Icewing, Lightbringer and so on) and don't mention Roblox or "Murder Mystery 2" anywhere in the listing.
+- **Copying Roblox / MM2:** Google can pull apps that use another game's name or content. The items that had MM2's names were renamed (Ranger, Soul Reaper, Glacier, Radiant, Cookie Scope and so on). Don't mention Roblox or "Murder Mystery 2" anywhere in the listing. The rarity names (Godly, Ancient, Chroma) are also MM2-style; if a reviewer complains, rename those too.
 - **A dead server:** the app is your online game. If the server is down, players see an error and reviewers reject it. Render's free tier sleeps when nobody's playing, so a paid plan (or another always-on host) is safer for launch.
 - **Missing account deletion:** it's already in the game, so don't remove it.

@@ -205,10 +205,10 @@ const R3D = (() => {
   function knifeStyle(item) {
     const n = item.name.toLowerCase();
     if (/void/.test(n)) return 'void';
-    if (/scythe|harvester|batwing/.test(n)) return 'scythe';
-    if (/ray blade|galaxy|nebula|neon|sussy|chroma fang|icewing|star blade|saber|no life|death itself/.test(n)) return 'energy';
+    if (/scythe|reaper|duskblade/.test(n)) return 'scythe';
+    if (/ray blade|galaxy|stardust|neon|sussy|chroma venom|glacier|star blade|saber|no life|death itself/.test(n)) return 'energy';
     if (/butter|kitchen|rusty|sunburn|machete|box cutter/.test(n)) return 'cleaver';
-    if (/frost|toxic|thunder|blood|death|heat|inferno/.test(n)) return 'serrated';
+    if (/frost|toxic|thunder|blood|death|scorch|inferno/.test(n)) return 'serrated';
     return 'dagger';
   }
   function buildKnife(item) {
@@ -247,10 +247,10 @@ const R3D = (() => {
     if (/void/.test(n)) return 'void';
     if (item.long) return 'sniper';
     if (/water|splash/.test(n)) return 'water';
-    if (/revolver|golden six|luger|death gun/.test(n)) return 'revolver';
-    if (/raygun|laser/.test(n)) return 'blaster';        // the sci-fi raygun look is only for ray guns
-    if (/lightbringer/.test(n)) return 'winged';
-    if (/swirly/.test(n)) return 'swirl';
+    if (/revolver|golden six|ranger|champion's pistol|death gun/.test(n)) return 'revolver';
+    if (/raygun|zapper/.test(n)) return 'blaster';        // the sci-fi raygun look is only for ray guns
+    if (/radiant/.test(n)) return 'winged';
+    if (/candy swirl/.test(n)) return 'swirl';
     if (/cap gun|bruh|retro/.test(n)) return 'toy';
     if (/blaster|money|jackpot/.test(n)) return 'heavy';
     return 'pistol';
@@ -278,7 +278,7 @@ const R3D = (() => {
       mesh(box(.02, .025, .012), main, .34, .05, 0, g);                 // front sight
       drum.rotation.x = .3;
     } else if (style === 'winged') {
-      // Lightbringer: chunky pistol with golden wings sweeping back off the slide
+      // Radiant: chunky pistol with golden wings sweeping back off the slide
       mesh(box(.3, .08, .07), main, .09, .02, 0, g);
       mesh(box(.26, .04, .055), darkMetal, .08, -.03, 0, g);
       mesh(cyl(.02, .06), black, .26, .02, 0, g);
