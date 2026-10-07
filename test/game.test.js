@@ -348,7 +348,9 @@ test('jump clears tables, bomb jump goes way up and dodges stabs, crouch slows y
   for (let i = 0; i < 60; i++) { Sim.setInput(R, me.id, { x: me.x, y: me.y, a: 0, jp, bj: 1 }); Sim.step(R, 1 / 30); top = Math.max(top, me.z); }
   assert.ok(top > 3.5, `bomb jump height ${top.toFixed(2)}`);
   assert.strictEqual(me.z, 0, 'landed');
-  assert.ok(me.bombCd > 0, 'bomb on cooldown');
+  // no cooldown: you can bomb jump again right away
+  Sim.setInput(R, me.id, { x: me.x, y: me.y, a: 0, jp, bj: 2 }); Sim.step(R, 1 / 30);
+  assert.ok(me.z > 0 && me.vz > 0, 'second bomb jump right away');
   // crouch
   const R2 = Sim.createRound({ mapIdx: 1, players: [{ pid: 'a', name: 'a' }], fillBots: false }); R2.phase = 'play';
   const e = R2.ents[0]; e.x = 6 * 48 + 24; e.y = 7 * 48; const sx = e.x;

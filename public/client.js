@@ -701,7 +701,7 @@ function updateHUD() {
   let cools = '';
   if (me && me.alive && me.role === 'murderer') cools = coolBar('Stab', 1 - me.atk / .5) + coolBar(isTouch ? 'Throw' : 'Throw (Q)', 1 - me.thr / 3);
   else if (me && me.alive && me.gun) { const gi = ITEM[(V.roster.get(V.you) || {}).gun] || {}; cools = coolBar(gi.sound === 'void' ? 'Reload' : 'Gun', 1 - me.atk / (gi.noCooldown ? .12 : gi.reload || 2.2)); }
-  if (me && me.alive) cools += coolBar(isTouch ? '💨 Juke' : '💨 Juke (Shift)', 1 - Math.max(me.dash || 0, dashCd) / Sim.DASH_CD) + coolBar(isTouch ? '💣 Bomb' : '💣 Bomb (B)', 1 - (me.bomb || 0) / 5);
+  if (me && me.alive) cools += coolBar(isTouch ? '💨 Juke' : '💨 Juke (Shift)', 1 - Math.max(me.dash || 0, dashCd) / Sim.DASH_CD);
   setHTML('cools', cools);
   const hint = !me ? 'Spectating · click to switch' : !me.alive ? 'Click to switch spectate' : me.role === 'murderer' ? 'Click stab · Q/Right-click throw · E hide knife' : me.gun ? 'Click shoot · E put away gun' : 'Collect coins · Stay alive · Grab the gun if it drops';
   setText('hint', hint);

@@ -794,7 +794,7 @@
 
   // ===================== Crouch + bomb jump =====================
   // z is height in tiles. Jump: a hop that clears tables and plants. Bomb jump: a blast straight up, very high.
-  const CROUCH = .55, JUMP_UP = 5.2, BOMB_CD = 5, BOMB_UP = 11.5, GRAV = 16;
+  const CROUCH = .55, JUMP_UP = 5.2, BOMB_CD = 0, BOMB_UP = 11.5, GRAV = 16;
   function jump(R, e) {
     if (!e.alive || e.z > 0) return;
     e.crouch = false; e.vz = JUMP_UP; e.z = .01;

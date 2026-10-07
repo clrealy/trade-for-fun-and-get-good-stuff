@@ -1,6 +1,6 @@
-# Project MM
+# Project Murder Mystery
 
-Project MM is an online murder mystery game inspired by Roblox's Murder Mystery 2. There are 12 players per round, and bots fill the empty spots. Each round has one Murderer and one Sheriff, and everyone else is Innocent. If the Sheriff dies, an Innocent can pick up the dropped gun and become the Hero. Players collect coins, open crates for knife and gun skins, and trade with bot traders.
+Project Murder Mystery is an online murder mystery game inspired by Roblox's Murder Mystery 2. There are 12 players per round, and bots fill the empty spots. Each round has one Murderer and one Sheriff, and everyone else is Innocent. If the Sheriff dies, an Innocent can pick up the dropped gun and become the Hero. Players collect coins, open crates for knife and gun skins, and trade with bot traders.
 
 ## How it works
 
@@ -141,6 +141,6 @@ Every setting gets the game-feel effects:
 
 ## Controls
 
-WASD to move, mouse to aim, left click to stab or shoot, right click or Q to throw the knife, E to pull out or put away your weapon. **Shift** jukes (a quick dash, 1.5 s cooldown). **Space** jumps (clears tables and plants), **B** bomb jumps way up (5 s cooldown, works mid-jump for extra height), hold **C** to crouch (slower, smaller target). Stabs miss players in the air and bullets fly under them.
+WASD to move, mouse to aim, left click to stab or shoot, right click or Q to throw the knife, E to pull out or put away your weapon. **Shift** jukes (a quick dash, 1.5 s cooldown). **Space** jumps (clears tables and plants), **B** bomb jumps way up (no cooldown, works mid-jump for extra height), hold **C** to crouch (slower, smaller target). Stabs miss players in the air and bullets fly under them.
 
 On phones and tablets: drag on the left side to move, tap or hold anywhere else to aim and attack, and use the buttons on the right to throw, pull out your weapon, or chat. It works upright or sideways.
