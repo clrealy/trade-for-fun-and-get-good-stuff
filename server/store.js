@@ -28,6 +28,11 @@ class MemoryStore {
     this.names.set(key, uid);
     const p = defaultProfile(name); this.users.set(uid, p); return structuredClone(p);
   }
+  // deletes the profile and frees the name (account deletion)
+  async remove(uid) {
+    this.users.delete(uid);
+    for (const [k, v] of this.names) if (v === uid) this.names.delete(k);
+  }
 }
 
 class FirestoreStore {
@@ -53,6 +58,17 @@ class FirestoreStore {
       tx.set(nameRef, { uid });
       tx.set(this.ref(uid), p);
       return p;
+    });
+  }
+  // deletes the profile and frees the name (account deletion)
+  async remove(uid) {
+    return this.db.runTransaction(async tx => {
+      const u = await tx.get(this.ref(uid));
+      if (!u.exists) return;
+      const nameRef = this.db.collection('usernames').doc(String(u.data().name || '').toLowerCase());
+      const n = u.data().name ? await tx.get(nameRef) : null;
+      if (n && n.exists && n.data().uid === uid) tx.delete(nameRef);
+      tx.delete(this.ref(uid));
     });
   }
 }

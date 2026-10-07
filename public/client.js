@@ -208,6 +208,11 @@ function net(m) { if (window.LocalServer) window.LocalServer.send(m); else if (w
 function onMsg(m) {
   switch (m.t) {
     case 'hello': P = m.p; traders = m.traders; if (!V) setScreen('lobby'); break;
+    case 'accountDeleted':
+      wantOnline = false; P = null; show('#delAcct', false);
+      if (fbAuth) fbAuth.signOut(); else setScreen('auth');
+      toast('Your account was deleted. Bye 👋', true);
+      break;
     case 'needName': if (!V) openNameScreen(false); break;
     case 'account': {
       const a = $('#acctPill'); show('#acctPill');
@@ -225,7 +230,8 @@ function onMsg(m) {
       if (screen === 'lobby') renderLobby(); break;
     }
     case 'error':
-      if (screen === 'name') $('#nameErr').textContent = m.msg;
+      if (!$('#delAcct').classList.contains('hide')) $('#delErr').textContent = m.msg;
+      else if (screen === 'name') $('#nameErr').textContent = m.msg;
       else if (screen === 'auth' || screen === 'connecting') { $('#authErr').textContent = m.msg; }
       else toast(m.msg);
       if (unboxPending) { unboxPending = false; show('#unbox', false); }
@@ -300,6 +306,13 @@ function openNameScreen(cancel) {
   $('#nameInput').value = P && P.name !== 'You' ? P.name : ''; $('#nameErr').textContent = ''; $('#nameInput').focus();
 }
 $('#nameCancel').onclick = () => setScreen('lobby');
+// online accounts: delete for good (the solo build keeps progress in the browser / claude.ai, so it has no button)
+if (window.LocalServer) document.querySelectorAll('[data-online]').forEach(el => el.remove());
+$('#delAcctBtn').onclick = () => { $('#delConfirm').value = ''; $('#delErr').textContent = ''; show('#delAcct'); $('#delConfirm').focus(); };
+$('#delCancel').onclick = () => show('#delAcct', false);
+$('#delForm').onsubmit = e => { e.preventDefault(); $('#delErr').textContent = ''; net({ t: 'deleteAccount', confirm: $('#delConfirm').value }); };
+// installable app (Android / home screen). Only for the online game, never the solo file
+if ('serviceWorker' in navigator && !window.LocalServer && /^https?:$/.test(location.protocol)) addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => { }));
 $('#namePill').onclick = () => { if (window.LocalServer && !V) openNameScreen(true); };
 if (window.LocalServer) { $('#namePill').title = 'Change your name'; $('#namePill').classList.add('click'); }
 $('#acctPill').onclick = () => toast($('#acctPill').title);
@@ -1279,6 +1292,7 @@ function renderLobby() {
     const n = Sim.MAX_PLAYERS, pm = P.mT / (P.mT + n - 1), ps = (1 - pm) * (P.sT / (P.sT + n - 2));
     $('#mChance').textContent = Math.round(pm * 100) + '%';
     $('#sChance').textContent = Math.round(ps * 100) + '%';
+    show('#accountBox', !window.LocalServer);
     const st = P.stats;
     $('#statsBox').innerHTML = [['Rounds', st.rounds], ['Wins', st.wins], ['Kills', st.kills], ['Deaths', st.deaths], ['Coins earned', st.coins], ['Unboxed', st.unboxed], ['Trades', st.trades]].map(([a, b]) => `<div><b>${b}</b>${a}</div>`).join('');
   } else if (curTab === 'inv') {

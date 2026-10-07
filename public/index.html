@@ -4,6 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Project Murder Mystery</title>
+<meta name="description" content="Find the murderer before they find you. 12-player murder mystery with knives, guns, pets and trading.">
+<meta name="theme-color" content="#14121c">
+<link rel="manifest" href="/manifest.webmanifest" data-online>
+<link rel="icon" href="/icons/icon-192.png" type="image/png" data-online>
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" data-online>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
@@ -99,6 +104,20 @@
   </div>
 </div>
 
+<!-- account deletion (Play Store requirement) -->
+<div id="delAcct" class="screen hide">
+  <div class="panel authpanel">
+    <h2>Delete your account?</h2>
+    <p class="muted">This permanently deletes your login, username, coins, items and stats. You can't undo it.</p>
+    <form id="delForm" novalidate>
+      <label>Type your username to confirm <input id="delConfirm" maxlength="16" autocomplete="off"></label>
+      <button class="btn big danger" type="submit">Delete forever</button>
+    </form>
+    <button id="delCancel" class="linkbtn" type="button">Cancel</button>
+    <div id="delErr" class="err"></div>
+  </div>
+</div>
+
 <div id="connecting" class="screen hide"><div class="panel authpanel"><h2 id="connText">Connecting…</h2></div></div>
 
 <!-- Lobby -->
@@ -173,6 +192,11 @@
           <li>📱 Phone: drag on the left to move, tap anywhere else to aim and attack</li>
         </ul>
         <div id="statsBox"></div>
+        <div id="accountBox" class="hide">
+          <h3>Account</h3>
+          <p class="muted small">Deleting your account removes your login, username and all your progress for good.</p>
+          <button id="delAcctBtn" class="btn ghost danger" type="button">🗑️ Delete my account</button>
+        </div>
       </div>
     </div>
   </section>
@@ -274,6 +298,7 @@
   </section>
   <footer class="lobbyfoot">
     <a href="https://clothesbutmid.store" target="_blank" rel="noopener noreferrer">clothesbutmid.store</a>
+    <a href="/privacy" target="_blank" rel="noopener" data-online>Privacy</a>
   </footer>
 </div>
 

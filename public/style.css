@@ -545,3 +545,8 @@ body.touch #banner{top:34%}
 }
 @media (prefers-reduced-motion: reduce){.boxart,.oname.chroma{animation:none}}
 canvas.turning,#game.turning{cursor:grabbing}
+.btn.danger{background:#c41d2f;box-shadow:0 4px 0 #6e0f19}
+.btn.ghost.danger{background:#3a1820;color:#ff8a96;box-shadow:0 4px 0 #15121f}
+#accountBox{margin-top:16px}
+#delAcct{z-index:60;background:rgba(5,3,10,.85)}
+.lobbyfoot a + a{margin-left:16px}

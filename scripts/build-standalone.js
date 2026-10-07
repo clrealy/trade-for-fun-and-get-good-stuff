@@ -5,6 +5,7 @@ const R = f => fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
 // tiny CommonJS shim so the server's economy code runs in the browser
 const mod = (name, file) => `<script>(function(){var module={exports:{}},exports=module.exports;var require=function(p){return window.__mods[p.split('/').pop().replace(/\\.js$/,'')]};\n${R(file)}\nwindow.__mods[${JSON.stringify(name)}]=module.exports;})();</script>`;
 let html = R('public/index.html')
+  .replace(/^.*<link [^>]*data-online>\n/gm, '') // app manifest + icons only exist on the online server
   .replace('<link rel="stylesheet" href="style.css">', () => `<style>\n${R('public/style.css')}\n</style>`)
   .replace('<script src="/shared/sim.js"></script>', () => [
     '<script>window.__mods={};</script>',

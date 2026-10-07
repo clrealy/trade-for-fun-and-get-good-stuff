@@ -53,6 +53,14 @@ Firebase Hosting can't run a WebSocket game server, so deploy the server somewhe
 
 **Google Cloud Run:** `gcloud run deploy --source . --set-env-vars ...`. It supports WebSockets. On Cloud Run you can set `FIREBASE_USE_ADC=1` instead of a key file, and give the service account the *Firebase Authentication Admin* and *Cloud Datastore User* roles.
 
+## Android app (Google Play)
+
+The online game is an installable web app: it has a manifest, icons, a service worker, a privacy policy at `/privacy`, in-app account deletion and an `assetlinks.json` route. **[PLAYSTORE.md](PLAYSTORE.md)** walks through turning it into an Android app and publishing it. Extra server environment variables for this:
+
+- `CONTACT_EMAIL`: shown on the privacy page.
+- `ANDROID_PACKAGE`: the app's package ID, used in `/.well-known/assetlinks.json`.
+- `ANDROID_SHA256`: the signing fingerprints, comma-separated, used in `/.well-known/assetlinks.json`.
+
 ## Give items (owner only)
 
 ```bash

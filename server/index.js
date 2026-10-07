@@ -13,6 +13,7 @@ const ROOT = path.join(__dirname, '..');
 const TICK = 1 / 30;
 const WAIT_TIME = 12, POST_TIME = 7;
 const ADMIN_UIDS = new Set((process.env.ADMIN_UIDS || '').split(',').map(s => s.trim()).filter(Boolean));
+const PRIVACY_UPDATED = 'October 7, 2026';
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
 
 // ---------- auth + storage setup ----------
@@ -44,7 +45,7 @@ if (sa || process.env.FIREBASE_USE_ADC === '1') {
 }
 
 // ---------- static files ----------
-const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml', '.ico': 'image/x-icon' };
+const TYPES = { '.webmanifest': 'application/manifest+json', '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml', '.ico': 'image/x-icon' };
 const CSP = [
   "default-src 'self'",
   "script-src 'self' https://www.gstatic.com",
@@ -74,6 +75,20 @@ const server = http.createServer((req, res) => {
   if (url === '/config.json') return send(res, 200, JSON.stringify({ auth: authMode, firebase: webConfig }), 'application/json', { 'Cache-Control': 'no-store' });
   if (url === '/shared/sim.js') return serveFile(res, path.join(ROOT, 'shared'), 'sim.js');
   if (url === '/vendor/three.min.js') return serveFile(res, path.join(ROOT, 'node_modules', 'three', 'build'), 'three.min.js');
+  // Android app (Trusted Web Activity) proof that the app and this site belong together. See PLAYSTORE.md
+  if (url === '/.well-known/assetlinks.json') {
+    const pkg = process.env.ANDROID_PACKAGE, prints = (process.env.ANDROID_SHA256 || '').split(',').map(s => s.trim()).filter(Boolean);
+    if (!pkg || !prints.length) return send(res, 404, 'Not configured', 'text/plain');
+    return send(res, 200, JSON.stringify([{ relation: ['delegate_permission/common.handle_all_urls'], target: { namespace: 'android_app', package_name: pkg, sha256_cert_fingerprints: prints } }]), 'application/json');
+  }
+  // privacy policy (the Play Store requires one); CONTACT_EMAIL fills in the contact line
+  if (url === '/privacy' || url === '/privacy.html') {
+    return fs.readFile(path.join(ROOT, 'public', 'privacy.html'), 'utf8', (err, html) => {
+      if (err) return send(res, 404, 'Not found', 'text/plain');
+      const mail = (process.env.CONTACT_EMAIL || '').replace(/[^\w.@+-]/g, '');
+      send(res, 200, html.replace('{{UPDATED}}', PRIVACY_UPDATED).replace('{{CONTACT}}', mail ? `Email: <a href="mailto:${mail}">${mail}</a>` : 'Contact email not set yet.'), TYPES['.html'], { 'Cache-Control': 'no-cache' });
+    });
+  }
   serveFile(res, path.join(ROOT, 'public'), url === '/' ? 'index.html' : url.slice(1));
 });
 
@@ -225,6 +240,18 @@ const HANDLERS = {
     joinRoom(c, r);
   },
   leave(c) { leaveRoom(c); sendMsg(c, { t: 'left' }); },
+  // permanently delete this account (login, username and progress). The Play Store requires this in-app.
+  async deleteAccount(c, m) {
+    if (!c.profile || String(m.confirm || '').trim().toLowerCase() !== c.profile.name.toLowerCase()) throw new Error('Type your username exactly to confirm');
+    const uid = c.uid;
+    leaveRoom(c);
+    await queue(uid, () => store.remove(uid));
+    if (authMode === 'firebase') await admin.auth().deleteUser(uid).catch(e => { if (e.code !== 'auth/user-not-found') throw e; });
+    if (conns.get(uid) === c) conns.delete(uid);
+    c.uid = null; c.profile = null;
+    sendMsg(c, { t: 'accountDeleted' });
+    setTimeout(() => c.ws.close(4004, 'deleted'), 200);
+  },
   in(c, m) { if (c.room && c.room.R && c.entId) Sim.setInput(c.room.R, c.entId, m); },
   chat(c, m) {
     const text = String(m.text || '').replace(/\s+/g, ' ').trim().slice(0, 120);

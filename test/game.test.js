@@ -471,3 +471,14 @@ test('/esp shows everyone\'s role, but only to the player who turned it on', () 
   assert.match(Sim.cheat(R, a.id, '/esp'), /off/);
   assert.strictEqual(Sim.snapshotFor(R, a.id).esp, undefined);
 });
+
+test('deleting an account removes the profile and frees the name', async () => {
+  const { MemoryStore } = require('../server/store.js');
+  const s = new MemoryStore();
+  await s.create('u1', 'Bob');
+  await assert.rejects(() => s.create('u2', 'bob'), /taken/);
+  await s.remove('u1');
+  assert.strictEqual(await s.get('u1'), null);
+  await assert.rejects(() => s.update('u1', p => p), /No profile/, 'late round rewards can\'t bring it back');
+  assert.strictEqual((await s.create('u2', 'BOB')).name, 'BOB', 'name is free again');
+});
