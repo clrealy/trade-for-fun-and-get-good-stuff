@@ -446,3 +446,14 @@ test('Haunted Manor is fully connected', () => {
   assert.strictEqual(M.reach.length, walk);
   assert.strictEqual(M.theme, 'haunted');
 });
+
+test('an accepted trade reports what you got, a declined one reports nothing', () => {
+  const p = defaultProfile('t'); p.inv.push({ u: p.nextUid++, id: 'g13' });
+  const tr = { name: 'x', inv: [{ u: 1, id: 'k1' }, { u: 2, id: 'g1' }], greed: 1, nextU: 1000 };
+  const ok = Eco.trade(p, tr, [p.inv[0].u], [1, 2]);
+  assert.ok(ok.ok); assert.deepStrictEqual(ok.got, ['k1', 'g1']);
+  const no = Eco.trade(p, { name: 'y', inv: [{ u: 1, id: 'g16' }], greed: 1, nextU: 1000 }, [p.inv[0].u], [1]);
+  assert.ok(!no.ok); assert.deepStrictEqual(no.got, []);
+  // a code's random item says it came from a code
+  assert.deepStrictEqual(Object.keys(Eco.redeemMsg({ inst: { id: 'k1' } })).sort(), ['code', 'crate', 'item', 't']);
+});

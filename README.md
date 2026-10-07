@@ -78,6 +78,10 @@ Players type codes in **Inventory → Add code**. Codes ignore caps and spaces, 
 - **Raygun Set** (Raygun + Ray Blade, the Raygun fires a green laser with its own sound): 3,999 coins in the Shop, or the secret code `ZAPZAPBOOM13`. The game reveals it when you tap the lobby logo 13 times fast.
 - **Chroma Raygun Set** (Chroma Raygun + Chroma Ray Blade): 93,000 coins in the Shop. The Chroma Raygun fires rainbow lasers with no reload.
 
+## "You got" popup
+
+Opening a box, redeeming a code that gives a random item, and getting an accepted trade all show a full-screen popup with what you got. The items pop in with their 3D pictures and rarity glow, and you close it with the big **CLAIM** button at the bottom of the screen (or Esc). Trades show everything the trader gave you. A gift trade, where you get nothing back, has no popup.
+
 ## Pets
 
 The **🐾 Pet Box** in the Shop (120 coins) gives a pet that follows you around in every round, trotting behind you or flying next to you. There are 10 pets: Doggo and Kitty (Common), Bunny and Slime (Uncommon), Bat and Pumpkin (Rare), Ghosty (Legendary), Phoenix (Godly), Void Wisp (Ancient) and Chroma Dragon (Chroma). Equip one under **Inventory → Pets**, and tap it again to put it away. Pets only come from the Pet Box, never from knife or gun boxes or rarity codes, and some bots bring their own.

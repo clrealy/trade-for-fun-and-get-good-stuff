@@ -236,7 +236,7 @@ function onMsg(m) {
     case 'round': startOnlineView(m); break;
     case 's': if (V && !V.offline) { if (m.s) applySnap(m.s); if (m.ev) m.ev.forEach(handleEvent); } break;
     case 'reward': showReward(m.r); break;
-    case 'unboxed': playUnbox(m.crate, m.item); break;
+    case 'unboxed': playUnbox(m.crate, m.item, m.code); break;
     case 'codeAll': unboxPending = false; SFX.win(); toast(`Code redeemed: +${m.count} items you were missing 🔪🔫🐾 You have every one now`, true); if (screen === 'lobby') renderLobby(); break;
     case 'codeItems': unboxPending = false; SFX.win(); toast(`${m.from === 'event' ? 'Unlocked' : m.from === 'bundle' ? 'Bought' : 'Code redeemed'}: ${m.items.map(id => ITEM[id].name).join(' + ')} 🔥`, true); if (screen === 'lobby') renderLobby(); break;
     case 'chat': addChat(m.name, m.text, m.sys); break;
@@ -250,7 +250,9 @@ function onMsg(m) {
       traders = m.traders; offMine = []; offTheirs = [];
       $('#tradeChat').innerHTML = `<span class="muted">${esc(m.trader)}:</span> ${esc(m.line)}`;
       m.ok ? SFX.win() : tone(200, .25, 'sawtooth', .04);
-      renderLobby(); break;
+      renderLobby();
+      if (m.ok && m.got && m.got.length) showClaim(m.got, 'TRADE ACCEPTED!', `${m.trader} gave you:`);
+      break;
   }
 }
 
@@ -1220,7 +1222,7 @@ function renderLobby() {
 
 // ---------- crates (the server rolls; we just animate the result) ----------
 let unboxPending = false;
-function playUnbox(crateId, winId) {
+function playUnbox(crateId, winId, fromCode) {
   unboxPending = false;
   const c = CRATES.find(x => x.id === crateId) || CRATES[0], win = ITEM[winId];
   const N = 45, WIN = 38, cards = [];
@@ -1238,9 +1240,28 @@ function playUnbox(crateId, winId) {
     const big = RORDER.indexOf(win.r) >= 4;
     $('#unboxRes').innerHTML = `${big ? '🔥 ' : ''}You unboxed <span style="color:${rarColor(win.r)}">${esc(win.name)}</span> (${win.r})!${big ? ' 🔥' : ''}`;
     big ? SFX.win() : tone(880, .2, 'triangle', .06);
-    show('#unboxBtn');
+    setTimeout(() => showClaim([win.id], 'YOU GOT!', fromCode ? 'From your code 🎟️' : `From the ${c.icon} ${c.name}`), 650);
   }, 4700);
 }
+// big "you got" popup: the items pop in one by one, then CLAIM (bottom of the screen) closes it
+function showClaim(ids, title, sub) {
+  const items = ids.map(id => ITEM[id]).filter(Boolean); if (!items.length) return;
+  const best = items.reduce((a, b) => RORDER.indexOf(b.r) > RORDER.indexOf(a.r) ? b : a);
+  $('#claimTitle').textContent = title; $('#claimSub').textContent = sub || '';
+  $('#claimItems').innerHTML = items.map((it, i) => `<div class="claimcard r-${it.r.toLowerCase()}${it.r === 'Chroma' ? ' chroma' : ''}" style="--rc:${rarColor(it.r)};animation-delay:${(.12 + i * .12).toFixed(2)}s">
+      <div class="cimg">${itemIcon(it)}</div><div class="cname">${esc(it.name)}</div><div class="crar" style="color:${rarColor(it.r)}">${it.r}</div></div>`).join('');
+  $('#claim').style.setProperty('--rc', rarColor(best.r));
+  show('#unbox', false); show('#claim');
+  hydrateThumbs();
+  setTimeout(() => $('#claimBtn').focus(), 50);
+}
+function closeClaim() {
+  if ($('#claim').classList.contains('hide')) return;
+  show('#claim', false); tone(1046, .08, 'square', .04); tone(1568, .12, 'square', .035, 0, .07);
+  renderLobby();
+}
+$('#claimBtn').onclick = closeClaim;
+$('#claim').addEventListener('keydown', e => { if (e.key === 'Escape') closeClaim(); });
 $('#codeForm').onsubmit = e => {
   e.preventDefault();
   const code = $('#redeemInput').value.trim(); if (!code || unboxPending) return;

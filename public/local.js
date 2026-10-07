@@ -119,7 +119,7 @@
             const draft = structuredClone(tr);
             const r = mutate(p => Eco.trade(p, draft, m.mine, m.theirs));
             traders[m.trader | 0] = draft;
-            emit({ t: 'tradeResult', ok: r.ok, line: r.line, trader: tr.name, traders: Eco.tradersView(traders) });
+            emit({ t: 'tradeResult', ok: r.ok, line: r.line, got: r.got, trader: tr.name, traders: Eco.tradersView(traders) });
             break;
           }
           case 'quickplay': case 'createPrivate': case 'joinCode': startPractice(); break;

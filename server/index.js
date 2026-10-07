@@ -253,7 +253,7 @@ const HANDLERS = {
     let draft, result;
     await mutate(c, p => { draft = structuredClone(trader); result = Eco.trade(p, draft, m.mine, m.theirs); return result; });
     c.traders[m.trader | 0] = draft;
-    sendMsg(c, { t: 'tradeResult', ok: result.ok, line: result.line, trader: trader.name, traders: Eco.tradersView(c.traders) });
+    sendMsg(c, { t: 'tradeResult', ok: result.ok, line: result.line, got: result.got, trader: trader.name, traders: Eco.tradersView(c.traders) });
   },
 };
 const PRE_AUTH = new Set(['auth', 'setName']);

@@ -275,6 +275,17 @@
   </div>
 </div>
 
+<!-- "You got" popup after a box or a trade, with a Claim button at the bottom of the screen -->
+<div id="claim" class="hide" role="dialog" aria-modal="true" aria-labelledby="claimTitle">
+  <div class="claimrays" aria-hidden="true"></div>
+  <div class="claimbody">
+    <div id="claimTitle">YOU GOT!</div>
+    <div id="claimSub" class="muted"></div>
+    <div id="claimItems"></div>
+  </div>
+  <button id="claimBtn" type="button">CLAIM</button>
+</div>
+
 <div id="toast" class="hide"></div>
 
 <script src="/vendor/three.min.js"></script>

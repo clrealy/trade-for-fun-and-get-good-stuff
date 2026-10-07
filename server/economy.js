@@ -125,7 +125,7 @@ function redeem(p, rawCode) {
 }
 // what to tell the player after a code works (shared by the server and the solo build)
 function redeemMsg(r) {
-  return r.inst ? { t: 'unboxed', item: r.inst.id, crate: 'mystery' } : r.admin ? { t: 'codeAdmin' } : r.luck ? { t: 'codeLuck' }
+  return r.inst ? { t: 'unboxed', item: r.inst.id, crate: 'mystery', code: true } : r.admin ? { t: 'codeAdmin' } : r.luck ? { t: 'codeLuck' }
     : r.bulk ? { t: 'codeBulk', count: r.bulk, rarity: r.rarity } : r.all ? { t: 'codeAll', count: r.all.length }
     : r.items ? { t: 'codeItems', items: r.items } : { t: 'codeCoins', coins: r.coins };
 }
@@ -233,7 +233,7 @@ function trade(p, trader, mineU, theirsU) {
     for (const i of theirs) { trader.inv.splice(trader.inv.indexOf(i), 1); addItem(p, i.id); }
     p.stats.trades++;
   }
-  return { ok, line };
+  return { ok, line, got: ok ? theirs.map(i => i.id) : [] };
 }
 
 module.exports = { TROPHIES, checkTrophies, EVENTS, BUNDLES, claimEvent, buyBundle, publicProfile, equippedId, openCrate, redeem, redeemMsg, equip, evolve, EVO_GOAL, applyRoundResult, genTraders, tradersView, trade, xpNeed };
