@@ -287,4 +287,4 @@ wss.on('connection', (ws, req) => {
   ws.on('error', () => { });
 });
 
-server.listen(PORT, () => console.log(`Murder Mystery server on :${PORT} (auth: ${authMode}, store: ${store.kind})`));
+server.listen(PORT, () => console.log(`Project MM server on :${PORT} (auth: ${authMode}, store: ${store.kind})`));
