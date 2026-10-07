@@ -82,6 +82,8 @@ The zip has `index.html` (the whole game) and `three.min.js` (the 3D engine), so
 >
 > On phones, drag on the left to move and tap anywhere else to aim and attack.
 >
+> 🤖 **Made by AI:** this game was built with Claude, an AI.
+>
 > Your progress saves in your browser. Codes are hidden around… good luck finding them 👀
 
 ## Updating the game later

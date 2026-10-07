@@ -550,3 +550,8 @@ canvas.turning,#game.turning{cursor:grabbing}
 #accountBox{margin-top:16px}
 #delAcct{z-index:60;background:rgba(5,3,10,.85)}
 .lobbyfoot a + a{margin-left:16px}
+
+/* "Made by AI" tag */
+.brand{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.aitag{display:inline-flex;align-items:center;gap:4px;background:linear-gradient(135deg,#2a1d4a,#3b2466);border:2px solid #8f6bff;color:#e6dcff;border-radius:999px;padding:3px 12px;font-size:13px;font-weight:700;letter-spacing:.5px;white-space:nowrap;box-shadow:0 0 12px rgba(143,107,255,.35)}
+.lobbyfoot .aitag{margin-left:16px;vertical-align:middle}
