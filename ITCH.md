@@ -30,7 +30,18 @@ The zip has `index.html` (the whole game) and `three.min.js` (the 3D engine), so
 | Cover image | `store/itch/cover-630x500.png` |
 | Screenshots | everything in `store/itch/` that starts with `screenshot-` |
 | Genre | Action |
-| Tags | `murder-mystery`, `3d`, `multiplayer-style`, `bots`, `trading`, `pets`, `browser` |
+| Tags | `murder-mystery`, `3d`, `bots`, `trading`, `pets`, `browser`, `ai-generated` |
+| **AI generation disclosure** | **Yes**: tick **Code**, **Graphics**, **Text** and **Sound**. See below. |
+
+### Don't skip the AI disclosure
+
+itch.io requires projects made with AI to say so, and pages that hide it can be taken down. On the edit page, find **AI generation disclosure** and answer **Yes**. Tick every box, because Claude wrote all of it:
+- **Code**: the whole game.
+- **Graphics**: the 3D models, icon, cover and screenshots are all made by code Claude wrote.
+- **Text**: names, descriptions and this page text.
+- **Sound**: the sound effects and music are synthesized by code Claude wrote.
+
+itch then shows an "AI Generated" label on your page. That, plus the 🤖 Made by AI tag inside the game and the line in the description, keeps you in the clear.
 
 4. Under **Embed options**:
 
