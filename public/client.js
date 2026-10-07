@@ -1072,6 +1072,55 @@ function itemCard(it, opts = {}) {
     <div class="ic" style="${it.col === 'chroma' ? '' : `text-shadow:0 0 12px ${it.col}`}">${itemIcon(it)}</div>
     <div class="nm">${esc(it.name)}</div><div class="rr" style="color:${rc}">${it.r}</div>${it.noCooldown ? '<div class="fastTag">⚡ No cooldown</div>' : ''}${opts.noval ? '' : `<div class="vv">value ${it.val.toLocaleString()}</div>`}</div>`;
 }
+// ===================== Shop (MM2 style) =====================
+let shopTab = 'weapons';
+const SHOP_TABS = { weapons: ['knifebox', 'gunbox', 'mystery', 'halloween'], halloween: ['halloween'], pets: ['petbox'], bundles: [] };
+// two-tone box art per crate (lid colors), like the boxes in MM2's shop
+const BOX_ART = { knifebox: ['#e0413b', '#6e1717'], gunbox: ['#2f8cff', '#173f80'], mystery: ['#ff3b6b', '#2fc0ff'], halloween: ['#ff8c1a', '#3b1a5a'], petbox: ['#ff5fd2', '#7b2cff'] };
+const boxArt = c => { const [a, b] = BOX_ART[c.id] || ['#888', '#444']; return `<div class="boxart" style="--ba:${a};--bb:${b}"><i class="strap"></i><span>${c.icon}</span></div>`; };
+const canAfford = n => P && P.coins >= n;
+function renderShop() {
+  $('#shopCoins').textContent = shortNum(P.coins);
+  $('#shopTabs').querySelectorAll('.st').forEach(t => t.classList.toggle('on', t.dataset.st === shopTab));
+  // Latest Box: the newest box in the game
+  const latest = CRATES.find(c => c.id === 'petbox') || CRATES[CRATES.length - 1];
+  $('#latest').innerHTML = `<h3>Latest Box</h3><div class="lbox">${boxArt(latest)}</div><div class="lname">${esc(latest.name)}</div>
+    <button class="rbx-btn blue lget" type="button" data-c="${latest.id}" ${canAfford(latest.price) ? '' : 'disabled'}>GET IT · 💰 ${latest.price}</button>`;
+  // Limited time offer: today's featured bundle
+  const b = featuredBundle();
+  if (b) {
+    const it = ITEM[b.items[0]], [h, m] = offerTimeLeft();
+    $('#offer').innerHTML = `<div class="olimit">LIMITED TIME OFFER!</div><div class="otime">⏳ ${h}h ${m}m left</div>
+      <div class="oimg">${itemIcon(it)}</div>
+      <div class="otext"><div class="onew">New ${esc(it.r)}!</div><div class="oname ${it.r === 'Chroma' ? 'chroma' : ''}" style="--oc:${rarColor(it.r)}">${esc(b.name)}</div>
+      <div class="oitems">${b.items.map(id => esc(ITEM[id].name)).join(' + ')}</div></div>
+      <div class="obuy"><div class="oprice">💰 ${b.price.toLocaleString()}</div>
+      <button class="rbx-btn blue" type="button" data-b="${esc(b.id)}" ${b.owned || !canAfford(b.price) ? 'disabled' : ''}>${b.owned ? 'OWNED ✓' : 'GET IT NOW!'}</button></div>`;
+  } else $('#offer').innerHTML = '';
+  // Hot Items: what this tab sells
+  const tiles = shopTab === 'bundles'
+    ? (P.bundles || []).map(x => `<button class="hottile ${x.owned ? 'owned' : ''}" type="button" data-b="${esc(x.id)}" ${x.owned || !canAfford(x.price) ? 'disabled' : ''} title="${esc(x.desc || '')}">
+        <div class="himg">${itemIcon(ITEM[x.items[0]])}</div><div class="hprice">${x.owned ? 'Owned ✓' : `💰 ${x.price.toLocaleString()}`}</div><div class="hname" style="background:${rarColor(ITEM[x.items[0]].r) === '#fff' ? '#7b2cff' : rarColor(ITEM[x.items[0]].r)}">${esc(x.name)}</div></button>`).join('')
+    : SHOP_TABS[shopTab].map(id => CRATES.find(c => c.id === id)).filter(Boolean).map(c => `<button class="hottile" type="button" data-c="${c.id}" ${canAfford(c.price) ? '' : 'disabled'} title="${esc(P.luck && c.luckySpecials ? '🍀 Your luck: 95% Death Set or Chroma Death Set!' : c.desc)}">
+        <div class="himg">${boxArt(c)}</div><div class="hprice">💰 ${c.price}</div><div class="hname" style="background:${(BOX_ART[c.id] || ['#555'])[0]}">${esc(c.name)}</div></button>`).join('');
+  $('#crates').innerHTML = tiles || '<div class="muted">Nothing here yet</div>';
+  // odds + what can drop, for the box in this tab
+  const box = shopTab === 'bundles' ? null : CRATES.find(c => c.id === SHOP_TABS[shopTab][0]);
+  show('#ratesCard', !!box);
+  if (box) {
+    const w = box.w, tot = Object.values(w).reduce((x, y) => x + y, 0);
+    $('#ratesTitle').textContent = `${box.icon} ${box.name} drop rates`;
+    const sps = (P.luck && box.luckySpecials) || box.specials || [];
+    $('#rates').innerHTML = sps.map(sp => `<span style="color:${rarColor(ITEM[sp.id].r)}">${esc(ITEM[sp.id].name)} ${(sp.chance * 100).toFixed(1)}%</span>`).join('')
+      + RORDER.filter(r => w[r]).map(r => `<span style="color:${rarColor(r)}">${r} ${(w[r] / tot * 100 * (1 - sps.reduce((x, sp) => x + sp.chance, 0))).toFixed(1)}%</span>`).join('');
+    $('#canDrop').innerHTML = box.type === 'pet' ? `<div class="muted small">Pets inside:</div><div class="cdrow">${Sim.ITEMS.filter(i => i.type === 'pet').map(i => `<div class="cd" style="border-color:${rarColor(i.r)}" title="${esc(i.name)} (${i.r})">${itemIcon(i)}<b>${esc(i.name)}</b></div>`).join('')}</div>` : '';
+  }
+  $('#tab-shop').querySelectorAll('[data-c]').forEach(el => el.onclick = () => { if (unboxPending || el.disabled) return; unboxPending = true; tone(700, .06); net({ t: 'crate', id: el.dataset.c }); });
+  $('#tab-shop').querySelectorAll('[data-b]').forEach(el => el.onclick = () => { if (el.disabled) return; tone(700, .06); net({ t: 'buyBundle', id: el.dataset.b }); });
+  hydrateThumbs();
+}
+$('#shopTabs').querySelectorAll('.st').forEach(t => t.onclick = () => { shopTab = t.dataset.st; tone(600, .05); renderShop(); });
+$('#shopClose').onclick = () => document.querySelector('.tab[data-tab="play"]').click();
 let curTab = 'play';
 document.querySelectorAll('.tab').forEach(b => b.onclick = () => {
   curTab = b.dataset.tab;
@@ -1150,10 +1199,16 @@ function renderInventory() {
   hydrateThumbs();
 }
 // featured bundle on the right: rotates daily, with a countdown to the next rotation (UTC midnight)
+// today's featured bundle: rotates daily, skipping ones you already own
+function featuredBundle() {
+  const bs = P.bundles || []; if (!bs.length) return null;
+  const day = Math.floor(Date.now() / 864e5), left = bs.filter(x => !x.owned);
+  return left[day % Math.max(1, left.length)] || bs[day % bs.length];
+}
+function offerTimeLeft() { const left = 864e5 - (Date.now() % 864e5); return [Math.floor(left / 36e5), Math.floor(left % 36e5 / 6e4)]; }
 function renderFeatured() {
-  const bs = P.bundles || []; if (!bs.length) { $('#featured').innerHTML = ''; return; }
-  const day = Math.floor(Date.now() / 864e5), b = bs.filter(x => !x.owned)[day % Math.max(1, bs.filter(x => !x.owned).length)] || bs[day % bs.length];
-  const it = ITEM[b.items[0]], left = 864e5 - (Date.now() % 864e5), h = Math.floor(left / 36e5), m = Math.floor(left % 36e5 / 6e4);
+  const b = featuredBundle(); if (!b) { $('#featured').innerHTML = ''; return; }
+  const it = ITEM[b.items[0]], [h, m] = offerTimeLeft();
   $('#featured').innerHTML = `<div class="ftimer">${h}h ${m}m</div><div class="fimg">${itemIcon(it)}</div>
     <div class="fname">${esc(b.name)}</div><div class="fexcl">Exclusive</div>
     <button class="rbx-btn green" id="featBuy" type="button" ${b.owned || P.coins < b.price ? 'disabled' : ''}>${b.owned ? 'Owned ✓' : `💰 ${shortNum(b.price)}`}</button>`;
@@ -1199,16 +1254,7 @@ function renderLobby() {
   } else if (curTab === 'inv') {
     renderInventory();
   } else if (curTab === 'shop') {
-    $('#bundles').innerHTML = (P.bundles || []).map(b => `<div class="card bundle">
-      <div class="evrewards">${b.items.map(id => itemCard(ITEM[id], { noval: true })).join('')}</div>
-      <div class="binfo"><h3>${b.icon} ${esc(b.name)}</h3><p class="muted small">${esc(b.desc || '')}</p>
-      <button class="btn" data-b="${esc(b.id)}" ${b.owned || P.coins < b.price ? 'disabled' : ''}>${b.owned ? 'Owned ✅' : `💰 ${b.price.toLocaleString()}`}</button></div></div>`).join('');
-    $('#bundles').querySelectorAll('button[data-b]').forEach(btn => btn.onclick = () => net({ t: 'buyBundle', id: btn.dataset.b }));
-    $('#crates').innerHTML = CRATES.map(c => `<div class="crate"><div class="box">${c.icon}</div><h3>${c.name}</h3><p>${P.luck && c.luckySpecials ? '🍀 Your luck: 95% Death Set or Chroma Death Set!' : c.desc}</p><button class="btn" data-c="${c.id}" ${P.coins < c.price ? 'disabled' : ''}>💰 ${c.price}</button></div>`).join('');
-    hydrateThumbs();
-    $('#crates').querySelectorAll('button').forEach(b => b.onclick = () => { if (unboxPending) return; unboxPending = true; net({ t: 'crate', id: b.dataset.c }); });
-    const w = CRATES[0].w, tot = Object.values(w).reduce((a, b) => a + b, 0);
-    $('#rates').innerHTML = RORDER.map(r => `<span style="color:${rarColor(r)}">${r} ${(w[r] / tot * 100).toFixed(1)}%</span>`).join('') + '<span class="muted">(Knife/Gun Box)</span>';
+    renderShop();
   } else if (curTab === 'trade') { renderTrade(); hydrateThumbs(); }
   else if (curTab === 'trophies') {
     const T = P.trophies || [];

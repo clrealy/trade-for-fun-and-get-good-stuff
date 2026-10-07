@@ -78,6 +78,17 @@ Players type codes in **Inventory → Add code**. Codes ignore caps and spaces, 
 - **Raygun Set** (Raygun + Ray Blade, the Raygun fires a green laser with its own sound): 3,999 coins in the Shop, or the secret code `ZAPZAPBOOM13`. The game reveals it when you tap the lobby logo 13 times fast.
 - **Chroma Raygun Set** (Chroma Raygun + Chroma Ray Blade): 93,000 coins in the Shop. The Chroma Raygun fires rainbow lasers with no reload.
 
+## Shop
+
+The Shop looks like MM2's. It has:
+- A title bar with your coins.
+- Big colored category tabs: **Weapons**, **Halloween**, **Pets** and **Bundles**.
+- A **Latest Box** panel.
+- A **LIMITED TIME OFFER** spotlight for the bundle of the day, with a countdown to tomorrow's.
+- A **🔥 Hot Items** row of what the tab sells.
+
+Below the window are the drop rates for that tab's box. The Pets tab also lists every pet inside. Anything you can't afford is dimmed.
+
 ## "You got" popup
 
 Opening a box, redeeming a code that gives a random item, and getting an accepted trade all show a full-screen popup with what you got. The items pop in with their 3D pictures and rarity glow, and you close it with the big **CLAIM** button at the bottom of the screen (or Esc). Trades show everything the trader gave you. A gift trade, where you get nothing back, has no popup.

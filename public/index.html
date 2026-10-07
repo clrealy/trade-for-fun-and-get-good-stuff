@@ -209,9 +209,30 @@
   </section>
 
   <section id="tab-shop" class="tabpage hide">
-    <div id="bundles"></div>
-    <div id="crates" class="crates"></div>
-    <div class="card"><h3>Drop rates</h3><div id="rates"></div></div>
+    <div class="shopwin">
+      <div class="shophead">
+        <button class="invclose shopx" id="shopClose" type="button" aria-label="Close shop">X</button>
+        <div class="shoptitle">Shop</div>
+        <div class="shopcoins"><span aria-hidden="true">💰</span><b id="shopCoins">0</b></div>
+      </div>
+      <nav class="shoptabs" id="shopTabs" aria-label="Shop categories">
+        <button type="button" data-st="weapons" class="st red on"><span class="sti">🗡️</span>Weapons</button>
+        <button type="button" data-st="halloween" class="st orange"><span class="sti">🎃</span>Halloween</button>
+        <button type="button" data-st="pets" class="st pink"><span class="sti">🐾</span>Pets</button>
+        <button type="button" data-st="bundles" class="st green"><span class="sti">📦</span>Bundles</button>
+      </nav>
+      <div class="shopbody">
+        <aside class="latest" id="latest"></aside>
+        <div class="shopmain">
+          <div class="offer" id="offer"></div>
+          <div class="hot">
+            <div class="hothead"><span aria-hidden="true">🔥</span> Hot Items</div>
+            <div class="hotgrid" id="crates"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card shoprates" id="ratesCard"><h3 id="ratesTitle">Drop rates</h3><div id="rates"></div><div id="canDrop" class="candrop"></div></div>
   </section>
 
   <section id="tab-trophies" class="tabpage hide">
