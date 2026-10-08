@@ -26,6 +26,7 @@
   <div id="roleBadge"></div>
   <div id="bag">💰 0/40</div>
   <div id="cools"></div>
+  <div id="lockPill" class="hide">🔒 Shift Lock</div>
   <div id="hint"></div>
   <div id="spec" class="hide"></div>
   <div id="chat">
@@ -136,6 +137,7 @@
   <nav>
     <button class="tab active" data-tab="play">🎮 Play</button>
     <button class="tab" data-tab="inv">🎒 Inventory</button>
+    <button class="tab" data-tab="avatar">👤 Avatar</button>
     <button class="tab" data-tab="shop">📦 Shop</button>
     <button class="tab" data-tab="trade">🤝 Trade</button>
     <button class="tab" data-tab="trophies">🏆 Trophies</button>
@@ -186,8 +188,9 @@
           <li><kbd>Left click</kbd> stab / shoot</li>
           <li><kbd>Q</kbd> or tap <kbd>Right click</kbd> throw knife</li>
           <li>3D: hold <kbd>Right mouse</kbd> + drag to turn the camera · <kbd>Scroll</kbd> to zoom</li>
+          <li><kbd>Shift</kbd> 🔒 Shift Lock: the mouse turns the camera and you face where you look</li>
           <li><kbd>E</kbd> or <kbd>1</kbd> pull out / put away weapon</li>
-          <li><kbd>Shift</kbd> 💨 juke (quick dash) · <kbd>Space</kbd> jump · <kbd>B</kbd> 💣 bomb jump (way up) · hold <kbd>C</kbd> crouch</li>
+          <li><kbd>F</kbd> 💨 juke (quick dash) · <kbd>Space</kbd> jump · <kbd>B</kbd> 💣 bomb jump (way up) · hold <kbd>C</kbd> crouch</li>
           <li>Dead? <kbd>Click</kbd> to switch who you spectate</li>
           <li>📱 Phone: drag on the left to move, tap anywhere else to aim and attack</li>
         </ul>
@@ -230,6 +233,29 @@
         </form>
       </aside>
       <button class="invclose" id="invClose" type="button" aria-label="Close inventory">X</button>
+    </div>
+  </section>
+
+  <section id="tab-avatar" class="tabpage hide">
+    <div class="avwin">
+      <div class="avstage">
+        <canvas id="avCanvas" aria-label="Your avatar (drag to turn it)"></canvas>
+        <div class="avname" id="avName"></div>
+        <div class="avhint muted small">Drag to spin</div>
+      </div>
+      <div class="avpick">
+        <h2>Make your avatar</h2>
+        <div class="avrow"><h3>Skin</h3><div class="swatches" data-k="skin"></div></div>
+        <div class="avrow"><h3>Shirt</h3><div class="swatches" data-k="shirt"></div></div>
+        <div class="avrow"><h3>Pants</h3><div class="swatches" data-k="pants"></div></div>
+        <div class="avrow"><h3>Hat</h3><div class="chips" data-k="hat"></div></div>
+        <div class="avrow"><h3>Face</h3><div class="chips" data-k="face"></div></div>
+        <div class="avbtns">
+          <button class="btn ghost" id="avRandom" type="button">🎲 Randomize</button>
+          <button class="btn" id="avSave" type="button">💾 Save</button>
+        </div>
+        <p class="muted small" id="avStatus"></p>
+      </div>
     </div>
   </section>
 

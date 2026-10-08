@@ -176,10 +176,24 @@ In 3D the camera works like Roblox:
 - **Saving:** the angle and zoom are saved in your browser.
 - **Phones:** keep the follow camera.
 
-Characters wear the classic Roblox smiley face.
+**Shift Lock** (press **Shift**):
+- **Camera:** sits over your right shoulder, and the mouse turns it with no button held (the cursor hides).
+- **Aim:** your character always faces where the camera looks, and the crosshair marks the spot straight ahead.
+- **Turning it off:** Shift again, Esc, or opening chat.
+
+## Avatars
+
+The **👤 Avatar** tab lets players make their own look:
+- **Skin:** 9 tones.
+- **Shirt:** 15 colors.
+- **Pants:** 8 colors.
+- **Hat:** none, cap, hair, top hat, crown, beanie, headphones, horns or halo.
+- **Face:** smile, grin, cool, angry, wink or surprised.
+
+It has a spinning 3D preview you can drag, a 🎲 Randomize button and Save. The server only accepts the offered options. Everyone in the round sees your look, and bots get random ones.
 
 ## Controls
 
-WASD to move, mouse to aim, left click to stab or shoot, Q (or a quick tap of right click) to throw the knife, E to pull out or put away your weapon. **Shift** jukes (a quick dash, 1.5 s cooldown). **Space** jumps (clears tables and plants), **B** bomb jumps way up (no cooldown, works mid-jump for extra height), hold **C** to crouch (slower, smaller target). Stabs miss players in the air and bullets fly under them.
+WASD to move, mouse to aim, left click to stab or shoot, Q (or a quick tap of right click) to throw the knife, E to pull out or put away your weapon. **F** jukes (a quick dash, 1.5 s cooldown). **Shift** toggles Shift Lock in 3D. **Space** jumps (clears tables and plants), **B** bomb jumps way up (no cooldown, works mid-jump for extra height), hold **C** to crouch (slower, smaller target). Stabs miss players in the air and bullets fly under them.
 
 On phones and tablets: drag on the left side to move, tap or hold anywhere else to aim and attack, and use the buttons on the right to throw, pull out your weapon, or chat. It works upright or sideways.

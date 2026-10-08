@@ -555,3 +555,26 @@ canvas.turning,#game.turning{cursor:grabbing}
 .brand{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .aitag{display:inline-flex;align-items:center;gap:4px;background:linear-gradient(135deg,#2a1d4a,#3b2466);border:2px solid #8f6bff;color:#e6dcff;border-radius:999px;padding:3px 12px;font-size:13px;font-weight:700;letter-spacing:.5px;white-space:nowrap;box-shadow:0 0 12px rgba(143,107,255,.35)}
 .lobbyfoot .aitag{margin-left:16px;vertical-align:middle}
+
+/* ===== Avatar tab ===== */
+.avwin{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:16px;background:#1a1d23 radial-gradient(#ffffff0a 1px,transparent 1px) 0 0/14px 14px;border:2px solid #2d3139;border-radius:22px;padding:16px;box-shadow:0 20px 60px #000a}
+.avstage{position:relative;border-radius:16px;background:radial-gradient(circle at 50% 40%,#4b2a7a,#15101f 70%);min-height:420px;overflow:hidden}
+#avCanvas{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:grab;touch-action:none}
+#avCanvas:active{cursor:grabbing}
+.avname{position:absolute;top:14px;left:0;right:0;text-align:center;font-size:24px;font-weight:700;text-shadow:0 3px 0 #000;pointer-events:none}
+.avhint{position:absolute;bottom:10px;left:0;right:0;text-align:center;pointer-events:none}
+.avpick h2{margin:0 0 8px}
+.avrow{margin-bottom:12px}
+.avrow h3{margin:0 0 6px;font-size:15px;color:var(--muted);text-transform:uppercase;letter-spacing:1px}
+.swatches,.chips{display:flex;flex-wrap:wrap;gap:8px}
+.sw{width:38px;height:38px;border-radius:10px;border:3px solid #0008;cursor:pointer;box-shadow:inset 0 -4px 0 #0003;transition:transform .1s}
+.sw:hover{transform:scale(1.1)}
+.sw.on{outline:3px solid #fff;outline-offset:2px;transform:scale(1.08)}
+.chip{background:var(--panel2);color:var(--text);border:2px solid #0006;border-radius:10px;padding:7px 12px;font:600 15px Fredoka,system-ui,sans-serif;cursor:pointer}
+.chip:hover{filter:brightness(1.15)}
+.chip.on{background:var(--accent);border-color:#fff}
+.avbtns{display:flex;gap:10px;margin-top:6px}
+.avbtns .btn{flex:1;margin:0}
+@media (max-width:760px){.avwin{grid-template-columns:minmax(0,1fr)}.avstage{min-height:300px}}
+#lockPill{position:absolute;top:56px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.55);border:2px solid #8f6bff;color:#e6dcff;border-radius:999px;padding:3px 14px;font-weight:700;font-size:14px}
+canvas.locked,#game.locked{cursor:none}

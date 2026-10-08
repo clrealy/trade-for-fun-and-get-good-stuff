@@ -74,7 +74,8 @@ itch then shows an "AI Generated" label on your page. That, plus the 🤖 Made b
 > - 🌌 The Void Gun, an Evo weapon you level up into the Void Scope
 > - Jump, bomb jump and juke past danger 💨
 > - 1v1 mode ⚔️
-> - Roblox-style 3D camera (hold right mouse to turn it), or a faster 2D mode for old devices
+> - Roblox-style 3D camera with **Shift Lock**, or a faster 2D mode for old devices
+> - 👤 Make your own avatar: skin, shirt, pants, hats (crown, top hat, halo…) and faces
 > - Works on phones and tablets 📱
 >
 > **Controls**
@@ -87,7 +88,8 @@ itch then shows an "AI Generated" label on your page. That, plus the 🤖 Made b
 > | Weapon out / away | E |
 > | Jump | Space |
 > | Bomb jump | B |
-> | Juke | Shift |
+> | Juke | F |
+> | Shift Lock (Roblox-style) | Shift |
 > | Crouch | C |
 > | Chat | Enter |
 >

@@ -472,18 +472,72 @@ const R3D = (() => {
     rig.espRole = role;
     for (const o of rig.esp) { o.visible = !!role; if (role) o.material = espMats[role] || espMats.innocent; }
   }
-  // the classic Roblox face: two oval eyes and a smile, drawn onto the head's front
-  const faceMat = new THREE.MeshLambertMaterial({ map: (() => {
-    const t = canvasTex(64, 64, g => {
-      g.fillStyle = '#f7d154'; g.fillRect(0, 0, 64, 64); g.fillStyle = '#1b1b1b';
-      for (const x of [22, 42]) { g.beginPath(); g.ellipse(x, 24, 3.6, 7, 0, 0, 7); g.fill(); }
-      g.strokeStyle = '#1b1b1b'; g.lineWidth = 3.5; g.lineCap = 'round'; g.beginPath(); g.arc(32, 32, 15, .35, Math.PI - .35); g.stroke();
-    });
-    t.magFilter = THREE.LinearFilter; t.center.set(.5, .5); t.rotation = 0; return t;
-  })() });
-  function makeRig(color) {
+  // ---------------- avatars ----------------
+  // faces are drawn onto the front of the head (+X), on the avatar's skin color
+  const faceCache = new Map();
+  function faceMatFor(face, skinCol) {
+    const k = face + skinCol;
+    if (!faceCache.has(k)) {
+      const t = canvasTex(64, 64, g => {
+        g.fillStyle = skinCol; g.fillRect(0, 0, 64, 64);
+        const ink = '#1b1b1b'; g.fillStyle = ink; g.strokeStyle = ink; g.lineCap = 'round'; g.lineJoin = 'round';
+        const eyes = (ry = 7) => { for (const x of [22, 42]) { g.beginPath(); g.ellipse(x, 24, 3.6, ry, 0, 0, 7); g.fill(); } };
+        const smile = (r = 15, w = 3.5) => { g.lineWidth = w; g.beginPath(); g.arc(32, 32, r, .35, Math.PI - .35); g.stroke(); };
+        if (face === 'grin') {
+          eyes(); g.beginPath(); g.moveTo(16, 38); g.quadraticCurveTo(32, 62, 48, 38); g.closePath(); g.fill();
+          g.fillStyle = '#ffffff'; g.fillRect(19, 38, 26, 5);
+        } else if (face === 'cool') {
+          g.beginPath(); g.roundRect ? g.roundRect(10, 17, 44, 13, 4) : g.rect(10, 17, 44, 13); g.fill();
+          g.fillStyle = '#5a6a8a'; g.fillRect(14, 19, 8, 3); g.fillRect(38, 19, 8, 3); // shine
+          g.lineWidth = 3.5; g.beginPath(); g.moveTo(24, 46); g.quadraticCurveTo(36, 50, 44, 42); g.stroke(); // smirk
+        } else if (face === 'angry') {
+          eyes(6); g.lineWidth = 4; g.beginPath(); g.moveTo(14, 12); g.lineTo(28, 18); g.moveTo(50, 12); g.lineTo(36, 18); g.stroke();
+          g.lineWidth = 3.5; g.beginPath(); g.arc(32, 56, 13, Math.PI + .5, -.5); g.stroke(); // frown
+        } else if (face === 'wink') {
+          g.beginPath(); g.ellipse(22, 24, 3.6, 7, 0, 0, 7); g.fill();
+          g.lineWidth = 3.5; g.beginPath(); g.moveTo(36, 26); g.quadraticCurveTo(42, 18, 48, 26); g.stroke(); smile();
+        } else if (face === 'surprised') {
+          for (const x of [22, 42]) { g.beginPath(); g.arc(x, 24, 6, 0, 7); g.fill(); g.fillStyle = '#fff'; g.beginPath(); g.arc(x + 1.5, 22, 2, 0, 7); g.fill(); g.fillStyle = ink; }
+          g.lineWidth = 3.5; g.beginPath(); g.ellipse(32, 46, 6, 8, 0, 0, 7); g.stroke();
+        } else { eyes(); smile(); } // classic smile
+      });
+      t.magFilter = THREE.LinearFilter;
+      faceCache.set(k, new THREE.MeshLambertMaterial({ map: t }));
+    }
+    return faceCache.get(k);
+  }
+  const gold = () => mat('#ffcf3a', { emissive: '#5a3c00' });
+  // hats sit on a head whose top is at y 1.01
+  function addHat(body, hat, shirt) {
+    const m = (geo, material, x, y, z) => { const o = new THREE.Mesh(geo, material); o.position.set(x, y, z); body.add(o); return o; };
+    const cy = (r1, r2, h, seg = 16, open = false) => new THREE.CylinderGeometry(r1, r2, h, seg, 1, open);
+    if (hat === 'cap') { m(box(.28, .08, .28), shirt, -.01, 1.03, 0); m(box(.14, .02, .26), shirt, .17, 1.0, 0); }
+    else if (hat === 'hair') {
+      const h = mat('#3b2416'); m(box(.29, .1, .29), h, -.01, 1.03, 0); m(box(.07, .2, .29), h, -.13, .94, 0);
+      for (const z of [-.08, 0, .08]) m(box(.05, .05, .07), h, .12, .98, z).rotation.z = -.3; // fringe
+    } else if (hat === 'tophat') {
+      m(cy(.19, .19, .02, 24), mat('#111116'), 0, 1.02, 0); m(cy(.11, .11, .24), mat('#111116'), 0, 1.15, 0); m(cy(.113, .113, .04), mat('#c41d2f'), 0, 1.06, 0);
+    } else if (hat === 'crown') {
+      const g = gold(); m(cy(.14, .14, .07, 20, true), g, 0, 1.05, 0);
+      for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; m(new THREE.ConeGeometry(.035, .09, 6), g, Math.cos(a) * .13, 1.12, Math.sin(a) * .13); }
+      for (let i = 0; i < 3; i++) { const a = i / 3 * Math.PI * 2 + .5; m(new THREE.SphereGeometry(.018, 8, 6), new THREE.MeshBasicMaterial({ color: ['#ff3b5c', '#3bb0ff', '#5bd46a'][i] }), Math.cos(a) * .142, 1.05, Math.sin(a) * .142); }
+    } else if (hat === 'beanie') {
+      m(new THREE.SphereGeometry(.15, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2), shirt, 0, 1.0, 0).scale.set(1, .9, 1);
+      m(cy(.152, .152, .05, 18), mat('#e8e8e8'), 0, 1.01, 0); m(new THREE.SphereGeometry(.04, 10, 8), mat('#e8e8e8'), 0, 1.15, 0);
+    } else if (hat === 'headphones') {
+      const t = new THREE.TorusGeometry(.155, .016, 6, 20, Math.PI); t.rotateY(Math.PI / 2);
+      m(t, mat('#222228'), 0, .88, 0);
+      for (const z of [-.15, .15]) { m(box(.09, .11, .05), mat('#222228'), 0, .87, z); m(box(.06, .07, .02), shirt, 0, .87, z * 1.2); }
+    } else if (hat === 'horns') {
+      for (const z of [-.08, .08]) { const h = m(new THREE.ConeGeometry(.03, .12, 8), mat('#c41d2f', { emissive: '#3a0008' }), 0, 1.07, z); h.rotation.x = z > 0 ? .4 : -.4; }
+    } else if (hat === 'halo') {
+      const t = new THREE.TorusGeometry(.12, .016, 8, 28); t.rotateX(Math.PI / 2);
+      m(t, new THREE.MeshBasicMaterial({ color: '#fff3a0' }), 0, 1.18, 0);
+    }
+  }
+  function makeRig(av, target = scene) {
     const root = new THREE.Group(), body = new THREE.Group(); root.add(body);
-    const shirt = mat(color), skin = mat('#f7d154'), pants = mat('#34304a');
+    const color = av.shirt, shirt = mat(av.shirt), skin = mat(av.skin), pants = mat(av.pants);
     const parts = [];
     const part = (w, h, d, m, x, y, z, parent = body) => { const p = new THREE.Mesh(box(w, h, d), m); p.position.set(x, y, z); parent.add(p); parts.push(p); return p; };
     const legL = new THREE.Group(), legR = new THREE.Group(); legL.position.set(0, .36, -.08); legR.position.set(0, .36, .08); body.add(legL, legR);
@@ -491,8 +545,8 @@ const R3D = (() => {
     part(.2, .38, .34, shirt, 0, .55, 0);
     const armL = new THREE.Group(), armR = new THREE.Group(); armL.position.set(0, .72, -.23); armR.position.set(0, .72, .23); body.add(armL, armR);
     part(.12, .34, .12, skin, 0, -.16, 0, armL); part(.12, .34, .12, skin, 0, -.16, 0, armR);
-    part(.26, .26, .26, [faceMat, skin, skin, skin, skin, skin], 0, .88, 0); // classic smiley on the front (+X)
-    part(.28, .08, .28, shirt, -.01, 1.03, 0); // hair/cap
+    part(.26, .26, .26, [faceMatFor(av.face, av.skin), skin, skin, skin, skin, skin], 0, .88, 0); // face on the front (+X)
+    addHat(body, av.hat, shirt);
     // knife sits in a grip at the hand; rolled so the blade's flat side faces sideways when it's held up
     const knifeGrip = new THREE.Group(); knifeGrip.position.set(0, -.34, 0); armR.add(knifeGrip);
     const knife = makeKnife(); knife.rotation.x = Math.PI / 2; knife.position.x = .06; knife.scale.setScalar(1.4); knife.visible = false; knifeGrip.add(knife);
@@ -503,15 +557,54 @@ const R3D = (() => {
     root.traverse(o => { if (o.isMesh && o !== ring) o.castShadow = true; });
     // /esp: a see-through colored shell over every body part, drawn on top of walls (hidden until ESP is on)
     const esp = parts.map(p => { const o = new THREE.Mesh(p.geometry, espMats.innocent); o.scale.setScalar(1.1); o.renderOrder = 10; o.visible = false; p.add(o); return o; });
-    scene.add(root);
-    const pet = holder(); pet.scale.setScalar(1.25); pet.visible = false; scene.add(pet); // follows its owner, positioned separately
-    return { root, body, legL, legR, armL, armR, knife, knifeGrip, gun, ring, color, deadAt: 0, trail: [], pet, esp, espRole: null };
+    target.add(root);
+    const pet = holder(); pet.scale.setScalar(1.25); pet.visible = false; target.add(pet); // follows its owner, positioned separately
+    return { root, body, legL, legR, armL, armR, knife, knifeGrip, gun, ring, color, key: JSON.stringify(av), deadAt: 0, trail: [], pet, esp, espRole: null };
   }
-  function rigFor(id, color) {
+  function rigFor(id, av) {
     let r = people.get(id);
-    if (!r || r.color !== color) { if (r) scene.remove(r.root, r.pet); r = makeRig(color); people.set(id, r); }
+    const key = JSON.stringify(av);
+    if (!r || r.key !== key) { if (r) scene.remove(r.root, r.pet); r = makeRig(av); people.set(id, r); }
     return r;
   }
+  // Avatar tab: a spinning preview in its own little renderer (drag to turn it)
+  let pv = null;
+  api.previewStart = (canvas, getAvatar) => {
+    try {
+      if (!pv || pv.canvas !== canvas) {
+        const r = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+        r.setPixelRatio(Math.min(2, devicePixelRatio || 1));
+        const sc = new THREE.Scene(), cam = new THREE.PerspectiveCamera(28, 1, .1, 50);
+        sc.add(new THREE.HemisphereLight(0xffffff, 0x4a4060, .9));
+        const key = new THREE.DirectionalLight(0xffffff, .7); key.position.set(4, 5, 3); sc.add(key);
+        const floor = new THREE.Mesh(new THREE.CircleGeometry(.75, 40), new THREE.MeshBasicMaterial({ color: '#000000', transparent: true, opacity: .25 }));
+        floor.rotation.x = -Math.PI / 2; sc.add(floor);
+        pv = { canvas, r, sc, cam, rig: null, key: '', yaw: .25, spin: true, raf: 0, w: 0, h: 0 };
+        let drag = null;
+        canvas.addEventListener('pointerdown', e => { drag = e.clientX; pv.spin = false; canvas.setPointerCapture(e.pointerId); });
+        canvas.addEventListener('pointermove', e => { if (drag !== null) { pv.yaw += (e.clientX - drag) * .012; drag = e.clientX; } });
+        canvas.addEventListener('pointerup', () => { drag = null; });
+      }
+      cancelAnimationFrame(pv.raf);
+      const t0 = performance.now();
+      const loop = () => {
+        if (!canvas.isConnected || canvas.offsetParent === null) { pv.raf = 0; return; } // tab closed: stop drawing
+        pv.raf = requestAnimationFrame(loop);
+        const w = canvas.clientWidth, h = canvas.clientHeight;
+        if (w !== pv.w || h !== pv.h) { pv.w = w; pv.h = h; pv.r.setSize(w, h, false); pv.cam.aspect = w / h; pv.cam.updateProjectionMatrix(); }
+        const av = getAvatar(), key = JSON.stringify(av);
+        if (key !== pv.key) { if (pv.rig) pv.sc.remove(pv.rig.root, pv.rig.pet); pv.rig = makeRig(av, pv.sc); pv.key = key; }
+        const T = (performance.now() - t0) / 1000;
+        if (pv.spin) pv.yaw = .25 + Math.sin(T * .6) * .9; // sway side to side so the face stays mostly in view
+        const rig = pv.rig; rig.root.rotation.y = pv.yaw; rig.root.position.y = 0;
+        rig.armL.rotation.z = Math.sin(T * 2) * .12; rig.armR.rotation.z = -Math.sin(T * 2) * .12; rig.body.position.y = Math.sin(T * 2) * .01; // idle sway
+        pv.cam.position.set(4.6, 1.25, 0); pv.cam.lookAt(0, .7, 0);
+        pv.r.render(pv.sc, pv.cam);
+      };
+      loop();
+      return true;
+    } catch (e) { return false; }
+  };
   function poseRig(r, d, w, item, T, isMe, dead) {
     r.root.visible = true;
     r.root.position.set(d.x * S, dead ? 0 : (d.z || 0), d.y * S);
@@ -556,6 +649,9 @@ const R3D = (() => {
   api.cam = cam;
   api.rotateCam = (dx, dy) => { cam.yaw = (cam.yaw - dx * .006) % (Math.PI * 2); cam.pitch = Math.max(.22, Math.min(1.45, cam.pitch + dy * .005)); saveCam(); };
   api.zoomCam = d => { cam.dist = Math.max(3.5, Math.min(22, cam.dist * Math.exp(d * .0012))); saveCam(); };
+  // Shift Lock: the camera sits over your right shoulder (eased in and out)
+  let shoulder = 0, shoulderWant = 0;
+  api.setShoulder = on => { shoulderWant = on ? 1 : 0; };
   api.resetCam = () => { cam.yaw = 0; cam.pitch = .82; cam.dist = 11; saveCam(); };
   let camDist = 11; // the distance actually used this frame (pulled in when a wall is in the way)
   // walk from the player toward the camera and stop in front of the first wall or bookshelf (so walls never block the view)
@@ -571,7 +667,9 @@ const R3D = (() => {
   function placeCamera(M, cx, cy, h = 0, zoom = 1, sx = 0, sy = 0, dt = .016) {
     // phones sit a bit farther back; zoom < 1 moves in (final kill cam)
     const k = Math.max(1, Math.min(1.7, 760 / Math.min(W, H))) * (W < H ? 1.25 : 1) * zoom;
-    const tx = cx * S, tz = cy * S, ty = h + .7, ox = sx * S, oz = sy * S; // sx/sy: screen shake, in game px
+    shoulder += (shoulderWant - shoulder) * Math.min(1, dt * 8);
+    const sh = shoulder * .55; // over the right shoulder: shift the target along the camera's right
+    const tx = cx * S + Math.cos(cam.yaw) * sh, tz = cy * S - Math.sin(cam.yaw) * sh, ty = h + .7 + shoulder * .15, ox = sx * S, oz = sy * S; // sx/sy: screen shake, in game px
     const cp = Math.cos(cam.pitch), dx = Math.sin(cam.yaw) * cp, dy = Math.sin(cam.pitch), dz = Math.cos(cam.yaw) * cp;
     const want = wallClamp(M, tx, ty, tz, dx, dy, dz, cam.dist * k);
     camDist = want < camDist ? want : camDist + (want - camDist) * Math.min(1, dt * 4); // snap in, ease back out
@@ -661,7 +759,7 @@ const R3D = (() => {
       const r = V.roster.get(id); if (!r) continue;
       const body = !d.alive && bodies.get(id);
       if (!d.alive && !body) continue;
-      const rig = rigFor(id, r.color); seen.add(id);
+      const rig = rigFor(id, r.avatar || { skin: '#f7d154', shirt: r.color, pants: '#34304a', hat: 'cap', face: 'smile' }); seen.add(id);
       const isMe = id === V.you, w = isMe && myW !== undefined ? myW : d.w;
       const item = w === 'k' ? (ITEM[r.knife] || ITEM.k0) : (ITEM[r.gun] || ITEM.g0);
       if (body) {

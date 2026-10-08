@@ -114,7 +114,7 @@ function leaveRoom(c) {
   if (!r.clients.size) rooms.delete(r.code); else broadcast(r, roomInfo(r));
 }
 function startRound(r) {
-  const players = [...r.clients].map(c => ({ pid: c.uid, name: c.profile.name, knife: Eco.equippedId(c.profile, 'knife'), gun: Eco.equippedId(c.profile, 'gun'), pet: Eco.equippedId(c.profile, 'pet'), mT: c.profile.mT, sT: c.profile.sT }));
+  const players = [...r.clients].map(c => ({ pid: c.uid, name: c.profile.name, knife: Eco.equippedId(c.profile, 'knife'), gun: Eco.equippedId(c.profile, 'gun'), pet: Eco.equippedId(c.profile, 'pet'), avatar: c.profile.avatar || null, mT: c.profile.mT, sT: c.profile.sT }));
   r.R = Sim.createRound({ players, mode: r.mode });
   r.state = 'round'; r.rewarded = false;
   const roster = Sim.roster(r.R);
@@ -272,6 +272,7 @@ const HANDLERS = {
   async claimEvent(c, m) { const items = await mutate(c, p => Eco.claimEvent(p, m.id)); sendMsg(c, { t: 'codeItems', items, from: 'event' }); },
   async buyBundle(c, m) { const items = await mutate(c, p => Eco.buyBundle(p, m.id)); sendMsg(c, { t: 'codeItems', items, from: 'bundle' }); },
   async equip(c, m) { await mutate(c, p => Eco.equip(p, m.u)); },
+  async avatar(c, m) { await mutate(c, p => Eco.setAvatar(p, m.avatar)); sendMsg(c, { t: 'avatarSaved' }); },
   async evolve(c, m) { const id = await mutate(c, p => Eco.evolve(p, m.u)); sendMsg(c, { t: 'evolved', item: id }); },
   traders(c, m) { if (m.refresh) c.traders = Eco.genTraders(); sendMsg(c, { t: 'traders', traders: Eco.tradersView(c.traders) }); },
   async trade(c, m) {

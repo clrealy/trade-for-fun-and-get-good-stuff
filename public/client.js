@@ -213,6 +213,7 @@ function onMsg(m) {
       if (fbAuth) fbAuth.signOut(); else setScreen('auth');
       toast('Your account was deleted. Bye 👋', true);
       break;
+    case 'avatarSaved': SFX.coin(); toast('Avatar saved 😎 Everyone sees your new look next round', true); if (curTab === 'avatar') renderAvatar(); break;
     case 'needName': if (!V) openNameScreen(false); break;
     case 'account': {
       const a = $('#acctPill'); show('#acctPill');
@@ -372,12 +373,13 @@ function startOnlineView(m) {
   if (m.you === null) msg('Round in progress. You\'ll join the next one 👀', '#fff', 5);
 }
 function startPractice(mode) {
-  const R = Sim.createRound({ mode, mapIdx: +$('#mapSel').value, players: [{ pid: 'me', name: P ? P.name : 'You', knife: equippedId('knife'), gun: equippedId('gun'), pet: equippedId('pet'), mT: 1, sT: 1 }] });
+  const R = Sim.createRound({ mode, mapIdx: +$('#mapSel').value, players: [{ pid: 'me', name: P ? P.name : 'You', knife: equippedId('knife'), gun: equippedId('gun'), pet: equippedId('pet'), avatar: P && P.avatar, mT: 1, sT: 1 }] });
   newView(R.mapIdx, Sim.roster(R), R.ents[0].id, true);
   V.R = R;
   applySnap(Sim.snapshotFor(R, V.you));
 }
 function endGameView() {
+  setShiftLock(false);
   V = null; mouse.down = false; dashT = dashCd = 0;
   Music.stop(); document.body.classList.remove('dead'); clearTimeout(introJob);
   show('#hud', false); show('#intro', false); show('#endScreen', false);
@@ -694,7 +696,24 @@ function juice(rdt, dt) {
     Music.level = s.ph !== 'play' ? .1 : (s.e.length === 2 ? .45 : .2) + (1 - alive / total) * .45 + (s.tm < 30 ? .3 : 0) + V.danger * .4;
   }
 }
-function myAngle() { if (touchAim !== null) return touchAim; return V.lp ? Math.atan2(mouse.wy - V.lp.y, mouse.wx - V.lp.x) : 0; }
+function myAngle() {
+  if (touchAim !== null) return touchAim;
+  if (shiftLock && use3D() && R3.cam) return Math.atan2(-Math.cos(R3.cam.yaw), -Math.sin(R3.cam.yaw)); // face where the camera looks
+  return V.lp ? Math.atan2(mouse.wy - V.lp.y, mouse.wx - V.lp.x) : 0;
+}
+// ---------- Shift Lock (Roblox style) ----------
+// Shift: the camera locks behind your shoulder, the mouse turns it (no button needed) and you always face forward.
+let shiftLock = false, lockAt = 0;
+function setShiftLock(on) {
+  on = !!on && use3D() && !isTouch && !!V;
+  if (on === shiftLock) return;
+  shiftLock = on; lockAt = performance.now(); R3.setShoulder && R3.setShoulder(on);
+  cv.classList.toggle('locked', on); show('#lockPill', on);
+  if (on) { try { const r = cv.requestPointerLock(); if (r && r.catch) r.catch(() => { }); } catch (e) { } tone(880, .06, 'square', .03); }
+  else { if (document.pointerLockElement === cv) document.exitPointerLock(); tone(520, .06, 'square', .03); }
+}
+// Esc (or the browser) took the mouse back: shift lock goes off too
+document.addEventListener('pointerlockchange', () => { lockAt = performance.now(); if (shiftLock && document.pointerLockElement !== cv) setShiftLock(false); });
 function currentInput() {
   const lp = V.lp || { x: 0, y: 0 };
   return { x: Math.round(lp.x * 10) / 10, y: Math.round(lp.y * 10) / 10, a: +myAngle().toFixed(3), atk: mouse.down, thr: thrSeq, tog: togSeq, jp: jpSeq, bj: bjSeq, dj: djSeq, cr: !!(keys.KeyC || keys.ControlLeft || crouchTouch) };
@@ -718,10 +737,10 @@ function updateHUD() {
   let cools = '';
   if (me && me.alive && me.role === 'murderer') cools = coolBar('Stab', 1 - me.atk / .5) + coolBar(isTouch ? 'Throw' : 'Throw (Q)', 1 - me.thr / 3);
   else if (me && me.alive && me.gun) { const gi = ITEM[(V.roster.get(V.you) || {}).gun] || {}; cools = coolBar(gi.sound === 'void' ? 'Reload' : 'Gun', 1 - me.atk / (gi.noCooldown ? .12 : gi.reload || 2.2)); }
-  if (me && me.alive) cools += coolBar(isTouch ? '💨 Juke' : '💨 Juke (Shift)', 1 - Math.max(me.dash || 0, dashCd) / Sim.DASH_CD);
+  if (me && me.alive) cools += coolBar(isTouch ? '💨 Juke' : '💨 Juke (F)', 1 - Math.max(me.dash || 0, dashCd) / Sim.DASH_CD);
   setHTML('cools', cools);
   const hint = !me ? 'Spectating · click to switch' : !me.alive ? 'Click to switch spectate' : me.role === 'murderer' ? 'Click stab · Q or tap right-click to throw · E hide knife' : me.gun ? 'Click shoot · E put away gun' : 'Collect coins · Stay alive · Grab the gun if it drops';
-  const camHint = use3D() && !isTouch ? ' · Hold right mouse to turn camera, scroll to zoom' : '';
+  const camHint = use3D() && !isTouch ? (shiftLock ? ' · 🔒 Shift Lock on (Shift to turn off)' : ' · Shift: Shift Lock · Hold right mouse to turn camera') : '';
   setText('hint', hint + camHint);
   if (isTouch) {
     const armed = me && me.alive && (me.role === 'murderer' || me.gun);
@@ -872,14 +891,18 @@ function drawScreenOverlay(me, s, toScreen) {
     ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.beginPath(); ctx.arc(joy.ox, joy.oy, JOY_R, 0, 7); ctx.fill();
     ctx.fillStyle = 'rgba(255,255,255,.45)'; ctx.beginPath(); ctx.arc(joy.ox + joy.dx * JOY_R, joy.oy + joy.dy * JOY_R, 26, 0, 7); ctx.fill();
   }
+  // Shift Lock: the crosshair marks the spot straight ahead of you
+  let ax = mouse.x, ay = mouse.y;
+  if (shiftLock && use3D() && V.lp) { const a = myAngle(), p = R3.worldToScreen(V.lp.x + Math.cos(a) * 600, V.lp.y + Math.sin(a) * 600, .6); ax = p.x; ay = p.y; }
+  if (shiftLock && me && me.alive && !(me.role === 'murderer' || me.gun)) { ctx.fillStyle = 'rgba(255,255,255,.9)'; ctx.beginPath(); ctx.arc(ax, ay, 3, 0, 7); ctx.fill(); ctx.strokeStyle = 'rgba(0,0,0,.6)'; ctx.lineWidth = 1.5; ctx.stroke(); }
   if (!isTouch && me && me.alive && (me.role === 'murderer' || me.gun) && V.phase === 'play') {
     const cool = me.atk > 0, g = cool ? 4 : 0; // the crosshair opens up while reloading
-    ctx.strokeStyle = cool ? 'rgba(255,255,255,.45)' : 'rgba(255,255,255,.9)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(mouse.x, mouse.y, 8 + g, 0, 7);
-    ctx.moveTo(mouse.x - 14 - g, mouse.y); ctx.lineTo(mouse.x - 5 - g, mouse.y); ctx.moveTo(mouse.x + 5 + g, mouse.y); ctx.lineTo(mouse.x + 14 + g, mouse.y); ctx.stroke();
+    ctx.strokeStyle = cool ? 'rgba(255,255,255,.45)' : 'rgba(255,255,255,.9)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(ax, ay, 8 + g, 0, 7);
+    ctx.moveTo(ax - 14 - g, ay); ctx.lineTo(ax - 5 - g, ay); ctx.moveTo(ax + 5 + g, ay); ctx.lineTo(ax + 14 + g, ay); ctx.stroke();
     if (V.hitT > 0) { // hit marker
       const k = 6 + (1 - V.hitT / .35) * 6; ctx.strokeStyle = `rgba(255,60,80,${V.hitT / .35})`; ctx.lineWidth = 3; ctx.beginPath();
-      ctx.moveTo(mouse.x - k - 6, mouse.y - k - 6); ctx.lineTo(mouse.x - k, mouse.y - k); ctx.moveTo(mouse.x + k + 6, mouse.y - k - 6); ctx.lineTo(mouse.x + k, mouse.y - k);
-      ctx.moveTo(mouse.x - k - 6, mouse.y + k + 6); ctx.lineTo(mouse.x - k, mouse.y + k); ctx.moveTo(mouse.x + k + 6, mouse.y + k + 6); ctx.lineTo(mouse.x + k, mouse.y + k); ctx.stroke();
+      ctx.moveTo(ax - k - 6, ay - k - 6); ctx.lineTo(ax - k, ay - k); ctx.moveTo(ax + k + 6, ay - k - 6); ctx.lineTo(ax + k, ay - k);
+      ctx.moveTo(ax - k - 6, ay + k + 6); ctx.lineTo(ax - k, ay + k); ctx.moveTo(ax + k + 6, ay + k + 6); ctx.lineTo(ax + k, ay + k); ctx.stroke();
     }
   }
 }
@@ -912,8 +935,9 @@ function drawEnt(id, d, T) {
     ctx.save(); ctx.rotate(.6 - sw); drawKnifeLocal(18, 0, 0, ITEM[r.knife] || ITEM.k0, T); ctx.restore();
   } else if (w === 'g') { const gi = ITEM[r.gun] || ITEM.g0; drawGunLocal(14, 6, itemColor(gi, T), gi.long); }
   ctx.fillStyle = shade(r.color, -.3); ctx.beginPath(); ctx.ellipse(0, 0, 11, 17, 0, 0, 7); ctx.fill();
-  ctx.fillStyle = '#f2c89b'; ctx.beginPath(); ctx.arc(4, -14, 5, 0, 7); ctx.arc(4, 14, 5, 0, 7); ctx.fill();
-  ctx.fillStyle = '#f7d154'; ctx.beginPath(); ctx.arc(0, 0, 11, 0, 7); ctx.fill();
+  const skinC = (r.avatar && r.avatar.skin) || '#f7d154';
+  ctx.fillStyle = shade(skinC, -.08); ctx.beginPath(); ctx.arc(4, -14, 5, 0, 7); ctx.arc(4, 14, 5, 0, 7); ctx.fill();
+  ctx.fillStyle = skinC; ctx.beginPath(); ctx.arc(0, 0, 11, 0, 7); ctx.fill();
   ctx.fillStyle = r.color; ctx.beginPath(); ctx.arc(-3, 0, 10, Math.PI / 2, Math.PI * 1.5); ctx.fill();
   ctx.fillStyle = '#222'; ctx.beginPath(); ctx.arc(6, -4, 1.8, 0, 7); ctx.arc(6, 4, 1.8, 0, 7); ctx.fill();
   ctx.restore();
@@ -969,6 +993,7 @@ function addChat(name, text, sys) {
   log.scrollTop = log.scrollHeight;
 }
 function openChat(prefill) {
+  setShiftLock(false);
   keys = {}; mouse.down = false;
   show('#chatForm'); show('#chatHint', false);
   const i = $('#chatInput'); i.value = prefill; i.focus();
@@ -996,7 +1021,11 @@ addEventListener('keydown', e => {
   if ((e.code === 'KeyE' || e.code === 'Digit1') && (V.me.role === 'murderer' || V.me.gun)) togSeq++;
   if (e.code === 'Space') { e.preventDefault(); jpSeq++; }
   if (e.code === 'KeyB') bjSeq++;
-  if ((e.code === 'ShiftLeft' || e.code === 'ShiftRight') && !e.repeat) doJuke();
+  if (e.code === 'KeyF' && !e.repeat) doJuke();
+});
+// Shift toggles Shift Lock any time you're in a round (alive or spectating)
+addEventListener('keydown', e => {
+  if ((e.code === 'ShiftLeft' || e.code === 'ShiftRight') && !e.repeat && V && !(e.target instanceof HTMLInputElement)) setShiftLock(!shiftLock);
 });
 addEventListener('keyup', e => { keys[e.code] = false; });
 addEventListener('blur', () => { keys = {}; mouse.down = false; rmb = null; cv.classList.remove('turning'); });
@@ -1010,7 +1039,9 @@ function camRel(dx, dy) {
 let rmb = null;
 cv.addEventListener('mousemove', e => {
   mouse.x = e.clientX; mouse.y = e.clientY;
-  if (rmb && use3D()) { R3.rotateCam(e.movementX || 0, e.movementY || 0); rmb.moved += Math.abs(e.movementX || 0) + Math.abs(e.movementY || 0); }
+  // ignore the jump some browsers report right when the cursor locks/unlocks, so the camera doesn't spin
+  if (shiftLock && use3D()) { if (performance.now() - lockAt > 120 && Math.abs(e.movementX || 0) < 250 && Math.abs(e.movementY || 0) < 250) R3.rotateCam(e.movementX || 0, e.movementY || 0); }
+  else if (rmb && use3D()) { R3.rotateCam(e.movementX || 0, e.movementY || 0); rmb.moved += Math.abs(e.movementX || 0) + Math.abs(e.movementY || 0); }
 });
 cv.addEventListener('wheel', e => { if (V && use3D()) { e.preventDefault(); R3.zoomCam(e.deltaY * (e.deltaMode === 1 ? 30 : 1)); } }, { passive: false });
 addEventListener('mouseup', e => {
@@ -1164,6 +1195,28 @@ function renderShop() {
 }
 $('#shopTabs').querySelectorAll('.st').forEach(t => t.onclick = () => { shopTab = t.dataset.st; tone(600, .05); renderShop(); });
 $('#shopClose').onclick = () => document.querySelector('.tab[data-tab="play"]').click();
+// ===================== Avatar =====================
+const HAT_NAMES = { none: '🚫 None', cap: '🧢 Cap', hair: '💇 Hair', tophat: '🎩 Top hat', crown: '👑 Crown', beanie: '🧶 Beanie', headphones: '🎧 Headphones', horns: '😈 Horns', halo: '😇 Halo' };
+const FACE_NAMES = { smile: '🙂 Smile', grin: '😁 Grin', cool: '😎 Cool', angry: '😠 Angry', wink: '😉 Wink', surprised: '😮 Surprised' };
+let avDraft = null; // what you're editing; saved to your profile with Save
+const avOf = p => (p && p.avatar) || { skin: Sim.AVATAR.skin[0], shirt: Sim.AVATAR.shirt[5], pants: Sim.AVATAR.pants[0], hat: 'cap', face: 'smile' };
+function renderAvatar() {
+  if (!avDraft) avDraft = { ...avOf(P) };
+  $('#avName').textContent = P.name;
+  document.querySelectorAll('#tab-avatar [data-k]').forEach(box => {
+    const k = box.dataset.k, opts = Sim.AVATAR[k];
+    box.innerHTML = opts.map(v => box.classList.contains('swatches')
+      ? `<button type="button" class="sw ${avDraft[k] === v ? 'on' : ''}" data-v="${v}" style="background:${v}" aria-label="${k} ${v}"></button>`
+      : `<button type="button" class="chip ${avDraft[k] === v ? 'on' : ''}" data-v="${v}">${(k === 'hat' ? HAT_NAMES : FACE_NAMES)[v] || v}</button>`).join('');
+    box.querySelectorAll('button').forEach(b => b.onclick = () => { avDraft[k] = b.dataset.v; tone(700 + opts.indexOf(b.dataset.v) * 40, .05); renderAvatar(); });
+  });
+  const changed = JSON.stringify(avDraft) !== JSON.stringify(avOf(P));
+  $('#avSave').disabled = !changed; $('#avSave').textContent = changed ? '💾 Save' : '✅ Saved';
+  if (R3.ok && R3.previewStart) R3.previewStart($('#avCanvas'), () => avDraft);
+  else $('#avStatus').textContent = 'Your device can\'t show 3D, but your look still shows up in rounds.';
+}
+$('#avRandom').onclick = () => { avDraft = Sim.randomAvatar(); tone(900, .08, 'triangle'); renderAvatar(); };
+$('#avSave').onclick = () => net({ t: 'avatar', avatar: avDraft });
 let curTab = 'play';
 document.querySelectorAll('.tab').forEach(b => b.onclick = () => {
   curTab = b.dataset.tab;
@@ -1295,6 +1348,8 @@ function renderLobby() {
     show('#accountBox', !window.LocalServer);
     const st = P.stats;
     $('#statsBox').innerHTML = [['Rounds', st.rounds], ['Wins', st.wins], ['Kills', st.kills], ['Deaths', st.deaths], ['Coins earned', st.coins], ['Unboxed', st.unboxed], ['Trades', st.trades]].map(([a, b]) => `<div><b>${b}</b>${a}</div>`).join('');
+  } else if (curTab === 'avatar') {
+    renderAvatar();
   } else if (curTab === 'inv') {
     renderInventory();
   } else if (curTab === 'shop') {

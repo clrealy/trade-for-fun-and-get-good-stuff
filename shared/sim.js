@@ -505,11 +505,31 @@
   const BOT_NAMES = ['xX_Slayer_Xx', 'noob_123', 'BaconHair', 'Guest_1337', 'coolkid2009', 'pizzalover', 'ItsYaBoi', 'sussybaka', 'MM2Pro', 'KnifeKing', 'ChillGamer', 'OofMaster', 'godly_hunter', 'tradeMeHarv', 'lil_ninja', 'JustVibin', 'BloxBurger', 'nikilis_fan', 'GamerGrl', 'sheriffOrElse'];
   const COLORS = ['#ff6b6b', '#ffa94d', '#ffd43b', '#69db7c', '#38d9a9', '#4dabf7', '#748ffc', '#da77f2', '#f783ac', '#e8e8e8', '#a9744f', '#63e6be'];
 
+  // ---------- avatars ----------
+  // Everything a player can pick in the Avatar tab. Only these exact values are accepted (the server checks).
+  const AVATAR = {
+    skin: ['#f7d154', '#ffdbac', '#f1c27d', '#e0ac69', '#c68642', '#8d5524', '#5c3a1e', '#9be59b', '#a0d8ff'],
+    shirt: [...COLORS, '#1c1c24', '#c41d2f', '#7b2cff'],
+    pants: ['#34304a', '#1f2a44', '#2b2b2b', '#4a3424', '#2f6b2f', '#6b1f2f', '#d8d8d8', '#2f8cff'],
+    hat: ['none', 'cap', 'hair', 'tophat', 'crown', 'beanie', 'headphones', 'horns', 'halo'],
+    face: ['smile', 'grin', 'cool', 'angry', 'wink', 'surprised'],
+  };
+  const AV_KEYS = ['skin', 'shirt', 'pants', 'hat', 'face'];
+  function cleanAvatar(a) {
+    if (!a || typeof a !== 'object') return null;
+    return AV_KEYS.every(k => typeof a[k] === 'string' && AVATAR[k].includes(a[k])) ? Object.fromEntries(AV_KEYS.map(k => [k, a[k]])) : null;
+  }
+  const defaultAvatar = shirt => ({ skin: AVATAR.skin[0], shirt: AVATAR.shirt.includes(shirt) ? shirt : AVATAR.shirt[0], pants: AVATAR.pants[0], hat: 'cap', face: 'smile' });
+  function randomAvatar(shirt) {
+    return { skin: Math.random() < .45 ? AVATAR.skin[0] : pick(AVATAR.skin), shirt: AVATAR.shirt.includes(shirt) ? shirt : pick(AVATAR.shirt), pants: pick(AVATAR.pants), hat: pick(AVATAR.hat), face: pick(AVATAR.face) };
+  }
+
   function botSkin(type) { return Math.random() < .5 ? (type === 'knife' ? 'k0' : 'g0') : rollItem(CRATES.find(c => c.id === 'mystery').w, type).id; }
 
   function mkEnt(id, o) {
     return {
-      id, pid: o.pid || null, name: o.name, human: !!o.human, color: o.color, x: 0, y: 0, vx: 0, vy: 0, r: 15, ang: rand(0, 6.28),
+      id, pid: o.pid || null, name: o.name, human: !!o.human, x: 0, y: 0,
+      ...(av => ({ avatar: av, color: av.shirt }))(cleanAvatar(o.avatar) || (o.human ? defaultAvatar(o.color) : randomAvatar(o.color))), vx: 0, vy: 0, r: 15, ang: rand(0, 6.28),
       role: 'innocent', startRole: 'innocent', alive: true, hasGun: false, weaponOut: false, atkCd: 0, throwCd: 0, swing: 0, bag: 0, kills: 0,
       speed: o.human ? PLAYER_SPEED : BOT_SPEED, walk: 0, budget: 0,
       knife: ITEM[o.knife] && ITEM[o.knife].type === 'knife' ? o.knife : 'k0', gun: ITEM[o.gun] && ITEM[o.gun].type === 'gun' ? o.gun : 'g0',
@@ -1018,12 +1038,17 @@
     if (me && me.esp) s.esp = R.ents.map(e => [e.id, e.role]); // /esp: only the person who turned it on gets everyone's role
     return s;
   }
-  function roster(R) { return R.ents.map(e => ({ id: e.id, name: e.name, color: e.color, knife: e.knife, gun: e.gun, pet: e.pet || null, human: e.human })); }
+  function roster(R) {
+    return R.ents.map(e => {
+      const av = cleanAvatar(e.avatar) && e.avatar.shirt === e.color ? e.avatar : defaultAvatar(e.color); // old saved rounds have no avatar
+      return { id: e.id, name: e.name, color: av.shirt, avatar: av, knife: e.knife, gun: e.gun, pet: e.pet || null, human: e.human };
+    });
+  }
   function eventsFor(evs, viewerId) { return evs.filter(ev => (ev.to === undefined || ev.to === viewerId) && ev.except !== viewerId); }
   function drain(R) { const e = R.events; R.events = []; return e; }
 
   return {
-    RAR, RORDER, ITEMS, ITEM, CRATES, rollItem, rollCrate, MAPS, TILE, BAG_MAX, MAX_PLAYERS, PLAYER_SPEED, DASH_SPEED, DASH_TIME, DASH_CD,
+    RAR, RORDER, ITEMS, ITEM, CRATES, AVATAR, cleanAvatar, randomAvatar, rollItem, rollCrate, MAPS, TILE, BAG_MAX, MAX_PLAYERS, PLAYER_SPEED, DASH_SPEED, DASH_TIME, DASH_CD,
     buildMap, tileAt, moveSolidAt, moveEnt, los,
     createRound, setInput, step, releaseHuman, cheat, serializeRound, restoreRound, snapshotFor, roster, eventsFor, drain, rewardFor, entById,
   };

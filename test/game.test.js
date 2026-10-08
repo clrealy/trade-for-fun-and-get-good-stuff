@@ -510,3 +510,19 @@ test('no item uses a Murder Mystery 2 item name (Play Store)', () => {
   assert.deepStrictEqual(Sim.ITEMS.filter(i => mm2.test(i.name)).map(i => i.name), []);
   assert.strictEqual(new Set(Sim.ITEMS.map(i => i.name)).size, Sim.ITEMS.length, 'names are unique');
 });
+
+test('avatars: only the offered options are accepted, and they show up in rounds', () => {
+  const p = defaultProfile('t');
+  const look = { skin: Sim.AVATAR.skin[3], shirt: Sim.AVATAR.shirt[13], pants: Sim.AVATAR.pants[2], hat: 'crown', face: 'cool' };
+  Eco.setAvatar(p, { ...look, extra: 'ignored' });
+  assert.deepStrictEqual(p.avatar, look);
+  assert.deepStrictEqual(Eco.publicProfile(p).avatar, look);
+  for (const bad of [null, 'x', { ...look, hat: 'rocket' }, { ...look, skin: '#123456' }, { ...look, face: undefined }]) assert.throws(() => Eco.setAvatar(p, bad), /options/);
+  assert.deepStrictEqual(p.avatar, look, 'a bad pick changes nothing');
+  const R = Sim.createRound({ players: [{ pid: 'a', name: 'a', avatar: look }, { pid: 'b', name: 'b' }] });
+  const ro = Sim.roster(R);
+  assert.deepStrictEqual(ro[0].avatar, look);
+  assert.strictEqual(ro[0].color, look.shirt);
+  assert.strictEqual(ro[1].avatar.hat, 'cap', 'no avatar yet: the classic look');
+  assert.ok(ro.every(r => Sim.cleanAvatar(r.avatar)), 'every avatar (bots too) is valid');
+});

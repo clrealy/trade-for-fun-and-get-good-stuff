@@ -52,7 +52,7 @@ function buyBundle(p, id) {
 const MAX_INV = 2000;
 
 function publicProfile(p) {
-  return { name: p.name, coins: p.coins, xp: p.xp, level: p.level, xpNeed: xpNeed(p.level), inv: p.inv, equip: p.equip, mT: p.mT, sT: p.sT, stats: p.stats, luck: !!p.luck, admin: !!p.admin, evo: { xp: Math.min(EVO_GOAL, (p.evo && p.evo.xp) || 0), goal: EVO_GOAL },
+  return { name: p.name, coins: p.coins, xp: p.xp, level: p.level, xpNeed: xpNeed(p.level), inv: p.inv, equip: p.equip, mT: p.mT, sT: p.sT, stats: p.stats, luck: !!p.luck, admin: !!p.admin, avatar: p.avatar || null, evo: { xp: Math.min(EVO_GOAL, (p.evo && p.evo.xp) || 0), goal: EVO_GOAL },
     trophies: TROPHIES.map(t => ({ id: t.id, icon: t.icon, name: t.name, desc: t.desc, goal: t.goal, reward: t.reward, item: t.item, value: Math.min(t.get(p), t.goal), done: (p.trophies || []).includes(t.id) })),
     events: EVENTS.map(E => { const ev = (p.events && p.events[E.id]) || { kills: 0, claimed: false }; return { ...E, kills: Math.min(ev.kills, E.goal), claimed: ev.claimed }; }),
     bundles: BUNDLES.map(b => ({ ...b, owned: b.items.every(i => p.inv.some(x => x.id === i)) })) };
@@ -128,6 +128,12 @@ function redeemMsg(r) {
   return r.inst ? { t: 'unboxed', item: r.inst.id, crate: 'mystery', code: true } : r.admin ? { t: 'codeAdmin' } : r.luck ? { t: 'codeLuck' }
     : r.bulk ? { t: 'codeBulk', count: r.bulk, rarity: r.rarity } : r.all ? { t: 'codeAll', count: r.all.length }
     : r.items ? { t: 'codeItems', items: r.items } : { t: 'codeCoins', coins: r.coins };
+}
+// the look picked in the Avatar tab (only the exact options the game offers)
+function setAvatar(p, a) {
+  const clean = Sim.cleanAvatar(a);
+  if (!clean) throw new Error('Pick your look from the options');
+  p.avatar = clean;
 }
 function equip(p, u) {
   if (u === null || u === undefined) return;
@@ -236,4 +242,4 @@ function trade(p, trader, mineU, theirsU) {
   return { ok, line, got: ok ? theirs.map(i => i.id) : [] };
 }
 
-module.exports = { TROPHIES, checkTrophies, EVENTS, BUNDLES, claimEvent, buyBundle, publicProfile, equippedId, openCrate, redeem, redeemMsg, equip, evolve, EVO_GOAL, applyRoundResult, genTraders, tradersView, trade, xpNeed };
+module.exports = { TROPHIES, checkTrophies, EVENTS, BUNDLES, claimEvent, buyBundle, publicProfile, equippedId, openCrate, redeem, redeemMsg, equip, setAvatar, evolve, EVO_GOAL, applyRoundResult, genTraders, tradersView, trade, xpNeed };
