@@ -14,12 +14,26 @@
   let P, traders, emit, offer = null;
   let cloud = null; // { db, uid, ref } once signed in
   let board = [], boardUnsub = null, lastBoard = '';
-  const localKey = () => cloud ? KEY + ':' + cloud.uid : KEY; // a cache per account, so two accounts on one browser don't mix
+  const baseKey = () => cloud ? KEY + ':' + cloud.uid : KEY; // a cache per account, so two accounts on one browser don't mix
+  // alts: extra save slots on the same account, each a whole separate profile. 'main' is the original
+  const MAX_ALTS = 5;
+  let slot = 'main', slots = [{ id: 'main', name: 'You', level: 1, coins: 0 }];
+  const localKey = (id = slot) => id === 'main' ? baseKey() : baseKey() + ':alt:' + id;
+  const slotsKey = () => baseKey() + ':slots';
+  const cloudRef = (id = slot) => cloud.db.doc('data/users/' + cloud.uid + '/' + (id === 'main' ? 'profile' : 'alt_' + id));
+  function loadSlots() { try { const s = JSON.parse(localStorage.getItem(slotsKey())); if (s && Array.isArray(s.list) && s.list.some(x => x.id === 'main')) return s; } catch (e) { } return null; }
+  function saveSlots() {
+    const me = slots.find(x => x.id === slot); if (me && P) Object.assign(me, { name: P.name, level: P.level, coins: P.coins });
+    const data = { list: slots, cur: slot };
+    try { localStorage.setItem(slotsKey(), JSON.stringify(data)); } catch (e) { }
+    if (cloud) cloud.db.doc('data/users/' + cloud.uid + '/slots').set(JSON.parse(JSON.stringify(data))).catch(() => { });
+  }
+  const slotsMsg = () => ({ t: 'slots', list: slots.map(x => ({ ...x, active: x.id === slot })), cur: slot, max: MAX_ALTS });
   function withDefaults(p, name) { return p && Array.isArray(p.inv) ? { ...Store.defaultProfile(name), ...p } : null; }
   function loadLocal(key = localKey()) {
     try { return withDefaults(JSON.parse(localStorage.getItem(key)), 'You'); } catch (e) { return null; }
   }
-  function saveLocal() { try { localStorage.setItem(localKey(), JSON.stringify(P)); } catch (e) { } }
+  function saveLocal() { try { localStorage.setItem(localKey(), JSON.stringify(P)); } catch (e) { } saveSlots(); }
 
   // cloud saves: at most one write in flight, coalescing bursts (a crate spin, a round result) into one write
   let dirty = false, writing = false, saveT = 0;
@@ -31,7 +45,7 @@
     if (!cloud || writing || !dirty) return;
     writing = true; dirty = false;
     try {
-      await cloud.ref.set(JSON.parse(JSON.stringify(P)));
+      await cloudRef().set(JSON.parse(JSON.stringify(P)));
       await postScore();
     } catch (e) {
       if (e && (e.code === 'invalid_argument' || e.code === 'revoked' || e.code === 'not_granted')) { // can't save here (view-only share, access removed)
@@ -43,7 +57,7 @@
 
   // leaderboard: one small public doc per player, written only when it changes
   async function postScore() {
-    if (P.name === 'You') return; // wait until they've picked a name
+    if (P.name === 'You' || slot !== 'main') return; // wait until they've picked a name; alts stay off the leaderboard
     const row = { name: P.name, level: P.level, kills: P.stats.kills, wins: P.stats.wins, rounds: P.stats.rounds };
     const k = JSON.stringify(row); if (k === lastBoard) return;
     try { await cloud.db.doc('leaderboard/' + cloud.uid).set(row); lastBoard = k; } catch (e) { }
@@ -74,26 +88,53 @@
     const guest = P;
     cloud = { db, uid: me.id, ref };
     const saved = snap.exists ? withDefaults(snap.data(), guest.name) : null;
-    if (saved) P = saved;
+    // their alts, and which one they were playing last
+    let idx = null;
+    try { const sn = await db.doc('data/users/' + me.id + '/slots').get(); if (sn.exists) idx = sn.data(); } catch (e) { }
+    idx = idx && Array.isArray(idx.list) && idx.list.some(x => x.id === 'main') ? idx : loadSlots();
+    slots = idx ? idx.list : [{ id: 'main', name: (saved || guest).name, level: (saved || guest).level, coins: (saved || guest).coins }]; slot = 'main';
+    if (idx && idx.cur && idx.cur !== 'main' && slots.some(x => x.id === idx.cur)) {
+      try { const a = await cloudRef(idx.cur).get(); if (a.exists) { slot = idx.cur; P = withDefaults(a.data(), 'You'); } } catch (e) { }
+    }
+    if (slot !== 'main') { /* playing an alt: keep it */ }
+    else if (saved) P = saved;
     else {
       // first time on this account: bring the guest progress along
       P = loadLocal() || guest;
       if (P.name === 'You' && me.name) { const n = me.name.split(/\s+/)[0].replace(/[^A-Za-z0-9_]/g, '').slice(0, 16); if (NAME_RE.test(n)) P.name = n; }
     }
     Eco.checkTrophies(P); saveLocal(); saveCloud();
-    emit({ t: 'profile', p: Eco.publicProfile(P) });
+    emit({ t: 'profile', p: Eco.publicProfile(P) }); emit(slotsMsg());
     account('cloud', saved ? 'Signed in. Progress saves to your claude.ai account ☁️' : 'Account created. Progress saves to your claude.ai account ☁️', me.avatarUrl);
     watchBoard(db, me.id);
     if (P.name === 'You') emit({ t: 'needName' });
   }
 
+  // switch which profile is being played (the old one is saved first)
+  function switchTo(id, profile) {
+    saveLocal();
+    if (cloud) { clearTimeout(saveT); dirty = false; cloudRef().set(JSON.parse(JSON.stringify(P))).catch(() => { }); } // save the one we're leaving right now
+    slot = id; P = profile; Eco.checkTrophies(P); traders = Eco.genTraders();
+    saveLocal(); saveCloud();
+    emit({ t: 'hello', p: Eco.publicProfile(P), traders: Eco.tradersView(traders) }); emit(slotsMsg());
+  }
+  async function switchToSaved(id) {
+    let p = null;
+    if (cloud) { try { const sn = await cloudRef(id).get(); if (sn.exists) p = withDefaults(sn.data(), 'You'); } catch (e) { } }
+    p = p || loadLocal(localKey(id));
+    if (!p) throw new Error('Couldn\'t load that account');
+    switchTo(id, p);
+  }
+
   window.LocalServer = {
     start(cb) {
       emit = m => setTimeout(() => cb(m), 0);
+      const idx = loadSlots();
+      if (idx) { slots = idx.list; slot = slots.some(x => x.id === idx.cur) ? idx.cur : 'main'; }
       P = loadLocal() || Store.defaultProfile('You');
       Eco.checkTrophies(P); saveLocal(); traders = Eco.genTraders(); // unlock anything already earned
       const txt = document.querySelector('#tab-play h3 + p'); if (txt) txt.textContent = 'Solo vs bots. You keep your coins and XP.';
-      emit({ t: 'hello', p: Eco.publicProfile(P), traders: Eco.tradersView(traders) });
+      emit({ t: 'hello', p: Eco.publicProfile(P), traders: Eco.tradersView(traders) }); emit(slotsMsg());
       signIn().catch(() => account('guest', 'Playing as a guest: progress is saved in this browser.'));
     },
     send(m) {
@@ -133,6 +174,30 @@
             const r = mutate(p => Eco.acceptOffer(p, draft, o));
             traders[o.trader] = draft;
             emit({ t: 'tradeResult', ok: true, line: r.line, got: r.got, trader: tr.name, traders: Eco.tradersView(traders) });
+            break;
+          }
+          case 'slots': emit(slotsMsg()); break;
+          case 'newSlot': {
+            if (slots.length - 1 >= MAX_ALTS) throw new Error(`You can have ${MAX_ALTS} alts. Delete one first`);
+            const id = 'a' + Date.now().toString(36);
+            slots.push({ id, name: 'You', level: 1, coins: 0 });
+            switchTo(id, Store.defaultProfile('You'));
+            emit({ t: 'slotSwitched', fresh: true }); emit({ t: 'needName' });
+            break;
+          }
+          case 'switchSlot': {
+            if (!slots.some(x => x.id === m.id)) throw new Error('That account is gone');
+            if (m.id === slot) break;
+            switchToSaved(m.id).then(() => emit({ t: 'slotSwitched' })).catch(e => emit({ t: 'error', msg: e.message }));
+            break;
+          }
+          case 'deleteSlot': {
+            if (m.id === 'main') throw new Error('Your main account can\'t be deleted here');
+            if (m.id === slot) throw new Error('Switch to another account first');
+            slots = slots.filter(x => x.id !== m.id);
+            try { localStorage.removeItem(localKey(m.id)); } catch (e) { }
+            if (cloud) cloudRef(m.id).delete().catch(() => { });
+            saveSlots(); emit(slotsMsg());
             break;
           }
           case 'quickplay': case 'createPrivate': case 'joinCode': startPractice(); break;

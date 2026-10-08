@@ -223,6 +223,11 @@ function onMsg(m) {
       break;
     case 'avatarSaved': SFX.coin(); toast('Avatar saved 😎 Everyone sees your new look next round', true); if (curTab === 'avatar') renderAvatar(); break;
     case 'needName': if (!V) openNameScreen(false); break;
+    case 'slots': slotData = m; show('#slotBox'); renderSlots(); break;
+    case 'slotSwitched':
+      offMine = []; offTheirs = []; curOffer = null; show('#offerPop', false); show('#claim', false); show('#unbox', false);
+      SFX.coin(); if (!m.fresh) { toast(`Switched to ${P ? P.name : 'your account'} 👥`, true); setScreen('lobby'); }
+      break;
     case 'account': {
       const a = $('#acctPill'); show('#acctPill');
       a.className = 'pill acct ' + m.state; a.title = m.note;
@@ -334,6 +339,24 @@ $('#delForm').onsubmit = e => { e.preventDefault(); $('#delErr').textContent = '
 // installable app (Android / home screen). Only for the online game, never the solo file
 if ('serviceWorker' in navigator && !window.LocalServer && /^https?:$/.test(location.protocol)) addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => { }));
 $('#namePill').onclick = () => { if (window.LocalServer && !V) openNameScreen(true); };
+// alts: separate save slots on this account (solo build)
+let slotData = null;
+function renderSlots() {
+  if (!slotData) return;
+  const list = slotData.list.map(x => x.active && P ? { ...x, name: P.name, level: P.level, coins: P.coins } : x); // the one being played is always up to date
+  $('#slotList').innerHTML = list.map(x => `<div class="slotrow${x.active ? ' active' : ''}">
+    <div class="who"><b>${esc(x.name)}</b>${x.id === 'main' ? '<span class="tag">MAIN</span>' : ''}<br><span class="muted small">Lv ${x.level} · 💰 ${shortNum(x.coins)}</span></div>
+    <div class="btns">${x.active ? '<span class="playing">✅ Playing</span>' : `<button class="btn small" data-sw="${esc(x.id)}">Play</button>`}${x.id !== 'main' && !x.active ? `<button class="btn small ghost2" data-del="${esc(x.id)}" aria-label="Delete ${esc(x.name)}">🗑️</button>` : ''}</div>
+  </div>`).join('');
+  $('#slotList').querySelectorAll('[data-sw]').forEach(b => b.onclick = () => net({ t: 'switchSlot', id: b.dataset.sw }));
+  $('#slotList').querySelectorAll('[data-del]').forEach(b => b.onclick = () => {
+    const x = slotData.list.find(s => s.id === b.dataset.del);
+    if (x && confirm(`Delete the alt "${x.name}"? Everything on it is gone for good.`)) net({ t: 'deleteSlot', id: x.id });
+  });
+  $('#newSlotBtn').disabled = slotData.list.length - 1 >= slotData.max;
+  $('#newSlotBtn').textContent = $('#newSlotBtn').disabled ? `Max ${slotData.max} alts` : '➕ New account (start from nothing)';
+}
+$('#newSlotBtn').onclick = () => { if (!V) net({ t: 'newSlot' }); };
 if (window.LocalServer) { $('#namePill').title = 'Change your name'; $('#namePill').classList.add('click'); }
 $('#acctPill').onclick = () => toast($('#acctPill').title);
 function renderBoard() {
@@ -1339,7 +1362,8 @@ $('#invShopBtn').onclick = () => document.querySelector('.tab[data-tab="shop"]')
 function sortedInv() { return P.inv.slice().sort((a, b) => ITEM[b.id].val - ITEM[a.id].val); }
 function renderLobby() {
   if (!P) return;
-  $('#namePill').textContent = (P.admin ? '👑 ' : '') + P.name;
+  $('#namePill').textContent = (P.admin ? '👑 ' : '') + P.name + (slotData && slotData.cur !== 'main' ? ' (alt)' : '');
+  renderSlots();
   $('#coinPill').textContent = `💰 ${shortNum(P.coins)}`;
   $('#coinPill').title = `${P.coins.toLocaleString()} coins`;
   $('#lvlPill').textContent = `Lv ${P.level}`;
