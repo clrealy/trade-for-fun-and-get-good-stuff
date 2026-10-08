@@ -39,7 +39,7 @@ function evolve(p, u) {
 // Bundles: buy a whole set for coins, once
 const BUNDLES = [
   { id: 'raygun', name: 'Raygun Set', icon: '🔫', price: 3999, items: ['g21', 'k28'], desc: 'Get the whole set at once. Rumor says there\'s a secret code somewhere too 👀' },
-  { id: 'craygun', name: 'Chroma Raygun Set', icon: '🌈', price: 93000, items: ['g23', 'k29'], desc: 'Rainbow lasers with no reload. The flex of all flexes 🌈' },
+  { id: 'craygun', name: 'Chroma Raygun Set', icon: '🌈', price: 93000, items: ['g23', 'k29'], desc: 'Rainbow lasers. The flex of all flexes 🌈' },
 ];
 function buyBundle(p, id) {
   const b = BUNDLES.find(x => x.id === id); if (!b) throw new Error('Unknown bundle');

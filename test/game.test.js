@@ -67,20 +67,24 @@ test('codes give their reward once per account', () => {
   assert.deepStrictEqual(Eco.redeem(p, 'memeset').items, ['k20', 'g15']);
   assert.strictEqual(Sim.ITEM.k20.val, 69420);
   assert.deepStrictEqual(Eco.redeem(p, 'c memeset').items, ['k21', 'g17']);
-  assert.ok(Sim.ITEM.g17.noCooldown && Sim.ITEM.k21.r === 'Chroma');
+  assert.ok(Sim.ITEM.k21.noCooldown && !Sim.ITEM.g17.noCooldown && Sim.ITEM.k21.r === 'Chroma'); // fast knife, the gun reloads
   assert.deepStrictEqual(Eco.redeem(p, 'cngs').items, ['k22', 'k23']);
   assert.throws(() => Eco.redeem(p, 'FAKECODE'), /doesn't exist/);
   assert.throws(() => Eco.redeem(p, '__proto__'), /doesn't exist/);
 });
 
-test('no-cooldown skins skip the reload timer', () => {
+test('no-cooldown knives stay fast, but guns like the Cookie Scope reload', () => {
   const R = Sim.createRound({ players: [{ pid: 'a', name: 'a', gun: 'g14' }, { pid: 'b', name: 'b', gun: 'g1' }], fillBots: false });
   R.phase = 'play';
   for (const e of R.ents) { e.role = 'sheriff'; e.hasGun = true; Sim.setInput(R, e.id, { x: e.x, y: e.y, a: 0, atk: true }); }
   Sim.step(R, 1 / 30);
-  const [fastE, slowE] = R.ents;
-  assert.ok(fastE.atkCd < 0.2, `cookie scope cooldown ${fastE.atkCd}`);
-  assert.ok(slowE.atkCd > 2, `normal gun cooldown ${slowE.atkCd}`);
+  for (const e of R.ents) assert.ok(e.atkCd > 2, `gun cooldown ${e.atkCd}`);
+  const K = Sim.createRound({ players: [{ pid: 'a', name: 'a', knife: 'k22' }, { pid: 'b', name: 'b', knife: 'k1' }], fillBots: false });
+  K.phase = 'play';
+  for (const e of K.ents) { e.role = 'murderer'; e.hasGun = false; Sim.setInput(K, e.id, { x: e.x, y: e.y, a: 0, atk: true }); }
+  Sim.step(K, 1 / 30);
+  const [fastK, slowK] = K.ents;
+  assert.ok(fastK.atkCd < slowK.atkCd && fastK.atkCd < .2, `cookie cutter ${fastK.atkCd} vs ${slowK.atkCd}`);
 });
 
 test('/sheffeme gives the gun, but not to the murderer', () => {
@@ -289,8 +293,9 @@ test('noob traders have good items but trade them for junk', () => {
   assert.strictEqual(Eco.trade(q, pro, [q.inv[q.inv.length - 1].u], [1]).ok, false);
 });
 
-test('normal guns play a reload sound only the shooter hears; no-cooldown guns do not', () => {
-  for (const [gun, want] of [['g0', true], ['g21', false]]) {
+test('every gun plays a reload sound only the shooter hears', () => {
+  assert.ok(Sim.ITEMS.every(i => i.type !== 'gun' || !i.noCooldown), 'no gun skips its reload');
+  for (const [gun, want] of [['g0', true], ['g21', true], ['g14', true], ['g15', true]]) {
     const R = Sim.createRound({ mapIdx: 0, players: [{ pid: 'a', name: 'a', gun }, { pid: 'b', name: 'b' }], fillBots: false });
     R.phase = 'play';
     const e = R.ents[0]; e.hasGun = true; e.role = 'sheriff';
@@ -356,14 +361,14 @@ test('owner luck: 95% Death items from the Halloween Box, only when turned on', 
   assert.ok(theirs < 70, `others got ${theirs}/200`);
 });
 
-test('the Raygun makes its own sound', () => {
+test('the Raygun makes its own sound and reloads like every gun', () => {
   const R = Sim.createRound({ players: [{ pid: 'a', name: 'a', gun: 'g21' }, { pid: 'b', name: 'b', gun: 'g1' }], fillBots: false });
   R.phase = 'play';
   for (const e of R.ents) { e.role = 'sheriff'; e.hasGun = true; Sim.setInput(R, e.id, { x: e.x, y: e.y, a: 0, atk: true }); }
   Sim.step(R, 1 / 30);
   const sounds = Sim.drain(R).filter(ev => ev.t === 'sfx').map(ev => ev.s).sort();
-  assert.deepStrictEqual(sounds, ['ray', 'reload', 'shoot']); // the normal gun reloads, the raygun doesn't
-  assert.ok(R.ents[0].atkCd < 0.2, 'raygun has no reload');
+  assert.deepStrictEqual(sounds, ['ray', 'reload', 'reload', 'shoot']); // both guns reload
+  assert.ok(R.ents[0].atkCd > 2, 'the raygun has a reload now');
 });
 
 test('1v1: two players, one murderer and one sheriff, and the round finishes', () => {
@@ -428,7 +433,7 @@ test('Chroma Raygun Set costs 93,000 coins', () => {
   p.coins = 100000;
   assert.deepStrictEqual(Eco.buyBundle(p, 'craygun'), ['g23', 'k29']);
   assert.strictEqual(p.coins, 7000);
-  assert.ok(Sim.ITEM.g23.noCooldown && Sim.ITEM.g23.sound === 'ray' && Sim.ITEM.k29.r === 'Chroma');
+  assert.ok(!Sim.ITEM.g23.noCooldown && Sim.ITEM.g23.sound === 'ray' && Sim.ITEM.k29.r === 'Chroma');
   for (let i = 0; i < 20000; i++) for (const c of Sim.CRATES) assert.ok(!['g23', 'k29'].includes(Sim.rollCrate(c).id));
 });
 

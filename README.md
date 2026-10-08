@@ -88,7 +88,7 @@ Players type codes in **Inventory → Add code**. Codes ignore caps and spaces, 
 - **🎃 Halloween Box** (250 coins): the Death Set and Chroma Death Set. 10% **Death Knife**, 5% **Death Gun**, 2% **Chroma Death Knife**, 1% **Chroma Death Gun**. The Knives and the Chroma Death Gun drop nowhere else.
 - **Owner luck:** accounts in `ADMIN_UIDS`, or anyone who redeems the secret code `DEATHLUCK95`, get a 95% chance at a Death item from the Halloween Box. Keep that code private.
 - **Raygun Set** (Raygun + Ray Blade, the Raygun fires a green laser with its own sound): 3,999 coins in the Shop, or the secret code `ZAPZAPBOOM13`. The game reveals it when you tap the lobby logo 13 times fast.
-- **Chroma Raygun Set** (Chroma Raygun + Chroma Ray Blade): 93,000 coins in the Shop. The Chroma Raygun fires rainbow lasers with no reload.
+- **Chroma Raygun Set** (Chroma Raygun + Chroma Ray Blade): 93,000 coins in the Shop. The Chroma Raygun fires rainbow lasers.
 
 ## Shop
 
@@ -148,7 +148,7 @@ Outside the walls there's a whole world: trees and an iron fence around the Mans
 
 ## Gun reload sound
 
-After every shot, normal guns play a 2.2 s reload: the shell hits the floor, the mag comes out, the new mag clicks in, the slide racks and a ping says you're ready. Only the shooter hears it. Guns with no reload (Raygun, Bruh Blaster…) stay silent, and the Void Scope keeps its own faster sound.
+After every shot, normal guns play a 2.2 s reload: the shell hits the floor, the mag comes out, the new mag clicks in, the slide racks and a ping says you're ready. Only the shooter hears it. Every gun reloads now, including the Raygun, Bruh Blaster and Cookie Scope sets, which used to fire nonstop. The Void Scope keeps its own faster reload and sound.
 
 ## Haunted Manor
 

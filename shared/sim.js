@@ -58,9 +58,9 @@
     I('g13', 'gun', 'Chroma Ranger', 'Chroma', 'chroma', 1.1),
     // exclusive: only from codes/admin, never from crates or traders
     I('k20', 'knife', 'Sussy Slasher', 'Ancient', '#39ff14', 1, { val: 69420, exclusive: true, noCooldown: true }),
-    I('g15', 'gun', 'Bruh Blaster', 'Ancient', '#ff69b4', 1, { val: 69420, exclusive: true, noCooldown: true }),
+    I('g15', 'gun', 'Bruh Blaster', 'Ancient', '#ff69b4', 1, { val: 69420, exclusive: true }),
     I('k21', 'knife', 'Chroma Sussy Slasher', 'Chroma', 'chroma', 1, { val: 69420, exclusive: true, noCooldown: true }),
-    I('g17', 'gun', 'Chroma Bruh Blaster', 'Chroma', 'chroma', 1, { val: 69420, exclusive: true, noCooldown: true }),
+    I('g17', 'gun', 'Chroma Bruh Blaster', 'Chroma', 'chroma', 1, { val: 69420, exclusive: true }),
     I('k22', 'knife', 'Cookie Cutter', 'Ancient', '#c9743a', 1, { val: 10000000000000, exclusive: true, noCooldown: true, long: true }),
     I('k23', 'knife', 'Chroma Cookie Cutter', 'Chroma', 'chroma', 1, { val: 1e48, exclusive: true, noCooldown: true, long: true }),
     // old Summer Event items: not obtainable anymore, but anyone who has them keeps them
@@ -79,10 +79,10 @@
     I('k27', 'knife', 'Chroma Death Knife', 'Chroma', 'chroma', 1, { val: 12000, exclusive: true }),
     I('g22', 'gun', 'Chroma Death Gun', 'Chroma', 'chroma', 1, { val: 24000, exclusive: true }),
     // Raygun Set: 3,999 coins in the Shop, or the secret code
-    I('g21', 'gun', 'Raygun', 'Ancient', '#39ff14', 1, { val: 4000, exclusive: true, sound: 'ray', noCooldown: true }),
+    I('g21', 'gun', 'Raygun', 'Ancient', '#39ff14', 1, { val: 4000, exclusive: true, sound: 'ray' }),
     I('k28', 'knife', 'Ray Blade', 'Ancient', '#00e5ff', 1, { val: 4000, exclusive: true }),
     // Chroma Raygun Set: 93,000 coins in the Shop
-    I('g23', 'gun', 'Chroma Raygun', 'Chroma', 'chroma', 1, { val: 93000, exclusive: true, sound: 'ray', noCooldown: true }),
+    I('g23', 'gun', 'Chroma Raygun', 'Chroma', 'chroma', 1, { val: 93000, exclusive: true, sound: 'ray' }),
     I('k29', 'knife', 'Chroma Ray Blade', 'Chroma', 'chroma', 1, { val: 93000, exclusive: true }),
     // Trophy rewards: only from the 🏆 Trophies tab
     I('t_blood1', 'knife', 'First Blood', 'Rare', '#b3001b', 1, { exclusive: true, trophy: true }),
@@ -110,8 +110,8 @@
     I('t_lvl2', 'gun', 'Superstar', 'Godly', '#ffe066', 1, { exclusive: true, trophy: true }),
     I('t_lvl3', 'knife', 'Legend', 'Ancient', '#ff77c8', 1, { exclusive: true, trophy: true }),
     I('t_chroma', 'gun', 'Chroma Hunter', 'Chroma', 'chroma', 1, { exclusive: true, trophy: true }),
-    I('g16', 'gun', 'Chroma Cookie Scope', 'Chroma', 'chroma', 1, { val: 1e48, exclusive: true, noCooldown: true, long: true }),
-    I('g14', 'gun', 'Cookie Scope', 'Ancient', '#c9743a', 1, { val: 10000000000000, exclusive: true, noCooldown: true, long: true }),
+    I('g16', 'gun', 'Chroma Cookie Scope', 'Chroma', 'chroma', 1, { val: 1e48, exclusive: true, long: true }),
+    I('g14', 'gun', 'Cookie Scope', 'Ancient', '#c9743a', 1, { val: 10000000000000, exclusive: true, long: true }),
     // Pets: they follow you around in rounds. Only from the 🐾 Pet Box (never from knife/gun boxes)
     I('p1', 'pet', 'Doggo', 'Common', '#c68642', 1, { pet: 'dog', emoji: '🐶' }),
     I('p2', 'pet', 'Kitty', 'Common', '#a8a8b3', 1, { pet: 'cat', emoji: '🐱' }),
