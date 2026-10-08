@@ -223,7 +223,7 @@ function onMsg(m) {
       break;
     case 'avatarSaved': SFX.coin(); toast('Avatar saved 😎 Everyone sees your new look next round', true); if (curTab === 'avatar') renderAvatar(); break;
     case 'needName': if (!V) openNameScreen(false); break;
-    case 'slots': slotData = m; show('#slotBox'); renderSlots(); break;
+    case 'slots': slotData = m; show('#slotBox'); if (screen === 'lobby') renderLobby(); else renderSlots(); break;
     case 'slotSwitched':
       offMine = []; offTheirs = []; curOffer = null; show('#offerPop', false); show('#claim', false); show('#unbox', false);
       SFX.coin(); if (!m.fresh) { toast(`Switched to ${P ? P.name : 'your account'} 👥`, true); setScreen('lobby'); }
@@ -356,6 +356,7 @@ function renderSlots() {
   $('#newSlotBtn').disabled = slotData.list.length - 1 >= slotData.max;
   $('#newSlotBtn').textContent = $('#newSlotBtn').disabled ? `Max ${slotData.max} alts` : '➕ New account (start from nothing)';
 }
+$('#altMainBtn').onclick = () => { if (!V) net({ t: 'switchSlot', id: 'main' }); };
 $('#newSlotBtn').onclick = () => { if (!V) net({ t: 'newSlot' }); };
 if (window.LocalServer) { $('#namePill').title = 'Change your name'; $('#namePill').classList.add('click'); }
 $('#acctPill').onclick = () => toast($('#acctPill').title);
@@ -1364,6 +1365,9 @@ function renderLobby() {
   if (!P) return;
   $('#namePill').textContent = (P.admin ? '👑 ' : '') + P.name + (slotData && slotData.cur !== 'main' ? ' (alt)' : '');
   renderSlots();
+  // on an alt: say so loudly, with a one-tap way back to the main
+  const onAlt = !!(slotData && slotData.cur !== 'main');
+  show('#altBar', onAlt); if (onAlt) $('#altName').textContent = P.name;
   $('#coinPill').textContent = `💰 ${shortNum(P.coins)}`;
   $('#coinPill').title = `${P.coins.toLocaleString()} coins`;
   $('#lvlPill').textContent = `Lv ${P.level}`;

@@ -612,3 +612,5 @@ canvas.locked,#game.locked{cursor:none}
 .slotrow .tag{font-size:11px;font-weight:700;background:var(--accent);border-radius:6px;padding:2px 6px;margin-left:4px}
 .slotrow .btns{display:flex;gap:6px;flex-shrink:0}
 .slotrow .playing{color:var(--green);font-weight:700}
+#altBar{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;background:#3b2a12;border:2px solid var(--gold);color:#ffe7a8;border-radius:12px;padding:8px 14px;margin:0 0 12px;font-weight:600;text-align:center}
+#altBar.hide{display:none}
