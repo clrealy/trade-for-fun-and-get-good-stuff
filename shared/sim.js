@@ -685,12 +685,23 @@
     taunt: ['ez 😎', 'sit down', 'too slow 💀', 'get good lol', 'u walked right into me 😂'],
     lose: ['gg ez... NOT 😤', 'rematch rn', 'i wasnt even trying', 'whatever 🙄', 'lucky round', 'next round ur done', 'tryhard much?'],
     win: ['gg ez 😎', 'W', 'too easy', 'gg', 'yall are bad lol'],
-    hello: ['hiii', 'yo', 'hey 👋', 'sup'],
-    gg: ['gg', 'gg wp', 'ggs 🤝'],
-    ez: ['not ez 😤', 'it wasnt even ez', 'ur just lucky', 'bro calm down 💀'],
-    who: ['idk 🤷', 'not me fr', 'i didnt see anything', 'prob the one hiding lol'],
-    trade: ['after the round 👀', 'what u got?', 'check the trade tab lol'],
-    insult: ['ur worse 😤', 'ok and?', 'says u lol', 'bro chill 😭', 'cry about it'],
+    hello: ['hiii {n}', 'yo', 'hey {n} 👋', 'sup', 'hii 👋'],
+    gg: ['gg', 'gg wp', 'ggs 🤝', 'gg {n}'],
+    ez: ['not ez 😤', 'it wasnt even ez', 'ur just lucky {n}', 'bro calm down 💀'],
+    who: ['idk 🤷', 'not me fr', 'i didnt see anything', 'prob the one hiding lol', 'i think its {r} 👀', 'its {r} trust', 'idk but {r} is acting sus'],
+    sus: ['NO IM NOT 😭', 'ur the sus one {n}', 'bro i was getting coins', 'why would i be murd 💀', 'its literally not me'],
+    sheriff: ['not me lol', 'the sheriff is hiding fr', 'idk who sheriff is', 'i wish i was sheriff 😔'],
+    trade: ['after the round 👀', 'what u got?', 'check the trade tab lol', 'i only want godlys', 'send me a trade {n}'],
+    insult: ['ur worse 😤', 'ok and?', 'says u lol', 'bro chill 😭', 'cry about it', 'u wish {n}'],
+    lol: ['😂', 'lmaooo', 'LOL', 'fr 😭', 'ded 💀'],
+    help: ['im coming!!', 'nah ur on ur own 💀', 'where r u {n}', 'RUN', 'hide in a room fast'],
+    team: ['ok lets team 🤝', 'bet', 'only if ur not murd', 'nah i play solo 😎'],
+    nice: ['ty 😎', 'ikr', 'thanks {n}', 'W'],
+    sorry: ['its ok', 'nah its fine', 'u better be 😤'],
+    bye: ['bye 👋', 'cya {n}', 'nooo dont leave'],
+    name: ['what', 'huh?', 'yeah?', 'leave me alone 😭', 'what do u want {n}', 'why u saying my name 💀', 'i didnt do anything!!'],
+    yes: ['yes', 'nah', 'maybe 🤔', 'idk', 'fr', 'no way', 'obviously'],
+    any: ['fr', 'real', 'ok', 'bro what 💀', 'true', 'lol', 'ok and?', 'nobody asked 💀', 'facts', 'ur funny {n}', 'what 😭', 'W', 'same'],
   };
   const pickSay = k => SAY[k][Math.floor(Math.random() * SAY[k].length)];
   // queue a line: it shows up after `delay` seconds, at most one bot line a second. to: only that player sees it
@@ -712,12 +723,31 @@
   const botsOf = R => R.ents.filter(e => !e.human);
   const anyBot = (R, f = () => true) => { const b = botsOf(R).filter(f); return b.length ? pick(b) : null; };
   // a player said something in the round chat: sometimes a bot answers
+  // a player said something in the round chat: bots answer (if you say a bot's name, that bot answers)
+  const HEAR = [
+    ['gg', /\b(gg|ggs|gg wp|good game)\b/], ['ez', /\b(ez|easy)\b/], ['who', /\bwho\b.*(murd|killer|sheriff)|\bmurd(erer)?\s*\?|who (is|did|killed)/],
+    ['sus', /\b(ur|you|your|u r|youre|you're)\b.*\b(murd|murderer|killer|sus)\b|\bsus\b/], ['sheriff', /sheriff|\bsherif|sheffe|sheff/],
+    ['trade', /trade|trading/], ['insult', /noob|trash|\bbad\b|suck|bozo|\bloser\b|stupid|dumb|\bl\b|ratio/],
+    ['help', /\bhelp\b|save me|run+\b/], ['team', /\bteam\b/], ['sorry', /\b(sorry|sry|my bad)\b/], ['bye', /\b(bye|cya|gtg|leaving)\b/],
+    ['nice', /\b(nice|good job|gj|wp|cool|thanks|ty)\b/], ['lol', /\b(lol|lmao|lmfao|haha+|xd)\b|😂|🤣|💀/],
+    ['hello', /\b(hi+|hello|hey+|yo+|sup|wsg|wsp)\b/], ['yes', /\?\s*$/],
+  ];
   function hearChat(R, id, text) {
-    const l = String(text || '').toLowerCase();
-    const kind = /\b(gg|ggs|gg wp)\b/.test(l) ? 'gg' : /\bez\b|easy/.test(l) ? 'ez' : /who.*(murd|killer)|murd\s*\?/.test(l) ? 'who'
-      : /\b(hi|hello|hey|yo|sup)\b/.test(l) ? 'hello' : /trade/.test(l) ? 'trade' : /noob|trash|bad|suck|bozo|\bl\b/.test(l) ? 'insult' : null;
-    if (!kind || Math.random() < .3) return;
-    say(R, anyBot(R), kind, rand(1, 2.5));
+    const l = String(text || '').toLowerCase(), me = R.ents.find(e => e.id === id);
+    if (!l || l.startsWith('/')) return;
+    const bots = botsOf(R); if (!bots.length) return;
+    const named = bots.find(b => b.name.length > 2 && l.includes(b.name.toLowerCase()));
+    const hit = HEAR.find(([, re]) => re.test(l)), kind = hit ? hit[0] : named ? 'name' : 'any';
+    if (kind === 'any' && Math.random() < .25) return; // random stuff doesn't always get an answer
+    const alive = bots.filter(b => b.alive), first = named || pick(alive.length ? alive : bots);
+    reply(R, first, kind, me, rand(.8, 1.8));
+    // big moments get a second bot in on it
+    if (/^(gg|ez|insult|who|sus|lol)$/.test(kind) && Math.random() < .5) { const two = pick(bots.filter(b => b !== first)); if (two) reply(R, two, kind, me, rand(2, 3.2)); }
+  }
+  function reply(R, e, kind, me, delay) {
+    const others = R.ents.filter(x => x !== e && x !== me && x.alive);
+    const text = pickSay(kind).replace('{n}', me && me.name !== 'You' ? me.name : '').replace('{r}', others.length ? pick(others).name : 'someone').replace(/\s+$/, '');
+    (R.chatQ || (R.chatQ = [])).push({ at: R.t + delay, id: e.id, text }); // replies skip the queue limit
   }
 
   // ===================== Bots =====================

@@ -231,6 +231,17 @@ test('bots chat, get mad at the player who beat them, and are salty when they lo
   assert.ok(replies > 5, 'bots say gg back');
 });
 
+test('bots answer what players type, and the bot you name answers', () => {
+  const R = Sim.createRound({ mapIdx: 0, players: [{ pid: 'a', name: 'Cj' }] });
+  R.phase = 'play'; R.chatT = 99;
+  const me = R.ents.find(e => e.human), named = R.ents.find(e => !e.human);
+  const ask = text => { R.chatQ = []; Sim.drain(R); Sim.hearChat(R, me.id, text); for (let i = 0; i < 120; i++) Sim.step(R, 1 / 30); return Sim.drain(R).filter(e => e.t === 'chat'); };
+  for (const t of ['hi guys', 'who is murd', 'gg', 'help me', 'is it raining?', 'trade?', 'lol']) assert.ok(ask(t).length >= 1, t);
+  const r = ask(named.name + ' come here');
+  assert.ok(r.length && r[0].name === named.name, 'the named bot answers');
+  R.chatQ = []; Sim.hearChat(R, me.id, '/esp'); assert.strictEqual(R.chatQ.length, 0, 'commands are ignored');
+});
+
 test('declined trades say what to add; bot trade offers can be accepted once', () => {
   const p = defaultProfile('t');
   for (const id of ['k1', 'k2', 'k3', 'g1']) p.inv.push({ u: p.nextUid++, id });

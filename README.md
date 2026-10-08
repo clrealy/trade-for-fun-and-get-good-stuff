@@ -113,7 +113,7 @@ Bots talk in the round chat:
 - When you take a bot out, it often gets mad at you ("BRO 😡", "hacker!!", "I QUIT 😤😤"). Only you see that line, so it never gives away who the Murderer is.
 - When you win, the losing bots are salty in public ("rematch rn", "i wasnt even trying"). When the bots win, they flex.
 - A murderer bot that gets you sends you a taunt.
-- Bots sometimes answer your chat: "gg", "ez", "hi", "who is murd?", "trade?" and insults all get replies.
+- Bots answer your chat: greetings, "gg", "ez", "who is murd?", "ur sus", "help", "trade?", jokes, questions and insults all get replies, and most other messages do too. Say a bot's name and that bot answers you.
 
 ## Trading
 
