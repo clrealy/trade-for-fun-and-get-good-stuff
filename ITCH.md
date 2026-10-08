@@ -67,7 +67,7 @@ itch then shows an "AI Generated" label on your page. That, plus the 🤖 Made b
 > - 🔪 **Murderer:** take everyone out without getting caught with your knife out.
 >
 > **Features**
-> - 8 maps, including the spooky Haunted Manor with rain and lightning ⛈️
+> - 8 maps, each with its own 3D look: a mansion with gardens, a city office, a bank, a snowy ice castle, and the spooky Haunted Manor with rain and lightning ⛈️
 > - 100+ knives and guns, from Common to Chroma 🌈
 > - Boxes, a shop with daily deals, trading with bot traders, and trophies 🏆
 > - 🐾 Pets that follow you around

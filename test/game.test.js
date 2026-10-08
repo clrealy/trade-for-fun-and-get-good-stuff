@@ -204,6 +204,28 @@ test('the Void Scope shoots a void laser with a 1.2 s reload only its owner hear
   assert.ok(e.atkCd > 1 && e.atkCd <= 1.2, `reload ${e.atkCd}`);
 });
 
+test('normal guns play a reload sound only the shooter hears; no-cooldown guns do not', () => {
+  for (const [gun, want] of [['g0', true], ['g21', false]]) {
+    const R = Sim.createRound({ mapIdx: 0, players: [{ pid: 'a', name: 'a', gun }, { pid: 'b', name: 'b' }], fillBots: false });
+    R.phase = 'play';
+    const e = R.ents[0]; e.hasGun = true; e.role = 'sheriff';
+    Sim.setInput(R, e.id, { x: e.x, y: e.y, a: 0, atk: true }); Sim.step(R, 1 / 30);
+    const ev = Sim.drain(R), rl = ev.find(x => x.s === 'reload');
+    assert.ok(ev.some(x => x.t === 'sfx' && (x.s === 'shoot' || x.s === 'ray')), gun + ' shot');
+    assert.strictEqual(!!rl, want, gun);
+    if (rl) { assert.strictEqual(rl.to, e.id); assert.ok(!ev.some(x => x.s === 'voidReload')); }
+  }
+});
+
+test('every map has a 3D theme, and doors are kept for the 3D view', () => {
+  const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'public', 'render3d.js'), 'utf8');
+  Sim.MAPS.forEach((m, i) => {
+    assert.ok(src.includes(`'${m.name}': {`), m.name + ' has a theme');
+    const M = Sim.buildMap(i);
+    assert.ok(M.doors.length > 0 && M.doors.every(([x, y]) => M.grid[y][x] === '.'), m.name + ' doors');
+  });
+});
+
 test('halloween: Death Gun at 150 kills, knives only from the Halloween Box', () => {
   const p = defaultProfile('t');
   for (let i = 0; i < 13; i++) Eco.applyRoundResult(p, { role: 'murderer', won: true, alive: true, bag: 0, kills: 11 });
@@ -255,7 +277,7 @@ test('the Raygun makes its own sound', () => {
   for (const e of R.ents) { e.role = 'sheriff'; e.hasGun = true; Sim.setInput(R, e.id, { x: e.x, y: e.y, a: 0, atk: true }); }
   Sim.step(R, 1 / 30);
   const sounds = Sim.drain(R).filter(ev => ev.t === 'sfx').map(ev => ev.s).sort();
-  assert.deepStrictEqual(sounds, ['ray', 'shoot']);
+  assert.deepStrictEqual(sounds, ['ray', 'reload', 'shoot']); // the normal gun reloads, the raygun doesn't
   assert.ok(R.ents[0].atkCd < 0.2, 'raygun has no reload');
 });
 

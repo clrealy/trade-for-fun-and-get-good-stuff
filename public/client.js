@@ -79,6 +79,14 @@ const SFX = {
   // Void Scope: a deep warping laser with a sub-bass thump and a sparkly tail
   void: () => { tone(1500, .3, 'sawtooth', .04, -1250); tone(95, .38, 'sine', .15, -45); tone(3000, .16, 'triangle', .02, -2600, .02); noise(.22, .07, 0, null, 3500); tone(220, .25, 'square', .018, 440, .08); },
   // its reload (1.2 s): click, charge-up whine, clack, ready ping. Quick, but you hear every step
+  // a normal gun's 2.2 s reload: shell hits the floor, mag out, mag in, rack the slide, ready
+  reload: () => {
+    tone(3200, .04, 'triangle', .03, 0, .18); tone(2600, .05, 'triangle', .022, 0, .3); tone(2900, .04, 'triangle', .015, 0, .42);
+    noise(.05, .16, .8, null, 1500); tone(420, .06, 'square', .03, -150, .8);
+    noise(.12, .07, 1.22, null, 3000); noise(.03, .26, 1.4, null, 2000); tone(900, .03, 'square', .04, 0, 1.4);
+    noise(.06, .2, 1.78, null, 1200); tone(600, .05, 'square', .03, 300, 1.78);
+    noise(.04, .26, 1.94, null, 2500); tone(1400, .03, 'square', .04, 0, 1.94); tone(1760, .08, 'sine', .028, 0, 2.08);
+  },
   voidReload: () => { noise(.03, .14, .3, null, 2500); tone(1800, .03, 'square', .03, 0, .3); tone(260, .32, 'sawtooth', .025, 900, .45); noise(.04, .16, .85, null, 1800); tone(950, .05, 'square', .04, 0, .85); tone(1650, .09, 'sine', .035, 0, .98); },
   evolve: () => { [262, 330, 392, 523, 659, 784].forEach((f, i) => tone(f, .25, 'sawtooth', .035, 0, i * .08)); tone(60, 1, 'sine', .15, 60, .45); noise(.6, .12, .45, null, 1200); },
   throw: () => tone(700, .2, 'triangle', .05, -500),

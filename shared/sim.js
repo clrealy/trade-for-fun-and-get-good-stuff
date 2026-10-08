@@ -399,7 +399,9 @@
       }
       grid.push(row);
     }
-    const M = { idx, name: m.name, theme: m.theme || null, plant: m.plant || null, floor: m.floor, wall: m.wall, wallTop: m.wallTop, W, H, grid, reach: [] };
+    const doors = []; // where the D cells were, so the 3D view can frame them
+    m.rows.forEach((r, y) => { for (let x = 0; x < r.length; x++) if (r[x] === 'D') doors.push([x, y]); });
+    const M = { idx, name: m.name, theme: m.theme || null, plant: m.plant || null, floor: m.floor, wall: m.wall, wallTop: m.wallTop, W, H, grid, doors, reach: [] };
     // largest connected walkable region = where people spawn & coins drop
     const seen = new Uint8Array(W * H); let best = [];
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
@@ -629,7 +631,9 @@
     R.proj.push({ type: 'bullet', dud: !!(R.dumbGuns && e.id !== R.gunCheater), skin: e.gun, x: e.x + Math.cos(e.ang) * muzzle, y: e.y + Math.sin(e.ang) * muzzle, vx: Math.cos(e.ang) * sp, vy: Math.sin(e.ang) * sp, owner: e, life: ITEM[e.gun] && ITEM[e.gun].long ? 1.1 : .55 }); // scoped guns shoot twice as far
     emit(R, { t: 'fx', k: 'flash', x: e.x + Math.cos(e.ang) * (muzzle + 6), y: e.y + Math.sin(e.ang) * (muzzle + 6) });
     emit(R, { t: 'sfx', s: gi.sound === 'ray' || gi.sound === 'void' ? gi.sound : 'shoot', x: e.x, y: e.y });
-    if (gi.sound === 'void') emit(R, { t: 'sfx', s: 'voidReload', to: e.id, x: e.x, y: e.y }); // only the shooter hears the reload
+    // only the shooter hears the reload
+    if (gi.sound === 'void') emit(R, { t: 'sfx', s: 'voidReload', to: e.id, x: e.x, y: e.y });
+    else if (!fast(e.gun)) emit(R, { t: 'sfx', s: 'reload', to: e.id, x: e.x, y: e.y });
   }
   function dropGun(R, x, y) {
     R.gunDrop = { x: Math.round(x), y: Math.round(y) };
