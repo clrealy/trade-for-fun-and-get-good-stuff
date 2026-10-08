@@ -266,6 +266,7 @@ const HANDLERS = {
     const l = text.toLowerCase();
     if (BLOCKED.some(b => l.includes(b))) throw new Error('Keep the chat clean');
     broadcast(c.room, { t: 'chat', name: c.profile.name, text });
+    if (c.room.R && c.entId) Sim.hearChat(c.room.R, c.entId, text); // bots might answer
   },
   async crate(c, m) { const inst = await mutate(c, p => Eco.openCrate(p, m.id, ADMIN_UIDS.has(c.uid))); sendMsg(c, { t: 'unboxed', item: inst.id, crate: m.id }); },
   async redeem(c, m) { const r = await mutate(c, p => Eco.redeem(p, m.code)); sendMsg(c, Eco.redeemMsg(r)); },
@@ -281,7 +282,25 @@ const HANDLERS = {
     let draft, result;
     await mutate(c, p => { draft = structuredClone(trader); result = Eco.trade(p, draft, m.mine, m.theirs); return result; });
     c.traders[m.trader | 0] = draft;
-    sendMsg(c, { t: 'tradeResult', ok: result.ok, line: result.line, got: result.got, trader: trader.name, traders: Eco.tradersView(c.traders) });
+    sendMsg(c, { t: 'tradeResult', ok: result.ok, line: result.line, got: result.got, want: result.want, trader: trader.name, traders: Eco.tradersView(c.traders) });
+  },
+  // a bot sends you a trade (the client asks every so often while you're in the menus)
+  offer(c) {
+    const now = Date.now();
+    if (c.room || now - (c.offerAt || 0) < 15000) return;
+    c.offerAt = now; c.offer = Eco.makeOffer(c.profile, c.traders);
+    if (c.offer) sendMsg(c, { t: 'tradeOffer', offer: c.offer });
+  },
+  async offerReply(c, m) {
+    const offer = c.offer; c.offer = null;
+    if (!offer || offer.id !== m.id) throw new Error('That offer expired');
+    const trader = c.traders[offer.trader];
+    if (!trader || trader.name !== offer.name) throw new Error('That offer expired');
+    if (!m.accept) return sendMsg(c, { t: 'offerDeclined', trader: trader.name, line: Eco.declineLine() });
+    let draft, result;
+    await mutate(c, p => { draft = structuredClone(trader); result = Eco.acceptOffer(p, draft, offer); return result; });
+    c.traders[offer.trader] = draft;
+    sendMsg(c, { t: 'tradeResult', ok: true, line: result.line, got: result.got, trader: trader.name, traders: Eco.tradersView(c.traders) });
   },
 };
 const PRE_AUTH = new Set(['auth', 'setName']);

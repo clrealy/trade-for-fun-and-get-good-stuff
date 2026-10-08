@@ -11,7 +11,7 @@
   const KEY = 'mm_solo_profile_v2';
   const Eco = window.MMEco, Store = window.MMStore;
   const NAME_RE = /^[A-Za-z0-9_]{3,16}$/;
-  let P, traders, emit;
+  let P, traders, emit, offer = null;
   let cloud = null; // { db, uid, ref } once signed in
   let board = [], boardUnsub = null, lastBoard = '';
   const localKey = () => cloud ? KEY + ':' + cloud.uid : KEY; // a cache per account, so two accounts on one browser don't mix
@@ -120,7 +120,19 @@
             const draft = structuredClone(tr);
             const r = mutate(p => Eco.trade(p, draft, m.mine, m.theirs));
             traders[m.trader | 0] = draft;
-            emit({ t: 'tradeResult', ok: r.ok, line: r.line, got: r.got, trader: tr.name, traders: Eco.tradersView(traders) });
+            emit({ t: 'tradeResult', ok: r.ok, line: r.line, got: r.got, want: r.want, trader: tr.name, traders: Eco.tradersView(traders) });
+            break;
+          }
+          case 'offer': { offer = Eco.makeOffer(P, traders); if (offer) emit({ t: 'tradeOffer', offer }); break; }
+          case 'offerReply': {
+            const o = offer; offer = null;
+            if (!o || o.id !== m.id) throw new Error('That offer expired');
+            const tr = traders[o.trader]; if (!tr || tr.name !== o.name) throw new Error('That offer expired');
+            if (!m.accept) { emit({ t: 'offerDeclined', trader: tr.name, line: Eco.declineLine() }); break; }
+            const draft = structuredClone(tr);
+            const r = mutate(p => Eco.acceptOffer(p, draft, o));
+            traders[o.trader] = draft;
+            emit({ t: 'tradeResult', ok: true, line: r.line, got: r.got, trader: tr.name, traders: Eco.tradersView(traders) });
             break;
           }
           case 'quickplay': case 'createPrivate': case 'joinCode': startPractice(); break;

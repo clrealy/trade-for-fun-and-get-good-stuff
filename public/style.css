@@ -578,3 +578,29 @@ canvas.turning,#game.turning{cursor:grabbing}
 @media (max-width:760px){.avwin{grid-template-columns:minmax(0,1fr)}.avstage{min-height:300px}}
 #lockPill{position:absolute;top:56px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.55);border:2px solid #8f6bff;color:#e6dcff;border-radius:999px;padding:3px 14px;font-weight:700;font-size:14px}
 canvas.locked,#game.locked{cursor:none}
+
+/* trading: search, requests toggle, history, counter offers, incoming trade popup */
+.trsearch{width:100%;margin:0 0 10px;padding:9px 12px;border-radius:10px;border:2px solid var(--panel2);background:var(--bg);color:var(--text);font:inherit;font-size:15px}
+.trsearch:focus{outline:none;border-color:var(--accent)}
+.trhist{margin:16px 0 6px}
+#tradeHist div{padding:4px 0;border-bottom:1px solid var(--panel2)}
+#tradeHist .w{color:var(--green)} #tradeHist .l{color:var(--red)}
+.addbtn{display:block;margin:8px auto 0}
+#offerPop{position:fixed;inset:0;z-index:45;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(6,4,12,.78);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);animation:fade .2s}
+#offerPop.hide{display:none}
+.offercard{background:var(--panel);border:2px solid var(--accent);border-radius:18px;padding:18px;width:min(620px,100%);max-height:calc(100vh - 32px);overflow:auto;box-shadow:0 0 40px rgba(179,107,255,.35);animation:offerin .35s cubic-bezier(.2,1.4,.4,1)}
+@keyframes offerin{from{transform:scale(.8) translateY(30px);opacity:0}to{transform:none;opacity:1}}
+.offerhead{display:flex;gap:12px;align-items:center;margin-bottom:12px}
+.offericon{font-size:38px;animation:wiggle 1s ease-in-out infinite}
+#offerTitle{font-size:22px;font-weight:700}
+.offercols{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.offercols h4{margin:0 0 6px}
+#ofWfl{font-size:26px;font-weight:700;text-align:center;margin:4px 0 10px}
+.offerbtns{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.offerbtns .btn{width:100%;font-size:18px;padding:12px}
+#ofAccept{background:var(--green);box-shadow:0 4px 0 #1d6e2f}
+.offertimer{height:5px;background:var(--panel2);border-radius:3px;margin-top:12px;overflow:hidden}
+#ofTimer{height:100%;width:100%;background:var(--accent);transform-origin:left}
+@keyframes wiggle{0%,100%{transform:rotate(0)}25%{transform:rotate(-12deg)}75%{transform:rotate(12deg)}}
+@media (max-width:520px){.offercols{grid-template-columns:1fr}}
+@media (prefers-reduced-motion: reduce){.offericon,.offercard{animation:none}}

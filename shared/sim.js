@@ -666,6 +666,58 @@
     emit(R, { t: 'died', to: v.id, how: k ? (k.role === 'murderer' ? 'murdered' : 'shot') : 'died', by: k ? k.name : null });
     emit(R, { t: 'kf', v: v.id, k: k ? (k.role === 'murderer' ? 'knife' : 'shot') : 'died', x: Math.round(v.x), y: Math.round(v.y) }); // kill feed: who went down, never who did it
     if (v.role === 'murderer') emit(R, { t: 'murdererDown', by: k ? k.name : null, byId: k ? k.id : null });
+    // bots get mad when a player takes them out, and talk trash when they get a player
+    if (k && k.human && !v.human) {
+      R.grudge = R.grudge || {}; const n = R.grudge[v.id] = (R.grudge[v.id] || 0) + 1;
+      if (v.role === 'murderer') say(R, v, 'murdDown', rand(.8, 1.5));
+      else if (Math.random() < .75) say(R, v, n > 1 || Math.random() < .2 ? 'rage' : 'mad', rand(.7, 1.6), k.id); // only the player who did it sees it
+    } else if (k && !k.human && v.human && Math.random() < .5) say(R, k, 'taunt', rand(.5, 1.2), v.id);
+  }
+
+  // ===================== Bot chat =====================
+  // bots talk in the round chat: hi at the start, random chatter, and they get salty when you beat them
+  const SAY = {
+    hi: ['hii', 'gl everyone', 'yo 👋', 'pls dont kill me 🙏', 'im innocent fr', 'lets gooo', 'who wants to team'],
+    idle: ['who is murd??', 'sheriff where u at 👀', 'im hiding lol', 'someone is following me 😰', 'trust me im inno', 'coins coins coins 💰', 'anyone wanna trade after?', 'sus 🤨', 'this map goes hard', 'why is it so quiet 😬'],
+    mad: ['BRO 😡', 'how did u even see me', 'ur so lucky omg', 'LAG 😤', 'that was so cheap', 'reported 😠', 'hacker!!', 'ok that was dirty', 'i wasnt even ready 😭', 'nah ur actually cheating', 'BRUHHH'],
+    rage: ['I QUIT 😤😤', 'this game is rigged', 'stop targeting me bro', 'AGAIN?? FR??', 'im telling my mom 😭', 'uninstalling rn'],
+    murdDown: ['NOOO i was so close 😭', 'aimbot??', 'how did u hit that', 'ugh fine gg', 'i was lagging bro'],
+    taunt: ['ez 😎', 'sit down', 'too slow 💀', 'get good lol', 'u walked right into me 😂'],
+    lose: ['gg ez... NOT 😤', 'rematch rn', 'i wasnt even trying', 'whatever 🙄', 'lucky round', 'next round ur done', 'tryhard much?'],
+    win: ['gg ez 😎', 'W', 'too easy', 'gg', 'yall are bad lol'],
+    hello: ['hiii', 'yo', 'hey 👋', 'sup'],
+    gg: ['gg', 'gg wp', 'ggs 🤝'],
+    ez: ['not ez 😤', 'it wasnt even ez', 'ur just lucky', 'bro calm down 💀'],
+    who: ['idk 🤷', 'not me fr', 'i didnt see anything', 'prob the one hiding lol'],
+    trade: ['after the round 👀', 'what u got?', 'check the trade tab lol'],
+    insult: ['ur worse 😤', 'ok and?', 'says u lol', 'bro chill 😭', 'cry about it'],
+  };
+  const pickSay = k => SAY[k][Math.floor(Math.random() * SAY[k].length)];
+  // queue a line: it shows up after `delay` seconds, at most one bot line a second. to: only that player sees it
+  function say(R, e, kind, delay = rand(.6, 1.6), to) {
+    if (!e || e.human) return;
+    const q = R.chatQ || (R.chatQ = []);
+    if (q.length > 6) return;
+    q.push({ at: R.t + delay, id: e.id, text: pickSay(kind), to });
+  }
+  function stepChat(R) {
+    const q = R.chatQ; if (!q || !q.length) return;
+    q.sort((a, b) => a.at - b.at);
+    if (q[0].at > R.t || R.t - (R.lastChat || -9) < 1) return;
+    const m = q.shift(), e = R.ents.find(x => x.id === m.id); if (!e) return;
+    R.lastChat = R.t;
+    const ev = { t: 'chat', name: e.name, text: m.text, bot: true }; if (m.to !== undefined) ev.to = m.to;
+    emit(R, ev);
+  }
+  const botsOf = R => R.ents.filter(e => !e.human);
+  const anyBot = (R, f = () => true) => { const b = botsOf(R).filter(f); return b.length ? pick(b) : null; };
+  // a player said something in the round chat: sometimes a bot answers
+  function hearChat(R, id, text) {
+    const l = String(text || '').toLowerCase();
+    const kind = /\b(gg|ggs|gg wp)\b/.test(l) ? 'gg' : /\bez\b|easy/.test(l) ? 'ez' : /who.*(murd|killer)|murd\s*\?/.test(l) ? 'who'
+      : /\b(hi|hello|hey|yo|sup)\b/.test(l) ? 'hello' : /trade/.test(l) ? 'trade' : /noob|trash|bad|suck|bozo|\bl\b/.test(l) ? 'insult' : null;
+    if (!kind || Math.random() < .3) return;
+    say(R, anyBot(R), kind, rand(1, 2.5));
   }
 
   // ===================== Bots =====================
@@ -963,7 +1015,9 @@
   // ===================== Step =====================
   function step(R, dt) {
     R.t += dt;
+    stepChat(R);
     if (R.phase === 'intro') {
+      if (!R.saidHi) { R.saidHi = true; botsOf(R).sort(() => Math.random() - .5).slice(0, 2).forEach((e, i) => say(R, e, 'hi', .5 + i * 1.3)); }
       R.introT -= dt;
       for (const e of R.ents) if (e.human) applyHuman(R, e, dt);
       if (R.introT <= 0) { R.phase = 'play'; emit(R, { t: 'start' }); }
@@ -971,6 +1025,8 @@
     }
     if (R.phase === 'end') { R.endT += dt; stepProjectiles(R, dt); return; }
     R.time -= dt;
+    R.chatT = (R.chatT === undefined ? rand(6, 12) : R.chatT) - dt;
+    if (R.chatT <= 0) { R.chatT = rand(10, 20); say(R, anyBot(R, e => e.alive), 'idle', 0); }
     R.coinT -= dt;
     if (R.coinT <= 0) { R.coinT = .55; if (R.coins.length < 30) spawnCoin(R); }
     for (const e of R.ents) if (e.alive) { if (e.human) applyHuman(R, e, dt); else botThink(R, e, dt); }
@@ -1018,6 +1074,12 @@
     });
     R.endInfo = { w: winner, roles: R.ents.map(e => [e.id, e.role]), murderer: R.murderer.name, sheriff: R.sheriffName, hero: R.heroName };
     emit(R, { t: 'end', ...R.endInfo });
+    // the losing bots are salty if a player beat them; winning bots flex
+    const humanWon = R.ents.some(e => e.human && ((winner === 'murderer') === (e.startRole === 'murderer')));
+    const side = e => (winner === 'murderer') === (e.startRole === 'murderer');
+    const losers = botsOf(R).filter(e => !side(e)).sort(() => Math.random() - .5), winners = botsOf(R).filter(side).sort(() => Math.random() - .5);
+    if (humanWon) losers.slice(0, 2 + (Math.random() < .5)).forEach((e, i) => say(R, e, 'lose', .8 + i * 1.1));
+    else winners.slice(0, 2).forEach((e, i) => say(R, e, 'win', .8 + i * 1.1));
   }
   // rewards are computed from results by whoever owns the economy (the server)
   function rewardFor(res) {
@@ -1052,6 +1114,7 @@
   function drain(R) { const e = R.events; R.events = []; return e; }
 
   return {
+    hearChat, SAY, kill,
     RAR, RORDER, ITEMS, ITEM, CRATES, AVATAR, cleanAvatar, randomAvatar, rollItem, rollCrate, MAPS, TILE, BAG_MAX, MAX_PLAYERS, PLAYER_SPEED, DASH_SPEED, DASH_TIME, DASH_CD,
     buildMap, tileAt, moveSolidAt, moveEnt, los,
     createRound, setInput, step, releaseHuman, cheat, serializeRound, restoreRound, snapshotFor, roster, eventsFor, drain, rewardFor, entById,

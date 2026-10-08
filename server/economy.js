@@ -236,26 +236,89 @@ function genTraders() {
 const tradersView = ts => ts.map(t => ({ name: t.name, inv: t.inv, noob: !!t.noob }));
 const val = ids => ids.reduce((s, id) => s + Sim.ITEM[id].val, 0);
 
-// mutates p and trader when accepted; returns {ok, line}
+const traderWorth = (trader, ids) => trader.noob ? ids.reduce((s, id) => s + noobVal(trader, id), 0) : val(ids);
+// items a trader would take: anything with a value (not the default knife/gun)
+const tradable = p => p.inv.filter(i => { const it = Sim.ITEM[i.id]; return it && !it.nodrop && it.val > 0; });
+function swap(p, trader, mine, theirs) {
+  if (p.inv.length - mine.length + theirs.length > MAX_INV) throw new Error(`Inventory full (${MAX_INV} items)`);
+  for (const i of mine) { removeInst(p, i.u); trader.inv.push({ u: trader.nextU++, id: i.id }); }
+  for (const i of theirs) { trader.inv.splice(trader.inv.indexOf(i), 1); addItem(p, i.id); }
+  p.stats.trades++;
+}
+// when a trader says no: the fewest of your items that would make it a yes (none if nothing fits)
+function suggestAdd(p, trader, mine, theirs) {
+  const room = 4 - mine.length; if (room <= 0) return [];
+  const need = traderWorth(trader, theirs.map(i => i.id)) * trader.greed - traderWorth(trader, mine.map(i => i.id));
+  const used = new Set(mine.map(i => i.u)), w = i => traderWorth(trader, [i.id]);
+  const pool = tradable(p).filter(i => !used.has(i.u) && p.equip.knife !== i.u && p.equip.gun !== i.u && p.equip.pet !== i.u).sort((a, b) => w(a) - w(b));
+  const one = pool.find(i => w(i) >= need); if (one) return [one];
+  const out = []; let got = 0;
+  for (let k = pool.length - 1; k >= 0 && out.length < room; k--) { out.push(pool[k]); got += w(pool[k]); if (got >= need) return out; }
+  return [];
+}
+
+// mutates p and trader when accepted; returns {ok, line, got, want}
 function trade(p, trader, mineU, theirsU) {
   if (!Array.isArray(mineU) || !Array.isArray(theirsU) || mineU.length > 4 || theirsU.length > 4) throw new Error('Pick up to 4 items on each side');
   if (new Set(mineU).size !== mineU.length || new Set(theirsU).size !== theirsU.length) throw new Error('Duplicate item in offer');
   const mine = mineU.map(u => { const i = p.inv.find(x => x.u === u); if (!i) throw new Error('You no longer have that item'); return i; });
   const theirs = theirsU.map(u => { const i = trader.inv.find(x => x.u === u); if (!i) throw new Error('Trader no longer has that item'); return i; });
-  const worth = ids => trader.noob ? ids.reduce((s, id) => s + noobVal(trader, id), 0) : val(ids);
-  const mv = worth(mine.map(i => i.id)), tv = worth(theirs.map(i => i.id)), L = trader.noob ? { ...LINES, ...NOOB_LINES } : LINES;
-  let ok = false, line;
+  const mv = traderWorth(trader, mine.map(i => i.id)), tv = traderWorth(trader, theirs.map(i => i.id)), L = trader.noob ? { ...LINES, ...NOOB_LINES } : LINES;
+  let ok = false, line, want = [];
   if (!mine.length) line = pick(L.empty);
   else if (!theirs.length) { ok = true; line = pick(L.gift); }
   else if (mv >= tv * trader.greed) { ok = true; line = pick(L.accept); }
-  else line = pick(L.decline);
-  if (ok) {
-    if (p.inv.length - mine.length + theirs.length > MAX_INV) throw new Error(`Inventory full (${MAX_INV} items)`);
-    for (const i of mine) { removeInst(p, i.u); trader.inv.push({ u: trader.nextU++, id: i.id }); }
-    for (const i of theirs) { trader.inv.splice(trader.inv.indexOf(i), 1); addItem(p, i.id); }
-    p.stats.trades++;
+  else {
+    line = pick(L.decline);
+    want = suggestAdd(p, trader, mine, theirs);
+    if (want.length) line = `add ${want.map(i => Sim.ITEM[i.id].name).join(' + ')} and it's a deal 🤝`;
   }
-  return { ok, line, got: ok ? theirs.map(i => i.id) : [] };
+  if (ok) swap(p, trader, mine, theirs);
+  return { ok, line, got: ok ? theirs.map(i => i.id) : [], want: want.map(i => i.u) };
 }
 
-module.exports = { TROPHIES, checkTrophies, EVENTS, BUNDLES, claimEvent, buyBundle, publicProfile, equippedId, openCrate, redeem, redeemMsg, equip, setAvatar, evolve, EVO_GOAL, applyRoundResult, genTraders, tradersView, trade, noobVal, xpNeed };
+// bots sending you trades: a trader asks for 1-2 of your items and offers some of theirs.
+// Normal traders usually lowball a bit, noobs massively overpay
+const OFFER_LINES = {
+  normal: ['yo wanna trade? 👀', 'fair trade?? 🤝', 'i need that for my collection pls', 'trade me rn 🔥', 'W offer no cap', 'quick trade?'],
+  noob: ['is this fair?? 🥺', 'i think this is a good deal!!', 'my mom said i can trade this', 'pls trade i want that one sooo bad', 'i like the color of urs 🤩'],
+  declined: ['ok ur loss 😒', 'fine 🙄', 'bro really said no 💀', 'ur gonna regret that', 'k'],
+  accepted: ['ty!! 🤝', 'W trade fr', 'pleasure doing business 😎', 'yesss ty ty'],
+};
+function makeOffer(p, traders) {
+  const mineAll = tradable(p).filter(i => p.equip.knife !== i.u && p.equip.gun !== i.u && p.equip.pet !== i.u)
+    .sort((a, b) => Sim.ITEM[b.id].val - Sim.ITEM[a.id].val).slice(0, 40);
+  if (!mineAll.length) return null;
+  for (let tries = 0; tries < 8; tries++) {
+    const ti = Math.floor(Math.random() * traders.length), tr = traders[ti];
+    if (!tr || !tr.inv.length) continue;
+    // they ask for one or two of your items, better ones more often
+    const want = [], n = Math.random() < .35 && mineAll.length > 1 ? 2 : 1;
+    while (want.length < n) {
+      let tot = 0; const ws = mineAll.map(i => want.includes(i) ? 0 : Math.sqrt(Sim.ITEM[i.id].val)); ws.forEach(w => tot += w);
+      let x = Math.random() * tot; const got = mineAll.find((i, k) => (x -= ws[k]) <= 0) || mineAll[0];
+      if (want.includes(got)) break; want.push(got);
+    }
+    const wantVal = val(want.map(i => i.id)), target = wantVal * (tr.noob ? 1.5 + Math.random() * 2.5 : .7 + Math.random() * .5);
+    // the set of up to 3 of their items that gets closest to what they're willing to pay
+    const inv = [...tr.inv].sort((a, b) => Sim.ITEM[b.id].val - Sim.ITEM[a.id].val), give = []; let sum = 0;
+    for (const i of inv) { if (give.length >= 3) break; const v = Sim.ITEM[i.id].val; if (sum + v <= target * 1.15) { give.push(i); sum += v; } }
+    if (!give.length || sum < wantVal * .5) continue;
+    return {
+      id: Math.random().toString(36).slice(2, 10), trader: ti, name: tr.name, noob: !!tr.noob,
+      want: want.map(i => ({ u: i.u, id: i.id })), give: give.map(i => ({ u: i.u, id: i.id })),
+      line: pick(tr.noob ? OFFER_LINES.noob : OFFER_LINES.normal),
+    };
+  }
+  return null;
+}
+// you said yes to a bot's offer: it goes through if both sides still have the items
+function acceptOffer(p, trader, offer) {
+  const mine = offer.want.map(o => { const i = p.inv.find(x => x.u === o.u && x.id === o.id); if (!i) throw new Error('You no longer have that item, the offer expired'); return i; });
+  const theirs = offer.give.map(o => { const i = trader.inv.find(x => x.u === o.u && x.id === o.id); if (!i) throw new Error('That offer expired'); return i; });
+  swap(p, trader, mine, theirs);
+  return { ok: true, line: pick(OFFER_LINES.accepted), got: theirs.map(i => i.id) };
+}
+const declineLine = () => pick(OFFER_LINES.declined);
+
+module.exports = { TROPHIES, checkTrophies, EVENTS, BUNDLES, claimEvent, buyBundle, publicProfile, equippedId, openCrate, redeem, redeemMsg, equip, setAvatar, evolve, EVO_GOAL, applyRoundResult, genTraders, tradersView, trade, noobVal, makeOffer, acceptOffer, declineLine, xpNeed };

@@ -69,7 +69,9 @@ itch then shows an "AI Generated" label on your page. That, plus the 🤖 Made b
 > **Features**
 > - 8 maps, each with its own 3D look: a mansion with gardens, a city office, a bank, a snowy ice castle, and the spooky Haunted Manor with rain and lightning ⛈️
 > - 100+ knives and guns, from Common to Chroma 🌈
-> - Boxes, a shop with daily deals, trading with bot traders, and trophies 🏆
+> - Boxes, a shop with daily deals, and trophies 🏆
+> - Trading with bot traders who send you offers, haggle, and sometimes have no clue what their stuff is worth 🤝
+> - Bots that chat, and get mad when you beat them 😤
 > - 🐾 Pets that follow you around
 > - 🌌 The Void Gun, an Evo weapon you level up into the Void Scope
 > - Jump, bomb jump and juke past danger 💨

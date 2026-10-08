@@ -304,6 +304,7 @@
     <div class="tradegrid">
       <div class="card">
         <h3>Your items</h3>
+        <input id="trSearch" class="trsearch" type="search" placeholder="🔎 Search your items" maxlength="30" autocomplete="off" aria-label="Search your items">
         <div id="trMine" class="grid small"></div>
       </div>
       <div class="card offers">
@@ -319,6 +320,9 @@
         <h3 id="traderName">Trader</h3>
         <div id="trTheirs" class="grid small"></div>
         <button id="refreshTraders" class="btn ghost">🔄 New traders</button>
+        <button id="offerToggle" class="btn ghost" aria-pressed="true">📨 Trade requests: ON</button>
+        <h4 class="trhist">Recent trades</h4>
+        <div id="tradeHist" class="muted small">No trades yet</div>
       </div>
     </div>
   </section>
@@ -358,6 +362,19 @@
     <div id="claimItems"></div>
   </div>
   <button id="claimBtn" type="button">CLAIM</button>
+</div>
+
+<div id="offerPop" class="hide" role="dialog" aria-modal="true" aria-labelledby="offerTitle">
+  <div class="offercard">
+    <div class="offerhead"><span class="offericon" aria-hidden="true">📨</span><div><div id="offerTitle"></div><div id="offerLine" class="muted"></div></div></div>
+    <div class="offercols">
+      <div><h4>You get <span id="ofGetVal" class="muted"></span></h4><div id="ofGet" class="grid small offerbox"></div></div>
+      <div><h4>You give <span id="ofGiveVal" class="muted"></span></h4><div id="ofGive" class="grid small offerbox"></div></div>
+    </div>
+    <div id="ofWfl"></div>
+    <div class="offerbtns"><button id="ofDecline" class="btn ghost2" type="button">✖ Decline</button><button id="ofAccept" class="btn" type="button">✔ Accept</button></div>
+    <div class="offertimer"><div id="ofTimer"></div></div>
+  </div>
 </div>
 
 <div id="toast" class="hide"></div>

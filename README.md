@@ -105,6 +105,23 @@ Below the window are the drop rates for that tab's box. The Pets tab also lists 
 
 Opening a box, redeeming a code that gives a random item, and getting an accepted trade all show a full-screen popup with what you got. The items pop in with their 3D pictures and rarity glow, and you close it with the big **CLAIM** button at the bottom of the screen (or Esc). Trades show everything the trader gave you. A gift trade, where you get nothing back, has no popup.
 
+## Bot chat
+
+Bots talk in the round chat:
+- At the start, a couple say hi.
+- Every 10 to 20 seconds, someone says something ("who is murd??", "im hiding lol").
+- When you take a bot out, it often gets mad at you ("BRO 😡", "hacker!!", "I QUIT 😤😤"). Only you see that line, so it never gives away who the Murderer is.
+- When you win, the losing bots are salty in public ("rematch rn", "i wasnt even trying"). When the bots win, they flex.
+- A murderer bot that gets you sends you a taunt.
+- Bots sometimes answer your chat: "gg", "ez", "hi", "who is murd?", "trade?" and insults all get replies.
+
+## Trading
+
+- **Trade requests:** while you're in the menus, every 40 to 80 seconds a trader may send you a trade. A popup shows what you'd get and give, with values and a W/L meter, plus **Accept** and **Decline** buttons. It auto-declines after 30 seconds. Normal traders usually lowball a bit, and noob traders overpay a lot. Traders never ask for your equipped items or the default weapons. Turn requests off with **📨 Trade requests** in the Trade tab.
+- **Counter-offers:** when a trader says no, they say what to add ("add Retro Blaster and it's a deal 🤝"), and **➕ Add it** puts it in your offer.
+- **Search:** filter your items by name or rarity.
+- **Recent trades:** your last 8 trades, with how much value you won or lost. Saved in this browser.
+
 ## Noob traders
 
 Half the time you open the Trade tab (or hit **🔄 New traders**), one of the three traders is a noob, marked 🤪. Noobs carry good stuff (Legendary, Godly, Ancient, sometimes Chroma) but can't read values. They barely know rarities apart, think more items means more value, and get some items totally wrong. A few Commons can get you a Godly. Normal traders still know real values. The W/L meter always shows real values.

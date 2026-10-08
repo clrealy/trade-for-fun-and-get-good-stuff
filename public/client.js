@@ -261,13 +261,24 @@ function onMsg(m) {
     case 'codeLuck': unboxPending = false; SFX.win(); toast('🍀 Owner luck on: 95% Death items from the Halloween Box 💀', true); if (screen === 'lobby') renderLobby(); break;
     case 'codeCoins': unboxPending = false; SFX.win(); toast(`Code redeemed: +${shortNum(m.coins)} coins 💰`, true); break;
     case 'traders': traders = m.traders; if (screen === 'lobby') renderLobby(); break;
-    case 'tradeResult':
-      traders = m.traders; offMine = []; offTheirs = [];
+    case 'tradeResult': {
+      traders = m.traders;
+      if (m.ok) { offMine = []; offTheirs = []; if (pendingTrade) addHistory(m.trader, pendingTrade.gave, m.got || []); }
+      pendingTrade = null;
       $('#tradeChat').innerHTML = `<span class="muted">${esc(m.trader)}:</span> ${esc(m.line)}`;
+      // counter offer: one tap adds what they asked for
+      if (!m.ok && m.want && m.want.length) {
+        const b = document.createElement('button'); b.className = 'btn small addbtn'; b.textContent = '➕ Add it';
+        b.onclick = () => { for (const u of m.want) { const inst = P.inv.find(i => i.u === u); if (inst && offMine.length < 4 && !offMine.some(o => o.u === u)) offMine.push(inst); } tone(880, .05); renderTrade(); };
+        $('#tradeChat').appendChild(b);
+      }
       m.ok ? SFX.win() : tone(200, .25, 'sawtooth', .04);
       renderLobby();
       if (m.ok && m.got && m.got.length) showClaim(m.got, 'TRADE ACCEPTED!', `${m.trader} gave you:`);
       break;
+    }
+    case 'tradeOffer': openOffer(m.offer); break;
+    case 'offerDeclined': toast(`${m.trader}: ${m.line}`); break;
   }
 }
 
@@ -473,6 +484,7 @@ function embers(x, y, n, colors, speed = 260) {
 function handleEvent(ev) {
   if (!V) return;
   switch (ev.t) {
+    case 'chat': addChat(ev.name, ev.text); break; // bots talking
     case 'start':
       show('#intro', false);
       banner('GO!', '', '#fff'); SFX.go();
@@ -1014,7 +1026,7 @@ $('#chatForm').onsubmit = e => {
   if (V.offline) {
     // practice: cheats run right here
     if (text.startsWith('/')) addChat(null, Sim.cheat(V.R, V.you, text), true);
-    else addChat(P ? P.name : 'You', text);
+    else { addChat(P ? P.name : 'You', text); Sim.hearChat(V.R, V.you, text); }
   } else net({ t: 'chat', text });
 };
 $('#chatInput').addEventListener('keydown', e => { if (e.key === 'Escape') closeChat(); });
@@ -1434,9 +1446,10 @@ function renderTrade() {
   $('#traderTabs').innerHTML = traders.map((t, i) => `<button class="${i === curTrader ? 'active' : ''}" data-i="${i}">${t.noob ? '🤪 ' : ''}${esc(t.name)}</button>`).join('');
   $('#traderTabs').querySelectorAll('button').forEach(b => b.onclick = () => { curTrader = +b.dataset.i; offMine = []; offTheirs = []; $('#tradeChat').textContent = ''; renderTrade(); });
   $('#traderName').textContent = tr.noob ? `${tr.name}'s items 🤪 bad at values, has good stuff` : `${tr.name}'s items`;
-  const mine = sortedInv(), selM = new Set(offMine.map(i => i.u)), selT = new Set(offTheirs.map(i => i.u));
+  const q = $('#trSearch').value.trim().toLowerCase();
+  const mine = sortedInv().filter(i => !q || ITEM[i.id].name.toLowerCase().includes(q) || ITEM[i.id].r.toLowerCase().includes(q)), selM = new Set(offMine.map(i => i.u)), selT = new Set(offTheirs.map(i => i.u));
   const SHOW = 200; // huge inventories (GODLY1000) would make this list crawl, so show the most valuable ones
-  $('#trMine').innerHTML = mine.length ? mine.slice(0, SHOW).map(i => itemCard(ITEM[i.id], { sel: selM.has(i.u), attr: `data-u="${i.u}"` })).join('') + (mine.length > SHOW ? `<div class="muted small">…and ${(mine.length - SHOW).toLocaleString()} more (showing your ${SHOW} best)</div>` : '') : '<div class="muted">Nothing to trade yet</div>';
+  $('#trMine').innerHTML = mine.length ? mine.slice(0, SHOW).map(i => itemCard(ITEM[i.id], { sel: selM.has(i.u), attr: `data-u="${i.u}"` })).join('') + (mine.length > SHOW ? `<div class="muted small">…and ${(mine.length - SHOW).toLocaleString()} more (showing your ${SHOW} best)</div>` : '') : `<div class="muted">${q ? 'No items match' : 'Nothing to trade yet'}</div>`;
   $('#trTheirs').innerHTML = tr.inv.map(i => itemCard(ITEM[i.id], { sel: selT.has(i.u), attr: `data-u="${i.u}"` })).join('');
   $('#offMine').innerHTML = offMine.map(i => itemCard(ITEM[i.id], { attr: `data-u="${i.u}"` })).join('');
   $('#offTheirs').innerHTML = offTheirs.map(i => itemCard(ITEM[i.id], { attr: `data-u="${i.u}"` })).join('');
@@ -1451,8 +1464,68 @@ function renderTrade() {
   if (!mv && !tv) wfl.textContent = '';
   else { const r = tv / Math.max(1, mv); wfl.textContent = r > 1.1 ? 'W 🟢' : r < .9 ? 'L 🔴' : 'FAIR 🟡'; wfl.style.color = r > 1.1 ? '#5bd46a' : r < .9 ? '#ff4d5e' : '#ffc233'; }
   $('#sendTrade').disabled = !offMine.length && !offTheirs.length;
+  renderHistory();
 }
-$('#sendTrade').onclick = () => net({ t: 'trade', trader: curTrader, mine: offMine.map(i => i.u), theirs: offTheirs.map(i => i.u) });
+$('#sendTrade').onclick = () => { pendingTrade = { gave: offMine.map(i => i.id) }; net({ t: 'trade', trader: curTrader, mine: offMine.map(i => i.u), theirs: offTheirs.map(i => i.u) }); };
+$('#trSearch').addEventListener('input', () => renderTrade());
+
+// recent trades (kept in this browser)
+let pendingTrade = null;
+function loadHistory() { try { return JSON.parse(localStorage.getItem('mm_trades')) || []; } catch (e) { return []; } }
+function addHistory(trader, gave, got) {
+  const h = [{ trader, gave, got, at: Date.now() }, ...loadHistory()].slice(0, 8);
+  try { localStorage.setItem('mm_trades', JSON.stringify(h)); } catch (e) { }
+  renderHistory();
+}
+function renderHistory() {
+  const h = loadHistory().filter(x => [...x.gave, ...x.got].every(id => ITEM[id]));
+  const names = ids => ids.length ? ids.map(id => ITEM[id].name).join(', ') : 'nothing';
+  $('#tradeHist').innerHTML = h.length ? h.map(x => {
+    const d = x.got.reduce((s, id) => s + ITEM[id].val, 0) - x.gave.reduce((s, id) => s + ITEM[id].val, 0);
+    return `<div><b>${esc(x.trader)}</b>: gave ${esc(names(x.gave))} → got ${esc(names(x.got))} <span class="${d >= 0 ? 'w' : 'l'}">${d >= 0 ? '+' : ''}${d.toLocaleString()}</span></div>`;
+  }).join('') : 'No trades yet';
+}
+
+// bots send you trade requests while you're in the menus
+let offerOn = (() => { try { return localStorage.getItem('mm_offers') !== 'off'; } catch (e) { return true; } })();
+let curOffer = null, offerT = 0, nextOfferAt = Date.now() + 20000;
+function syncOfferToggle() { const b = $('#offerToggle'); b.textContent = `📨 Trade requests: ${offerOn ? 'ON' : 'OFF'}`; b.setAttribute('aria-pressed', String(offerOn)); }
+$('#offerToggle').onclick = () => { offerOn = !offerOn; try { localStorage.setItem('mm_offers', offerOn ? 'on' : 'off'); } catch (e) { } syncOfferToggle(); tone(700, .05); };
+syncOfferToggle();
+const busy = () => !$('#claim').classList.contains('hide') || !$('#unbox').classList.contains('hide') || !$('#offerPop').classList.contains('hide');
+setInterval(() => {
+  if (!offerOn || !P || V || screen !== 'lobby' || busy() || document.hidden || Date.now() < nextOfferAt) return;
+  nextOfferAt = Date.now() + 40000 + Math.random() * 40000;
+  net({ t: 'offer' });
+}, 1000);
+function openOffer(o) {
+  if (!o || V || busy()) return;
+  curOffer = o;
+  const get = o.give.map(i => ITEM[i.id]), give = o.want.map(i => ITEM[i.id]);
+  const gv = get.reduce((s, it) => s + it.val, 0), wv = give.reduce((s, it) => s + it.val, 0);
+  $('#offerTitle').textContent = `${o.noob ? '🤪 ' : ''}${o.name} wants to trade!`;
+  $('#offerLine').textContent = `"${o.line}"`;
+  $('#ofGet').innerHTML = get.map(it => itemCard(it)).join(''); $('#ofGive').innerHTML = give.map(it => itemCard(it)).join('');
+  $('#ofGetVal').textContent = `(value ${gv.toLocaleString()})`; $('#ofGiveVal').textContent = `(value ${wv.toLocaleString()})`;
+  const r = gv / Math.max(1, wv), w = $('#ofWfl');
+  w.textContent = r > 1.1 ? 'W 🟢' : r < .9 ? 'L 🔴' : 'FAIR 🟡'; w.style.color = r > 1.1 ? '#5bd46a' : r < .9 ? '#ff4d5e' : '#ffc233';
+  show('#offerPop'); hydrateThumbs();
+  tone(660, .08, 'square', .04); tone(990, .12, 'square', .04, 0, .09);
+  const bar = $('#ofTimer'); bar.style.transition = 'none'; bar.style.transform = 'scaleX(1)';
+  requestAnimationFrame(() => requestAnimationFrame(() => { bar.style.transition = 'transform 30s linear'; bar.style.transform = 'scaleX(0)'; }));
+  clearTimeout(offerT); offerT = setTimeout(() => answerOffer(false), 30000);
+  setTimeout(() => $('#ofDecline').focus(), 50); // Enter shouldn't accept an L by accident
+}
+function answerOffer(accept) {
+  if (!curOffer) return;
+  clearTimeout(offerT);
+  if (accept) pendingTrade = { gave: curOffer.want.map(i => i.id) };
+  net({ t: 'offerReply', id: curOffer.id, accept });
+  curOffer = null; show('#offerPop', false);
+}
+$('#ofAccept').onclick = () => answerOffer(true);
+$('#ofDecline').onclick = () => answerOffer(false);
+$('#offerPop').addEventListener('keydown', e => { if (e.key === 'Escape') answerOffer(false); });
 $('#refreshTraders').onclick = () => { $('#tradeChat').textContent = ''; net({ t: 'traders', refresh: true }); };
 
 // 🤫 easter egg: tap the lobby logo 13 times fast to reveal the Raygun code

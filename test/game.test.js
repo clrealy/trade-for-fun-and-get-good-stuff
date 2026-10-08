@@ -204,6 +204,60 @@ test('the Void Scope shoots a void laser with a 1.2 s reload only its owner hear
   assert.ok(e.atkCd > 1 && e.atkCd <= 1.2, `reload ${e.atkCd}`);
 });
 
+test('bots chat, get mad at the player who beat them, and are salty when they lose', () => {
+  const R = Sim.createRound({ mapIdx: 0, players: [{ pid: 'a', name: 'a' }] });
+  const me = R.ents.find(e => e.human), bot = R.ents.find(e => !e.human && e.role === 'innocent');
+  for (let i = 0; i < 90; i++) Sim.step(R, 1 / 30); // intro: bots say hi
+  let ev = Sim.drain(R).filter(e => e.t === 'chat');
+  assert.ok(ev.length >= 1 && ev.every(e => e.bot && Sim.SAY.hi.includes(e.text)), 'hi at the start');
+  R.phase = 'play'; R.chatQ = []; R.chatT = 99;
+  me.role = 'murderer'; R.murderer = me; me.startRole = 'murderer'; me.god = true; // the sheriff bot can't end the round early
+  let mad = 0;
+  for (let k = 0; k < 20 && !mad; k++) {
+    const v = R.ents.find(e => !e.human && e.alive && e.role !== 'sheriff'); if (!v) break;
+    Sim.kill(R, v, me);
+    for (let i = 0; i < 90; i++) Sim.step(R, 1 / 30);
+    mad = Sim.drain(R).filter(e => e.t === 'chat' && e.to === me.id && [...Sim.SAY.mad, ...Sim.SAY.rage].includes(e.text)).length;
+  }
+  assert.ok(mad > 0, 'a bot got mad at me');
+  // the round ends with me winning: the losing bots complain in public
+  R.chatQ = []; for (const e of R.ents) if (e !== me) e.alive = false;
+  for (let i = 0; i < 200; i++) Sim.step(R, 1 / 30);
+  ev = Sim.drain(R).filter(e => e.t === 'chat');
+  assert.ok(ev.some(e => Sim.SAY.lose.includes(e.text) && e.to === undefined), 'salty losers');
+  // bots answer some chat
+  let replies = 0;
+  for (let k = 0; k < 20; k++) { R.chatQ = []; Sim.hearChat(R, me.id, 'gg'); for (let i = 0; i < 100; i++) Sim.step(R, 1 / 30); replies += Sim.drain(R).filter(e => e.t === 'chat' && Sim.SAY.gg.includes(e.text)).length; }
+  assert.ok(replies > 5, 'bots say gg back');
+});
+
+test('declined trades say what to add; bot trade offers can be accepted once', () => {
+  const p = defaultProfile('t');
+  for (const id of ['k1', 'k2', 'k3', 'g1']) p.inv.push({ u: p.nextUid++, id });
+  const godlyId = Sim.ITEMS.find(i => i.r === 'Godly' && !i.exclusive).id, legId = Sim.ITEMS.find(i => i.r === 'Rare' && !i.exclusive && i.type === 'knife').id;
+  p.inv.push({ u: p.nextUid++, id: legId });
+  const rare = p.inv[p.inv.length - 1], tr = { name: 'pro', inv: [{ u: 1, id: Sim.ITEMS.find(i => i.r === 'Rare' && !i.exclusive && i.type === 'gun').id }], greed: 1.2, nextU: 100 };
+  const r = Eco.trade(p, tr, [p.inv.find(i => i.id === 'k1').u], [1]);
+  assert.strictEqual(r.ok, false);
+  assert.ok(r.want.length && r.want.every(u => p.inv.some(i => i.u === u)), 'suggests items I own');
+  const again = Eco.trade(p, tr, [p.inv.find(i => i.id === 'k1').u, ...r.want], [1]);
+  assert.ok(again.ok, 'adding the suggestion makes it a deal');
+  // incoming offers
+  const q = defaultProfile('q'); q.inv.push({ u: q.nextUid++, id: godlyId });
+  let traders, o = null;
+  for (let i = 0; i < 300 && !o; i++) { traders = Eco.genTraders(); o = Eco.makeOffer(q, traders); }
+  assert.ok(o, 'a trader makes an offer');
+  assert.deepStrictEqual(o.want.map(i => i.id), [godlyId]);
+  assert.ok(o.give.length >= 1 && o.give.length <= 3);
+  const draft = structuredClone(traders[o.trader]);
+  const res = Eco.acceptOffer(q, draft, o);
+  assert.ok(res.ok && !q.inv.some(i => i.u === o.want[0].u) && res.got.length === o.give.length);
+  assert.throws(() => Eco.acceptOffer(q, draft, o), /expired|no longer/);
+  // equipped items and default weapons are never asked for
+  const z = defaultProfile('z'); z.inv.push({ u: z.nextUid++, id: godlyId }); Eco.equip(z, z.inv[z.inv.length - 1].u);
+  assert.strictEqual(Eco.makeOffer(z, traders), null);
+});
+
 test('noob traders have good items but trade them for junk', () => {
   let noob;
   for (let i = 0; i < 200 && !noob; i++) noob = Eco.genTraders().find(t => t.noob);
