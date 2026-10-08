@@ -73,6 +73,21 @@ test('codes give their reward once per account', () => {
   assert.throws(() => Eco.redeem(p, '__proto__'), /doesn't exist/);
 });
 
+test('the new codes all work once', () => {
+  const p = defaultProfile('t'), c0 = p.coins;
+  assert.deepStrictEqual(Eco.redeem(p, 'billionaire'), { coins: 1e9 });
+  assert.strictEqual(p.coins, c0 + 1e9);
+  assert.deepStrictEqual(Eco.redeem(p, 'PETZOO').items, ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8', 'p9', 'p10']);
+  assert.deepStrictEqual(Eco.redeem(p, 'voidset').items, ['k30', 'g24']);
+  assert.strictEqual(Eco.redeem(p, 'DRAGONTIME').inst.id, 'p10');
+  assert.strictEqual(Sim.ITEM[Eco.redeem(p, 'CHROMADROP').inst.id].r, 'Chroma');
+  const before = p.inv.length; Eco.redeem(p, 'chroma50');
+  assert.strictEqual(p.inv.length, before + 50);
+  assert.ok(p.inv.slice(-50).every(i => Sim.ITEM[i.id].r === 'Chroma' && Sim.ITEM[i.id].type !== 'pet'));
+  assert.throws(() => Eco.redeem(p, 'BILLIONAIRE'), /already used/);
+  for (const code of Object.keys(require('../server/codes.js'))) for (const id of [].concat(require('../server/codes.js')[code].reward.items || [], require('../server/codes.js')[code].reward.item || [])) assert.ok(Sim.ITEM[id], code + ' gives a real item');
+});
+
 test('no-cooldown knives stay fast, but guns like the Cookie Scope reload', () => {
   const R = Sim.createRound({ players: [{ pid: 'a', name: 'a', gun: 'g14' }, { pid: 'b', name: 'b', gun: 'g1' }], fillBots: false });
   R.phase = 'play';

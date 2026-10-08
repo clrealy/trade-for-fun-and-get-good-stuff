@@ -32,4 +32,20 @@ module.exports = {
   MILLIONAIRE: { reward: { coins: 1000000 }, expires: null },
   FREECASH: { reward: { coins: 500 }, expires: null },
   BIGBAG: { reward: { coins: 1000 }, expires: null },
+  // new batch
+  POCKETMONEY: { reward: { coins: 250 }, expires: null },
+  DOUBLEMIL: { reward: { coins: 2000000 }, expires: null },
+  BILLIONAIRE: { reward: { coins: 1e9 }, expires: null },       // 1,000,000,000 coins
+  RAYSET: { reward: { items: ['g21', 'k28'] }, expires: null },   // Raygun + Ray Blade (same as ZAPZAPBOOM13, easier to type)
+  VOIDSET: { reward: { items: ['k30', 'g24'] }, expires: null },  // Void Knife + Void Gun (evo it into the Void Scope)
+  DEATHSET: { reward: { items: ['k26', 'g20'] }, expires: null }, // Death Knife + Death Gun
+  CDEATHSET: { reward: { items: ['k27', 'g22'] }, expires: null }, // Chroma Death Knife + Chroma Death Gun
+  PETZOO: { reward: { items: ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8', 'p9', 'p10'] }, expires: null }, // every pet
+  PHOENIXFIRE: { reward: { item: 'p8' }, expires: null },         // Phoenix pet
+  VOIDWISP: { reward: { item: 'p9' }, expires: null },            // Void Wisp pet
+  DRAGONTIME: { reward: { item: 'p10' }, expires: null },         // Chroma Dragon pet
+  CHROMADROP: { reward: { rarity: 'Chroma' }, expires: null },    // 1 random Chroma
+  LEGEND500: { reward: { rarity: 'Legendary', count: 500 }, expires: null },
+  ANCIENT100: { reward: { rarity: 'Ancient', count: 100 }, expires: null },
+  CHROMA50: { reward: { rarity: 'Chroma', count: 50 }, expires: null },
 };
