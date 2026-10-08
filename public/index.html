@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Project Murder Mystery</title>
+<meta name="description" content="Find the murderer before they find you. 12-player murder mystery with knives, guns, pets and trading.">
+<meta name="theme-color" content="#14121c">
+<link rel="manifest" href="/manifest.webmanifest" data-online>
+<link rel="icon" href="/icons/icon-192.png" type="image/png" data-online>
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" data-online>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<!-- In-round HUD -->
+<div id="hud" class="hide">
+  <div id="timer">3:00</div>
+  <div id="alive"></div>
+  <div id="feed" aria-live="polite"></div>
+  <div id="msgs"></div>
+  <div id="banner"></div>
+  <div id="roleBadge"></div>
+  <div id="bag">💰 0/40</div>
+  <div id="cools"></div>
+  <div id="hint"></div>
+  <div id="spec" class="hide"></div>
+  <div id="chat">
+    <div id="chatLog"></div>
+    <form id="chatForm" class="hide" novalidate>
+      <input id="chatInput" maxlength="120" autocomplete="off" placeholder="Say something, or /help">
+    </form>
+    <div id="chatHint">Press Enter to chat</div>
+  </div>
+  <div id="mobileBtns">
+    <button id="mbChat" class="mbtn" type="button" aria-label="Chat">💬</button>
+    <button id="mbCrouch" class="mbtn" type="button" aria-label="Crouch">🦆</button>
+    <button id="mbDash" class="mbtn" type="button" aria-label="Juke">💨</button>
+    <button id="mbBomb" class="mbtn" type="button" aria-label="Bomb jump">💣</button>
+    <button id="mbJump" class="mbtn" type="button" aria-label="Jump">⬆️</button>
+    <button id="mbWeapon" class="mbtn" type="button">🔪 Knife</button>
+    <button id="mbThrow" class="mbtn big" type="button">🎯 Throw</button>
+  </div>
+</div>
+
+<div id="intro" class="hide">
+  <div id="introSmall">You are</div>
+  <div id="introRole">INNOCENT</div>
+  <div id="introSub"></div>
+</div>
+
+<div id="endScreen" class="hide">
+  <div id="confetti" aria-hidden="true"></div>
+  <div class="panel">
+    <div id="endTitle"></div>
+    <div id="endRoles"></div>
+    <div id="endRewards"></div>
+    <div id="endNext" class="muted"></div>
+    <button id="endBtn" class="btn big">Back to lobby</button>
+  </div>
+</div>
+
+<!-- Sign in -->
+<div id="authScreen" class="screen hide">
+  <div class="panel authpanel">
+    <div class="logo">PROJECT MURDER <span>MYSTERY</span></div>
+    <div id="authFirebase">
+      <div class="seg">
+        <button id="segLogin" class="active" type="button">Log in</button>
+        <button id="segSignup" type="button">Sign up</button>
+      </div>
+      <form id="authForm" novalidate>
+        <label>Email <input id="authEmail" type="email" autocomplete="email" required></label>
+        <label>Password <input id="authPass" type="password" autocomplete="current-password" minlength="8" required></label>
+        <label id="pass2Row" class="hide">Confirm password <input id="authPass2" type="password" autocomplete="new-password"></label>
+        <button id="authSubmit" class="btn big" type="submit">Log in</button>
+      </form>
+      <button id="forgotBtn" class="linkbtn" type="button">Forgot password?</button>
+    </div>
+    <div id="authDev" class="hide">
+      <p class="warn">Dev server: no passwords and nothing is saved.</p>
+      <form id="devForm" novalidate>
+        <label>Username <input id="devName" maxlength="16" autocomplete="username"></label>
+        <button class="btn big" type="submit">Play</button>
+      </form>
+    </div>
+    <div id="authErr" class="err"></div>
+  </div>
+</div>
+
+<div id="nameScreen" class="screen hide">
+  <div class="panel authpanel">
+    <h2>Pick a username</h2>
+    <p class="muted">3–16 letters, numbers or _. Everyone in the game sees this.</p>
+    <form id="nameForm" novalidate>
+      <label>Username <input id="nameInput" maxlength="16" autocomplete="username"></label>
+      <button class="btn big" type="submit">Save</button>
+    </form>
+    <button id="nameCancel" class="linkbtn hide" type="button">Cancel</button>
+    <div id="nameErr" class="err"></div>
+  </div>
+</div>
+
+<!-- account deletion (Play Store requirement) -->
+<div id="delAcct" class="screen hide">
+  <div class="panel authpanel">
+    <h2>Delete your account?</h2>
+    <p class="muted">This permanently deletes your login, username, coins, items and stats. You can't undo it.</p>
+    <form id="delForm" novalidate>
+      <label>Type your username to confirm <input id="delConfirm" maxlength="16" autocomplete="off"></label>
+      <button class="btn big danger" type="submit">Delete forever</button>
+    </form>
+    <button id="delCancel" class="linkbtn" type="button">Cancel</button>
+    <div id="delErr" class="err"></div>
+  </div>
+</div>
+
+<div id="connecting" class="screen hide"><div class="panel authpanel"><h2 id="connText">Connecting…</h2></div></div>
+
+<!-- Lobby -->
+<div id="lobby" class="hide">
+  <header>
+    <div class="brand"><div class="logo shine">PROJECT MURDER <span>MYSTERY</span></div><span class="aitag" title="This game was made with AI (Claude)">🤖 Made by AI</span></div>
+    <div class="stats">
+      <div class="pill hide" id="acctPill"></div>
+      <div class="pill" id="namePill"></div>
+      <div class="pill" id="coinPill">💰 0</div>
+      <div class="pill" id="lvlPill">Lv 1</div>
+      <div class="xpbar"><div id="xpFill"></div></div>
+      <button id="logoutBtn" class="btn small ghost2">Log out</button>
+    </div>
+  </header>
+  <nav>
+    <button class="tab active" data-tab="play">🎮 Play</button>
+    <button class="tab" data-tab="inv">🎒 Inventory</button>
+    <button class="tab" data-tab="shop">📦 Shop</button>
+    <button class="tab" data-tab="trade">🤝 Trade</button>
+    <button class="tab" data-tab="trophies">🏆 Trophies</button>
+  </nav>
+
+  <section id="tab-play" class="tabpage">
+    <div id="events"></div>
+    <div class="playgrid">
+      <div class="card">
+        <h2>Play online</h2>
+        <button id="quickBtn" class="btn big">QUICK PLAY</button>
+        <div class="row">
+          <button id="privBtn" class="btn ghost">Create private room</button>
+          <button id="duelBtn" class="btn ghost">⚔️ Create 1v1 room</button>
+        </div>
+        <form id="joinForm" class="row" novalidate>
+          <input id="codeInput" placeholder="Room code" maxlength="5" autocomplete="off">
+          <button class="btn" type="submit">Join</button>
+        </form>
+        <div class="chances">
+          <div class="chance murd">🔪 Murderer <b id="mChance">0%</b></div>
+          <div class="chance sher">🔫 Sheriff <b id="sChance">0%</b></div>
+        </div>
+        <p class="muted small">Chance in a full 12-player lobby. It goes up every round you don't get the role.</p>
+        <h3>Practice</h3>
+        <p class="muted small">Solo vs bots on this device. No coins or XP.</p>
+        <div class="row">
+          <select id="mapSel"></select>
+          <button id="practiceBtn" class="btn ghost">Practice</button>
+          <button id="duelPracticeBtn" class="btn ghost">⚔️ 1v1 vs bot</button>
+        </div>
+        <div id="viewRow" class="row">
+          <label for="viewSel" class="inlinelabel">Graphics</label>
+          <select id="viewSel"><option value="ultra">3D Ultra ✨</option><option value="3d">3D</option><option value="2d">2D (faster on old phones)</option></select>
+          <label class="inlinelabel musicsw"><input type="checkbox" id="musicChk"> 🎵 Music</label>
+        </div>
+      </div>
+      <div class="card">
+        <h2>How to play</h2>
+        <ul class="howto">
+          <li><b class="g">Innocent</b>: hide, survive, grab coins. If the Sheriff dies, pick up the gun and become the <b>Hero</b>.</li>
+          <li><b class="b">Sheriff</b>: find and shoot the Murderer. Shoot an innocent and you die too.</li>
+          <li><b class="r">Murderer</b>: kill everyone. Knife out means people can see you, so be sneaky.</li>
+        </ul>
+        <h3>Controls</h3>
+        <ul class="howto small">
+          <li><kbd>WASD</kbd> move · <kbd>Mouse</kbd> aim</li>
+          <li><kbd>Left click</kbd> stab / shoot</li>
+          <li><kbd>Q</kbd> or tap <kbd>Right click</kbd> throw knife</li>
+          <li>3D: hold <kbd>Right mouse</kbd> + drag to turn the camera · <kbd>Scroll</kbd> to zoom</li>
+          <li><kbd>E</kbd> or <kbd>1</kbd> pull out / put away weapon</li>
+          <li><kbd>Shift</kbd> 💨 juke (quick dash) · <kbd>Space</kbd> jump · <kbd>B</kbd> 💣 bomb jump (way up) · hold <kbd>C</kbd> crouch</li>
+          <li>Dead? <kbd>Click</kbd> to switch who you spectate</li>
+          <li>📱 Phone: drag on the left to move, tap anywhere else to aim and attack</li>
+        </ul>
+        <div id="statsBox"></div>
+        <div id="accountBox" class="hide">
+          <h3>Account</h3>
+          <p class="muted small">Deleting your account removes your login, username and all your progress for good.</p>
+          <button id="delAcctBtn" class="btn ghost danger" type="button">🗑️ Delete my account</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="tab-inv" class="tabpage hide">
+    <div class="invwin">
+      <aside class="invside">
+        <div class="invtitle"><div class="invlogo">🎒</div><b>Inventory</b></div>
+        <label class="invsearch"><span aria-hidden="true">🔍</span><input id="invSearch" placeholder="Search" autocomplete="off" aria-label="Search your items"></label>
+        <nav class="invcats" id="invCats" aria-label="Item categories">
+          <button data-cat="all" class="on"><span>🗡️</span>Weapons</button>
+          <button data-cat="knife"><span>🔪</span>Knives</button>
+          <button data-cat="gun"><span>🔫</span>Guns</button>
+          <button data-cat="pet"><span>🐾</span>Pets</button>
+          <button data-cat="fav"><span>⭐</span>Favorites</button>
+          <button data-cat="chroma"><span>🌈</span>Chromas</button>
+          <button data-cat="trophy"><span>🏆</span>Trophy</button>
+        </nav>
+        <div class="invme">
+          <div class="invavatar" id="invAvatar"></div>
+          <div class="invmeinfo"><div><b id="invName"></b> <span class="lvlbadge" id="invLvl"></span></div><div class="invcoins" id="invCoins"></div></div>
+        </div>
+        <button class="rbx-btn purple" id="invShopBtn" type="button">Shop</button>
+      </aside>
+      <div class="invmain"><div class="invgrid" id="invGrid"></div></div>
+      <aside class="invright">
+        <div class="featured" id="featured"></div>
+        <form id="codeForm" class="invcode" novalidate>
+          <input id="redeemInput" placeholder="Enter Code" maxlength="24" autocomplete="off" aria-label="Enter code">
+          <button class="rbx-btn blue" type="submit">Redeem</button>
+        </form>
+      </aside>
+      <button class="invclose" id="invClose" type="button" aria-label="Close inventory">X</button>
+    </div>
+  </section>
+
+  <section id="tab-shop" class="tabpage hide">
+    <div class="shopwin">
+      <div class="shophead">
+        <button class="invclose shopx" id="shopClose" type="button" aria-label="Close shop">X</button>
+        <div class="shoptitle">Shop</div>
+        <div class="shopcoins"><span aria-hidden="true">💰</span><b id="shopCoins">0</b></div>
+      </div>
+      <nav class="shoptabs" id="shopTabs" aria-label="Shop categories">
+        <button type="button" data-st="weapons" class="st red on"><span class="sti">🗡️</span>Weapons</button>
+        <button type="button" data-st="halloween" class="st orange"><span class="sti">🎃</span>Halloween</button>
+        <button type="button" data-st="pets" class="st pink"><span class="sti">🐾</span>Pets</button>
+        <button type="button" data-st="bundles" class="st green"><span class="sti">📦</span>Bundles</button>
+      </nav>
+      <div class="shopbody">
+        <aside class="latest" id="latest"></aside>
+        <div class="shopmain">
+          <div class="offer" id="offer"></div>
+          <div class="hot">
+            <div class="hothead"><span aria-hidden="true">🔥</span> Hot Items</div>
+            <div class="hotgrid" id="crates"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card shoprates" id="ratesCard"><h3 id="ratesTitle">Drop rates</h3><div id="rates"></div><div id="canDrop" class="candrop"></div></div>
+  </section>
+
+  <section id="tab-trophies" class="tabpage hide">
+    <div class="card">
+      <h2>🏆 Trophies <span class="muted" id="trophyCount"></span></h2>
+      <p class="muted small">Grind to unlock them. Each one gives an exclusive knife or gun you can't get anywhere else, plus coins.</p>
+      <div id="trophyGrid" class="trophygrid"></div>
+    </div>
+    <div class="card hide" id="boardCard">
+      <h2>🏅 Leaderboard</h2>
+      <p class="muted small">Everyone playing this game with an account, ranked by kills.</p>
+      <div id="board" class="board"></div>
+    </div>
+  </section>
+
+  <section id="tab-trade" class="tabpage hide">
+    <div id="traderTabs"></div>
+    <div class="tradegrid">
+      <div class="card">
+        <h3>Your items</h3>
+        <div id="trMine" class="grid small"></div>
+      </div>
+      <div class="card offers">
+        <h3>Your offer <span class="muted" id="myVal"></span></h3>
+        <div id="offMine" class="grid small offerbox"></div>
+        <div id="wfl"></div>
+        <h3>Their offer <span class="muted" id="theirVal"></span></h3>
+        <div id="offTheirs" class="grid small offerbox"></div>
+        <button id="sendTrade" class="btn">Send trade</button>
+        <div id="tradeChat"></div>
+      </div>
+      <div class="card">
+        <h3 id="traderName">Trader</h3>
+        <div id="trTheirs" class="grid small"></div>
+        <button id="refreshTraders" class="btn ghost">🔄 New traders</button>
+      </div>
+    </div>
+  </section>
+  <footer class="lobbyfoot">
+    <a href="https://clothesbutmid.store" target="_blank" rel="noopener noreferrer">clothesbutmid.store</a>
+    <a href="/privacy" target="_blank" rel="noopener" data-online>Privacy</a>
+    <span class="aitag">🤖 Made by AI</span>
+  </footer>
+</div>
+
+<!-- Waiting room -->
+<div id="roomScreen" class="screen hide">
+  <div class="panel">
+    <h2 id="roomTitle">Public match</h2>
+    <div id="roomCode" class="hide"></div>
+    <div id="roomTimer"></div>
+    <div id="roomPlayers"></div>
+    <p class="muted small">Bots fill the empty spots up to 12 players.</p>
+    <button id="leaveRoomBtn" class="btn ghost">Leave</button>
+  </div>
+</div>
+
+<div id="unbox" class="hide">
+  <div class="panel">
+    <div class="reelwrap"><div id="reel"></div><div class="marker"></div></div>
+    <div id="unboxRes"></div>
+    <button id="unboxBtn" class="btn hide">Nice</button>
+  </div>
+</div>
+
+<!-- "You got" popup after a box or a trade, with a Claim button at the bottom of the screen -->
+<div id="claim" class="hide" role="dialog" aria-modal="true" aria-labelledby="claimTitle">
+  <div class="claimrays" aria-hidden="true"></div>
+  <div class="claimbody">
+    <div id="claimTitle">YOU GOT!</div>
+    <div id="claimSub" class="muted"></div>
+    <div id="claimItems"></div>
+  </div>
+  <button id="claimBtn" type="button">CLAIM</button>
+</div>
+
+<div id="toast" class="hide"></div>
+
+<script src="/vendor/three.min.js"></script>
+<script src="/shared/sim.js"></script>
+<script src="render3d.js"></script>
+<script src="client.js"></script>
+</body>
+</html>
