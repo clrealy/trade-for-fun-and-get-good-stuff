@@ -209,16 +209,31 @@ const LINES = {
   empty: ['u gotta offer something lol'],
 };
 const pick = a => a[Math.floor(Math.random() * a.length)];
+// noob traders: great items, no clue what anything is worth. Half the time one of the three traders is a noob
+const NOOB_NAMES = ['xX_n00b_Xx', 'iDontKnowValues', 'BaconHair2016', 'freeGodlyPls', 'firstDayHere'];
+const NOOB_LOOT = { Legendary: 30, Godly: 50, Ancient: 15, Chroma: 5 };
+const NOOB_LINES = {
+  accept: ['omg more items = more value 🤑 deal!!', 'yesss shiny 🤩', 'ur so nice ty ty', 'W for me fr 😎', 'wait is this good? accepted lol'],
+  decline: ['hmm that one looks kinda mid 🤔', 'add one more pls 🥺', 'my friend said dont take that one', 'idk the colors look worse'],
+};
+// what a noob thinks an item is worth: barely knows rarities, and gets some items totally wrong
+function noobVal(trader, id) {
+  const it = Sim.ITEM[id]; let h = trader.seed;
+  for (const ch of id) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0;
+  return (6 + Sim.RORDER.indexOf(it.r) * 2) * (.7 + (h % 1000) / 1000 * .8);
+}
 function genTraders() {
   const names = [...TRADER_NAMES].sort(() => Math.random() - .5).slice(0, 3);
+  const noobAt = Math.random() < .5 ? Math.floor(Math.random() * 3) : -1;
   let n = 1;
-  return names.map(name => {
-    const inv = []; const k = 5 + Math.floor(Math.random() * 4);
-    for (let i = 0; i < k; i++) inv.push({ u: n++, id: Sim.rollItem(Sim.CRATES.find(c => c.id === 'mystery').w).id });
+  return names.map((name, i) => {
+    const noob = i === noobAt, inv = []; const k = noob ? 4 + Math.floor(Math.random() * 3) : 5 + Math.floor(Math.random() * 4);
+    for (let j = 0; j < k; j++) inv.push({ u: n++, id: Sim.rollItem(noob ? NOOB_LOOT : Sim.CRATES.find(c => c.id === 'mystery').w).id });
+    if (noob) return { name: pick(NOOB_NAMES), inv, greed: 1, nextU: 1000, noob: true, seed: Math.random() * 2 ** 31 >>> 0 };
     return { name, inv, greed: 1 + Math.random() * .25, nextU: 1000 };
   });
 }
-const tradersView = ts => ts.map(t => ({ name: t.name, inv: t.inv }));
+const tradersView = ts => ts.map(t => ({ name: t.name, inv: t.inv, noob: !!t.noob }));
 const val = ids => ids.reduce((s, id) => s + Sim.ITEM[id].val, 0);
 
 // mutates p and trader when accepted; returns {ok, line}
@@ -227,12 +242,13 @@ function trade(p, trader, mineU, theirsU) {
   if (new Set(mineU).size !== mineU.length || new Set(theirsU).size !== theirsU.length) throw new Error('Duplicate item in offer');
   const mine = mineU.map(u => { const i = p.inv.find(x => x.u === u); if (!i) throw new Error('You no longer have that item'); return i; });
   const theirs = theirsU.map(u => { const i = trader.inv.find(x => x.u === u); if (!i) throw new Error('Trader no longer has that item'); return i; });
-  const mv = val(mine.map(i => i.id)), tv = val(theirs.map(i => i.id));
+  const worth = ids => trader.noob ? ids.reduce((s, id) => s + noobVal(trader, id), 0) : val(ids);
+  const mv = worth(mine.map(i => i.id)), tv = worth(theirs.map(i => i.id)), L = trader.noob ? { ...LINES, ...NOOB_LINES } : LINES;
   let ok = false, line;
-  if (!mine.length) line = pick(LINES.empty);
-  else if (!theirs.length) { ok = true; line = pick(LINES.gift); }
-  else if (mv >= tv * trader.greed) { ok = true; line = pick(LINES.accept); }
-  else line = pick(LINES.decline);
+  if (!mine.length) line = pick(L.empty);
+  else if (!theirs.length) { ok = true; line = pick(L.gift); }
+  else if (mv >= tv * trader.greed) { ok = true; line = pick(L.accept); }
+  else line = pick(L.decline);
   if (ok) {
     if (p.inv.length - mine.length + theirs.length > MAX_INV) throw new Error(`Inventory full (${MAX_INV} items)`);
     for (const i of mine) { removeInst(p, i.u); trader.inv.push({ u: trader.nextU++, id: i.id }); }
@@ -242,4 +258,4 @@ function trade(p, trader, mineU, theirsU) {
   return { ok, line, got: ok ? theirs.map(i => i.id) : [] };
 }
 
-module.exports = { TROPHIES, checkTrophies, EVENTS, BUNDLES, claimEvent, buyBundle, publicProfile, equippedId, openCrate, redeem, redeemMsg, equip, setAvatar, evolve, EVO_GOAL, applyRoundResult, genTraders, tradersView, trade, xpNeed };
+module.exports = { TROPHIES, checkTrophies, EVENTS, BUNDLES, claimEvent, buyBundle, publicProfile, equippedId, openCrate, redeem, redeemMsg, equip, setAvatar, evolve, EVO_GOAL, applyRoundResult, genTraders, tradersView, trade, noobVal, xpNeed };

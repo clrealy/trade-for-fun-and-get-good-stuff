@@ -204,6 +204,26 @@ test('the Void Scope shoots a void laser with a 1.2 s reload only its owner hear
   assert.ok(e.atkCd > 1 && e.atkCd <= 1.2, `reload ${e.atkCd}`);
 });
 
+test('noob traders have good items but trade them for junk', () => {
+  let noob;
+  for (let i = 0; i < 200 && !noob; i++) noob = Eco.genTraders().find(t => t.noob);
+  assert.ok(noob, 'a noob shows up');
+  assert.ok(Eco.tradersView([noob])[0].noob);
+  assert.ok(noob.inv.every(i => ['Legendary', 'Godly', 'Ancient', 'Chroma'].includes(Sim.ITEM[i.id].r) && Sim.ITEM[i.id].type !== 'pet'));
+  // the right four commons beat any single item in a noob's eyes, even though they're worth way less
+  const p = defaultProfile('t'), commons = Sim.ITEMS.filter(i => i.r === 'Common' && !i.nodrop && !i.exclusive && i.type !== 'pet')
+    .sort((a, b) => Eco.noobVal(noob, b.id) - Eco.noobVal(noob, a.id)).slice(0, 4);
+  for (const c of commons) p.inv.push({ u: p.nextUid++, id: c.id });
+  const best = noob.inv.reduce((a, b) => Sim.ITEM[b.id].val > Sim.ITEM[a.id].val ? b : a);
+  const r = Eco.trade(p, noob, p.inv.slice(-4).map(i => i.u), [best.u]);
+  assert.ok(r.ok, r.line); assert.deepStrictEqual(r.got, [best.id]);
+  assert.ok(Sim.ITEM[best.id].val > commons.reduce((s, c) => s + c.val, 0));
+  // normal traders still know values
+  const pro = { name: 'pro', inv: [{ u: 1, id: best.id }], greed: 1, nextU: 100 };
+  const q = defaultProfile('q'); q.inv.push({ u: q.nextUid++, id: commons[0].id });
+  assert.strictEqual(Eco.trade(q, pro, [q.inv[q.inv.length - 1].u], [1]).ok, false);
+});
+
 test('normal guns play a reload sound only the shooter hears; no-cooldown guns do not', () => {
   for (const [gun, want] of [['g0', true], ['g21', false]]) {
     const R = Sim.createRound({ mapIdx: 0, players: [{ pid: 'a', name: 'a', gun }, { pid: 'b', name: 'b' }], fillBots: false });

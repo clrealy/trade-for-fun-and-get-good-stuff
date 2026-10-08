@@ -1431,9 +1431,9 @@ function renderTrade() {
   const tr = traders[curTrader];
   // drop anything from the offer that no longer exists
   offMine = offMine.filter(o => P.inv.some(i => i.u === o.u)); offTheirs = offTheirs.filter(o => tr.inv.some(i => i.u === o.u));
-  $('#traderTabs').innerHTML = traders.map((t, i) => `<button class="${i === curTrader ? 'active' : ''}" data-i="${i}">${esc(t.name)}</button>`).join('');
+  $('#traderTabs').innerHTML = traders.map((t, i) => `<button class="${i === curTrader ? 'active' : ''}" data-i="${i}">${t.noob ? '🤪 ' : ''}${esc(t.name)}</button>`).join('');
   $('#traderTabs').querySelectorAll('button').forEach(b => b.onclick = () => { curTrader = +b.dataset.i; offMine = []; offTheirs = []; $('#tradeChat').textContent = ''; renderTrade(); });
-  $('#traderName').textContent = `${tr.name}'s items`;
+  $('#traderName').textContent = tr.noob ? `${tr.name}'s items 🤪 bad at values, has good stuff` : `${tr.name}'s items`;
   const mine = sortedInv(), selM = new Set(offMine.map(i => i.u)), selT = new Set(offTheirs.map(i => i.u));
   const SHOW = 200; // huge inventories (GODLY1000) would make this list crawl, so show the most valuable ones
   $('#trMine').innerHTML = mine.length ? mine.slice(0, SHOW).map(i => itemCard(ITEM[i.id], { sel: selM.has(i.u), attr: `data-u="${i.u}"` })).join('') + (mine.length > SHOW ? `<div class="muted small">…and ${(mine.length - SHOW).toLocaleString()} more (showing your ${SHOW} best)</div>` : '') : '<div class="muted">Nothing to trade yet</div>';

@@ -105,6 +105,10 @@ Below the window are the drop rates for that tab's box. The Pets tab also lists 
 
 Opening a box, redeeming a code that gives a random item, and getting an accepted trade all show a full-screen popup with what you got. The items pop in with their 3D pictures and rarity glow, and you close it with the big **CLAIM** button at the bottom of the screen (or Esc). Trades show everything the trader gave you. A gift trade, where you get nothing back, has no popup.
 
+## Noob traders
+
+Half the time you open the Trade tab (or hit **🔄 New traders**), one of the three traders is a noob, marked 🤪. Noobs carry good stuff (Legendary, Godly, Ancient, sometimes Chroma) but can't read values. They barely know rarities apart, think more items means more value, and get some items totally wrong. A few Commons can get you a Godly. Normal traders still know real values. The W/L meter always shows real values.
+
 ## Pets
 
 The **🐾 Pet Box** in the Shop (120 coins) gives a pet that follows you around in every round, trotting behind you or flying next to you. There are 10 pets: Doggo and Kitty (Common), Bunny and Slime (Uncommon), Bat and Pumpkin (Rare), Ghosty (Legendary), Phoenix (Godly), Void Wisp (Ancient) and Chroma Dragon (Chroma). Equip one under **Inventory → Pets**, and tap it again to put it away. Pets only come from the Pet Box, never from knife or gun boxes or rarity codes, and some bots bring their own.
