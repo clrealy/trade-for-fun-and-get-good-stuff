@@ -109,7 +109,7 @@ Opening a box, redeeming a code that gives a random item, and getting an accepte
 
 In the solo game (the claude.ai page and itch.io), **Play → 👥 Accounts → ➕ New account** starts a fresh alt from nothing: no items, starter coins, level 1. Your main is saved, and **Play** next to any account switches to it, so you can grind an alt from zero up to a Cookie Scope and go back to your main any time.
 - You can have up to 5 alts, and you can delete an alt (not your main).
-- The game remembers which account you played last.
+- The game always opens on your main. An alt only loads when you pick it.
 - When you're signed in to claude.ai, alts save to your account like your main does.
 - Only your main shows on the leaderboard.
 

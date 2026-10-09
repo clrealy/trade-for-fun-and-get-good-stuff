@@ -92,12 +92,9 @@
     let idx = null;
     try { const sn = await db.doc('data/users/' + me.id + '/slots').get(); if (sn.exists) idx = sn.data(); } catch (e) { }
     idx = idx && Array.isArray(idx.list) && idx.list.some(x => x.id === 'main') ? idx : loadSlots();
-    slots = idx ? idx.list : [{ id: 'main', name: (saved || guest).name, level: (saved || guest).level, coins: (saved || guest).coins }]; slot = 'main';
-    if (idx && idx.cur && idx.cur !== 'main' && slots.some(x => x.id === idx.cur)) {
-      try { const a = await cloudRef(idx.cur).get(); if (a.exists) { slot = idx.cur; P = withDefaults(a.data(), 'You'); } } catch (e) { }
-    }
-    if (slot !== 'main') { /* playing an alt: keep it */ }
-    else if (saved) P = saved;
+    slots = idx ? idx.list : [{ id: 'main', name: (saved || guest).name, level: (saved || guest).level, coins: (saved || guest).coins }];
+    slot = 'main'; // always open on the main: an alt only loads when you pick it
+    if (saved) P = saved;
     else {
       // first time on this account: bring the guest progress along
       P = loadLocal() || guest;
@@ -130,7 +127,7 @@
     start(cb) {
       emit = m => setTimeout(() => cb(m), 0);
       const idx = loadSlots();
-      if (idx) { slots = idx.list; slot = slots.some(x => x.id === idx.cur) ? idx.cur : 'main'; }
+      if (idx) slots = idx.list; // always open on the main: an alt only loads when you pick it
       P = loadLocal() || Store.defaultProfile('You');
       Eco.checkTrophies(P); saveLocal(); traders = Eco.genTraders(); // unlock anything already earned
       const txt = document.querySelector('#tab-play h3 + p'); if (txt) txt.textContent = 'Solo vs bots. You keep your coins and XP.';
